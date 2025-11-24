@@ -28,41 +28,38 @@ class SupabaseStorageService {
         const random = Math.random().toString(36).substring(2, 15);
         fileName = `${userId}/${timestamp}_${random}.jpg`;
       } else {
-        // Biztosítsd, hogy a userId mappában legyen
-        fileName = `${userId}/${fileName}`;
+        // Ha van megadva fájlnév, adj hozzá timestamp-et, hogy egyedi legyen
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 9);
+        const fileExtension = fileName.split('.').pop() || 'jpg';
+        const baseName = fileName.replace(`.${fileExtension}`, '');
+        fileName = `${userId}/${baseName}_${timestamp}_${random}.${fileExtension}`;
       }
 
-      // React Native FormData használata
-      const formData = new FormData();
-      
-      // Fájl neve a FormData-ban
+      // Fájl típus meghatározása
       const fileExtension = localUri.split('.').pop() || 'jpg';
       const fileType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
-      
-      formData.append('file', {
-        uri: localUri,
-        type: fileType,
-        name: fileName.split('/').pop(), // Csak a fájlnév, mappa nélkül
-      } as any);
 
-      // Feltöltés Supabase Storage-ba
-      // Megjegyzés: Supabase Storage API közvetlenül nem támogatja a FormData-t
-      // Ezért fetch-et használunk a Supabase Storage REST API-jával
+      // Ellenőrizd, hogy be van-e jelentkezve
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         return { success: false, error: 'Not authenticated' };
       }
 
-      // Olvasd be a fájlt blob-ként
-      const response = await fetch(localUri);
-      const blob = await response.blob();
+      // React Native-ben közvetlenül a fájl URI-t használjuk
+      // A Supabase Storage React Native-ben támogatja a fájl URI-kat
+      const file = {
+        uri: localUri,
+        type: fileType,
+        name: fileName.split('/').pop(),
+      };
 
       // Feltöltés Supabase Storage-ba
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(fileName, blob, {
+        .upload(fileName, file, {
           contentType: fileType,
-          upsert: false, // Ne írja felül, ha már létezik
+          upsert: true, // Írja felül, ha már létezik (egyedi név miatt nem kellene előfordulnia)
         });
 
       if (error) {
@@ -75,9 +72,34 @@ class SupabaseStorageService {
         .from(bucket)
         .getPublicUrl(fileName);
 
+      let publicUrl = urlData?.publicUrl;
+      
+      if (!publicUrl) {
+        console.error('Failed to get public URL');
+        return { success: false, error: 'Failed to get public URL' };
+      }
+
+      // React Native Image komponens kompatibilitás: biztosítsd, hogy a URL helyes formátumú
+      // Ha a URL-ben vannak szóközök vagy speciális karakterek, kódold őket
+      publicUrl = publicUrl.trim();
+      
+      // Ellenőrizd, hogy a URL érvényes-e
+      try {
+        new URL(publicUrl);
+      } catch (e) {
+        console.error('Invalid URL format:', publicUrl);
+        return { success: false, error: 'Invalid URL format' };
+      }
+
+      console.log('Upload successful:', {
+        bucket,
+        fileName,
+        publicUrl,
+      });
+
       return {
         success: true,
-        url: urlData.publicUrl,
+        url: publicUrl,
         path: fileName,
       };
     } catch (error) {
@@ -127,16 +149,19 @@ class SupabaseStorageService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      // Olvasd be a videót blob-ként
-      const response = await fetch(localUri);
-      const blob = await response.blob();
-
       const filePath = `${userId}/${fileName}`;
+
+      // React Native-ben közvetlenül a fájl URI-t használjuk
+      const file = {
+        uri: localUri,
+        type: 'video/mp4',
+        name: fileName,
+      };
 
       // Feltöltés
       const { data, error } = await supabase.storage
         .from(this.BUCKETS.VIDEOS)
-        .upload(filePath, blob, {
+        .upload(filePath, file, {
           contentType: 'video/mp4',
           upsert: false,
         });

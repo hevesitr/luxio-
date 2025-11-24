@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   Alert,
   Switch,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -135,15 +135,16 @@ const ProfileScreen = ({ navigation }) => {
       );
 
       if (uploadResult.success) {
+        console.log('Upload successful, URL:', uploadResult.url);
         const newPhotoObj = { 
           url: uploadResult.url, 
           isPrivate: false,
           path: uploadResult.path 
         };
-        setUserProfile({
-          ...userProfile,
-          photos: [...userProfile.photos, newPhotoObj],
-        });
+        setUserProfile(prev => ({
+          ...prev,
+          photos: [...prev.photos, newPhotoObj],
+        }));
         Alert.alert('✅ Siker', 'Fotó sikeresen feltöltve!');
       } else {
         Alert.alert('Hiba', `Feltöltés sikertelen: ${uploadResult.error}`);
@@ -230,7 +231,12 @@ const ProfileScreen = ({ navigation }) => {
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
       <View style={styles.header}>
-        <Image source={{ uri: userProfile.photo }} style={styles.mainPhoto} />
+        <Image 
+          source={{ uri: userProfile.photo }} 
+          style={styles.mainPhoto}
+          contentFit="cover"
+          transition={200}
+        />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.gradient}
@@ -293,9 +299,28 @@ const ProfileScreen = ({ navigation }) => {
           {userProfile.photos.map((photoObj, index) => {
             const photo = typeof photoObj === 'string' ? photoObj : photoObj.url;
             const isPrivate = typeof photoObj === 'object' ? photoObj.isPrivate : false;
+            // Egyedi key generálása a kép URL alapján, hogy újrarenderelődjön változáskor
+            const photoKey = photo || `photo-${index}`;
             return (
-              <View key={index} style={styles.photoContainer}>
-                <Image source={{ uri: photo }} style={styles.photo} />
+              <View key={`${photoKey}-${index}`} style={styles.photoContainer}>
+                {photo ? (
+                  <Image 
+                    source={{ uri: photo }} 
+                    style={styles.photo}
+                    contentFit="cover"
+                    transition={200}
+                    onError={(error) => {
+                      console.error('Image load error:', error, 'URL:', photo);
+                    }}
+                    onLoad={() => {
+                      console.log('Image loaded successfully:', photo);
+                    }}
+                  />
+                ) : (
+                  <View style={[styles.photo, { backgroundColor: theme.colors.border, justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="image-outline" size={40} color={theme.colors.textSecondary} />
+                  </View>
+                )}
                 {isPrivate && (
                   <View style={styles.privateBadge}>
                     <Ionicons name="lock-closed" size={14} color={theme.colors.text} />
