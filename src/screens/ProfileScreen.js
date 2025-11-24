@@ -16,6 +16,7 @@ import EditProfileModal from '../components/EditProfileModal';
 import ProfileCompletionService from '../services/ProfileCompletionService';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import SupabaseStorageService from '../services/SupabaseStorageService';
 
 const calculateAge = (dateInput) => {
   if (!dateInput) {
@@ -101,6 +102,12 @@ const ProfileScreen = ({ navigation }) => {
       return;
     }
 
+    // Ellenőrizd, hogy be van-e jelentkezve
+    if (!profile?.id) {
+      Alert.alert('Hiba', 'Kérlek jelentkezz be először!');
+      return;
+    }
+
     // Válassz képet
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -110,7 +117,7 @@ const ProfileScreen = ({ navigation }) => {
     });
 
     if (!result.canceled && result.assets && result.assets[0]) {
-      const newPhoto = result.assets[0].uri;
+      const localUri = result.assets[0].uri;
       
       // Maximum 6 fotó
       if (userProfile.photos.length >= 6) {
@@ -118,16 +125,33 @@ const ProfileScreen = ({ navigation }) => {
         return;
       }
 
-      const newPhotoObj = { url: newPhoto, isPrivate: false };
-      setUserProfile({
-        ...userProfile,
-        photos: [...userProfile.photos, newPhotoObj],
-      });
-      Alert.alert('✅ Siker', 'Fotó hozzáadva!');
+      // Feltöltés Supabase Storage-ba
+      Alert.alert('Feltöltés...', 'Kérlek várj, amíg a fotó feltöltődik...');
+      
+      const uploadResult = await SupabaseStorageService.uploadPhoto(
+        localUri,
+        profile.id,
+        userProfile.photos.length
+      );
+
+      if (uploadResult.success) {
+        const newPhotoObj = { 
+          url: uploadResult.url, 
+          isPrivate: false,
+          path: uploadResult.path 
+        };
+        setUserProfile({
+          ...userProfile,
+          photos: [...userProfile.photos, newPhotoObj],
+        });
+        Alert.alert('✅ Siker', 'Fotó sikeresen feltöltve!');
+      } else {
+        Alert.alert('Hiba', `Feltöltés sikertelen: ${uploadResult.error}`);
+      }
     }
   };
 
-  const removePhoto = (index) => {
+  const removePhoto = async (index) => {
     Alert.alert(
       'Fotó törlése',
       'Biztosan törölni szeretnéd ezt a fotót?',
@@ -136,7 +160,22 @@ const ProfileScreen = ({ navigation }) => {
         {
           text: 'Törlés',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            const photoToRemove = userProfile.photos[index];
+            
+            // Ha van path (Supabase Storage-ból van), töröld onnan is
+            if (photoToRemove?.path && profile?.id) {
+              const deleteResult = await SupabaseStorageService.deleteFile(
+                SupabaseStorageService.BUCKETS.PHOTOS,
+                photoToRemove.path
+              );
+              
+              if (!deleteResult.success) {
+                console.warn('Failed to delete from storage:', deleteResult.error);
+                // Folytatjuk a törlést lokálisan is, ha a Storage törlés sikertelen volt
+              }
+            }
+            
             const newPhotos = userProfile.photos.filter((_, i) => i !== index);
             setUserProfile({ ...userProfile, photos: newPhotos });
             Alert.alert('✅ Törölve', 'Fotó eltávolítva!');

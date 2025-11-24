@@ -29,12 +29,74 @@ Kövesd az alábbi lépéseket, hogy költségmentes (Free tier) Supabase backen
    - `Redirect URLs`: add hozzá a `SUPABASE_REDIRECT_URL` értékét (pl. `https://hevesitr.github.io/luxio-/auth-callback`).
 2. Kapcsold be az email megerősítést, ha szeretnél double-opt-in regisztrációt.
 
-## 5. Storage (opcionális)
+## 5. Storage beállítása (opcionális, de ajánlott)
 
-Ha szeretnél profilképeket/videókat tárolni:
+Ha szeretnél profilképeket/videókat tárolni Supabase Storage-ban:
 
-1. **Storage → Create bucket** (pl. `avatars`), hagyd “public” módon.
-2. A jövőben a React Native klienst a bucket URL-jével frissítheted (nem része ennek a commitnak).
+### 5.1. Bucket-ek létrehozása
+
+1. A Supabase Dashboard bal oldali menüjében kattints a **"Storage"** opcióra
+2. Kattints a **"Create bucket"** gombra
+3. Hozd létre a következő bucket-eket (mindegyiket külön-külön):
+
+   **a) Avatars bucket:**
+   - **Name**: `avatars`
+   - **Public bucket**: ✅ **BE** (kapcsold be!)
+   - **File size limit**: `5 MB` (vagy hagyd az alapértelmezettet)
+   - **Allowed MIME types**: `image/jpeg, image/png, image/webp`
+   - Kattints a **"Create bucket"** gombra
+
+   **b) Photos bucket:**
+   - **Name**: `photos`
+   - **Public bucket**: ✅ **BE** (kapcsold be!)
+   - **File size limit**: `10 MB` (vagy hagyd az alapértelmezettet)
+   - **Allowed MIME types**: `image/jpeg, image/png, image/webp`
+   - Kattints a **"Create bucket"** gombra
+
+   **c) Videos bucket (opcionális):**
+   - **Name**: `videos`
+   - **Public bucket**: ✅ **BE** (kapcsold be!)
+   - **File size limit**: `50 MB` (vagy hagyd az alapértelmezettet)
+   - **Allowed MIME types**: `video/mp4, video/quicktime`
+   - Kattints a **"Create bucket"** gombra
+
+### 5.2. Storage Policy-k beállítása
+
+1. Minden bucket esetében kattints a bucket nevére
+2. Kattints a **"Policies"** fülre
+3. Kattints a **"New Policy"** gombra
+4. Válaszd a **"For full customization"** opciót
+5. Másold be az alábbi SQL-t (cseréld le a `bucket_name`-t a megfelelő bucket nevére):
+
+```sql
+-- Olvasás: Mindenki láthatja a publikus fájlokat
+CREATE POLICY "Public Access"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'bucket_name' );
+
+-- Feltöltés: Csak bejelentkezett felhasználók tölthetnek fel
+CREATE POLICY "Authenticated users can upload"
+ON storage.objects FOR INSERT
+WITH CHECK ( bucket_id = 'bucket_name' AND auth.role() = 'authenticated' );
+
+-- Törlés: Csak a saját fájljaikat törölhetik
+CREATE POLICY "Users can delete own files"
+ON storage.objects FOR DELETE
+USING ( bucket_id = 'bucket_name' AND auth.uid()::text = (storage.foldername(name))[1] );
+```
+
+6. Cseréld le a `bucket_name`-t a megfelelő bucket nevére (`avatars`, `photos`, `videos`)
+7. Kattints a **"Review"** majd a **"Save policy"** gombra
+8. Ismételd meg minden bucket esetében
+
+### 5.3. Tesztelés
+
+1. Nyisd meg az alkalmazást
+2. Menj a **Profil** fülre
+3. Kattints a **"Fotó hozzáadása"** gombra
+4. Válassz egy képet
+5. A képnek feltöltődnie kell a Supabase Storage-ba
+6. A Supabase Dashboard → **Storage** menüben ellenőrizd, hogy megjelent-e a fájl
 
 ## 6. Ellenőrzés
 
