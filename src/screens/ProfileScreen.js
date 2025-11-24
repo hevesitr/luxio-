@@ -15,9 +15,28 @@ import * as ImagePicker from 'expo-image-picker';
 import EditProfileModal from '../components/EditProfileModal';
 import ProfileCompletionService from '../services/ProfileCompletionService';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+
+const calculateAge = (dateInput) => {
+  if (!dateInput) {
+    return null;
+  }
+  const birth = new Date(dateInput);
+  if (Number.isNaN(birth.getTime())) {
+    return null;
+  }
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const ProfileScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { profile, signOut } = useAuth();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: 'Te',
@@ -39,6 +58,24 @@ const ProfileScreen = ({ navigation }) => {
   });
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const [completionMessage, setCompletionMessage] = useState(null);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    setUserProfile(prev => ({
+      ...prev,
+      name: profile.full_name || prev.name,
+      age: calculateAge(profile.birth_date) || prev.age,
+      bio: profile.bio || prev.bio,
+      photo: profile.avatar_url || prev.photo,
+      interests:
+        (profile.interests && profile.interests.length > 0
+          ? profile.interests
+          : prev.interests),
+    }));
+  }, [profile]);
 
   useEffect(() => {
     const percentage = ProfileCompletionService.calculateCompletion(userProfile);
@@ -459,9 +496,14 @@ const ProfileScreen = ({ navigation }) => {
               {
                 text: 'Kijelentkezés',
                 style: 'destructive',
-                onPress: () => {
-                  Alert.alert('Kijelentkezés', 'Sikeresen kijelentkeztél!');
-                  // Itt lehetne valódi logout logika
+                onPress: async () => {
+                  try {
+                    await signOut();
+                    Alert.alert('Kijelentkezés', 'Sikeresen kijelentkeztél!');
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                    Alert.alert('Hiba', 'Nem sikerült kijelentkezni.');
+                  }
                 },
               },
             ]

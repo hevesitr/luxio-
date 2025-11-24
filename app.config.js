@@ -1,3 +1,11 @@
+require('dotenv').config();
+
+const {
+  SUPABASE_URL = '',
+  SUPABASE_ANON_KEY = '',
+  SUPABASE_REDIRECT_URL = 'https://hevesitr.github.io/luxio-/',
+} = process.env;
+
 module.exports = {
   expo: {
     name: 'Luxio',
@@ -27,7 +35,12 @@ module.exports = {
     },
     plugins: [
       'expo-font'
-    ]
+    ],
+    extra: {
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      SUPABASE_REDIRECT_URL,
+    },
   }
 };
 

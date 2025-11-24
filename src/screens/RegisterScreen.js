@@ -16,10 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../context/ThemeContext';
 import ConsentScreen from './ConsentScreen';
-
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api/v1'
-  : 'https://api.datingapp.com/api/v1';
+import { SupabaseAuthService } from '../services/SupabaseAuthService';
 
 const RegisterScreen = ({ navigation }) => {
   const { theme } = useTheme();
@@ -129,74 +126,42 @@ const RegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          phone: phone.trim() || null,
-          password,
-          gender,
-          lookingFor,
-          birthDate: birthDate.toISOString().split('T')[0],
-          consents: {
-            terms: consents.terms,
-            privacy: consents.privacy,
-            marketing: consents.marketing,
-            analytics: consents.analytics,
-          },
-        }),
+      const normalizedEmail = email.trim().toLowerCase();
+      const birthDateString = birthDate.toISOString().split('T')[0];
+
+      const { user, session } = await SupabaseAuthService.signUpUser({
+        name: name.trim(),
+        email: normalizedEmail,
+        phone: phone.trim() || null,
+        password,
+        gender,
+        lookingFor,
+        birthDate: birthDateString,
+        consents,
       });
 
-      const result = await response.json();
+      const title = '✅ Regisztráció sikeres';
+      let message =
+        'Ellenőrizd az email fiókodat és erősítsd meg a regisztrációt a Luxio használatához.';
 
-      if (result.success) {
-        // Token mentése
-        const StorageService = require('../services/StorageService').default;
-        await StorageService.setToken(result.data.token);
-        await StorageService.setRefreshToken(result.data.refreshToken);
-        await StorageService.setUserId(result.data.user.id);
-
-        Alert.alert(
-          '✅ Sikeres regisztráció',
-          'Fiókod létrehozva! Most már bejelentkezhetsz.',
-          [
-            {
-              text: 'Rendben',
-              onPress: () => {
-                // Navigate to home or email verification
-                if (result.data.user.emailVerified) {
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Home' }],
-                  });
-                } else {
-                  // Navigate to OTP verification
-                  navigation.navigate('OTPVerification', {
-                    email: email.trim().toLowerCase(),
-                    userId: result.data.user.id,
-                  });
-                }
-              },
-            },
-          ]
-        );
-      } else {
-        throw new Error(result.error?.message || 'Regisztráció sikertelen');
+      if (session && user?.email_confirmed_at) {
+        message = 'Fiókod létrejött, kezdheted is az ismerkedést!';
       }
+
+      Alert.alert(title, message, [
+        {
+          text: 'Rendben',
+          onPress: () => {
+            navigation.navigate('Login', { email: normalizedEmail });
+          },
+        },
+      ]);
     } catch (error) {
       console.error('Registration error:', error);
-      
-      let errorMessage = 'Hiba történt a regisztráció során.';
-      if (error.message.includes('email')) {
-        errorMessage = 'Ez az email cím már regisztrálva van.';
-      } else if (error.message.includes('phone')) {
-        errorMessage = 'Ez a telefonszám már regisztrálva van.';
-      }
-
+      const errorMessage =
+        error.message?.includes('already registered')
+          ? 'Ez az email cím már regisztrálva van.'
+          : error.message || 'Hiba történt a regisztráció során.';
       Alert.alert('Hiba', errorMessage);
     } finally {
       setLoading(false);

@@ -16,13 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import StorageService from '../services/StorageService';
-
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api/v1'
-  : 'https://api.datingapp.com/api/v1';
+import { SupabaseAuthService } from '../services/SupabaseAuthService';
+import { useAuth } from '../context/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,70 +49,37 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-        }),
+      const normalizedEmail = email.trim().toLowerCase();
+      const { user } = await SupabaseAuthService.signInUser({
+        email: normalizedEmail,
+        password,
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        // Token mentése
-        await StorageService.setToken(result.data.token);
-        await StorageService.setRefreshToken(result.data.refreshToken);
-        await StorageService.setUserId(result.data.user.id);
-
-        // Remember me
-        if (rememberMe) {
-          await StorageService.setItem('remember_me', true);
-          await StorageService.setItem('saved_email', email.trim().toLowerCase());
-        } else {
-          await StorageService.removeItem('remember_me');
-          await StorageService.removeItem('saved_email');
-        }
-
-        // Navigate to home
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Home' }],
-        });
+      if (rememberMe) {
+        await StorageService.setItem('remember_me', true);
+        await StorageService.setItem('saved_email', normalizedEmail);
       } else {
-        throw new Error(result.error?.message || 'Bejelentkezés sikertelen');
+        await StorageService.removeItem('remember_me');
+        await StorageService.removeItem('saved_email');
+      }
+
+      await refreshProfile();
+
+      if (user?.email && !user.email_confirmed_at) {
+        Alert.alert(
+          'Email megerősítés szükséges',
+          'Kérjük, erősítsd meg az email címedet a postaládádba érkezett linken keresztül.'
+        );
+      } else {
+        Alert.alert('✅ Sikeres bejelentkezés', 'Üdv újra a Luxio-ban!');
       }
     } catch (error) {
       console.error('Login error:', error);
-      
-      let errorMessage = 'Hiba történt a bejelentkezés során.';
-      if (error.message.includes('email') || error.message.includes('password')) {
-        errorMessage = 'Hibás email cím vagy jelszó.';
-      } else if (error.message.includes('verified')) {
-        errorMessage = 'Kérjük, erősítsd meg az email címedet.';
-        Alert.alert(
-          'Email verifikáció szükséges',
-          errorMessage,
-          [
-            { text: 'Mégse' },
-            {
-              text: 'Új kód küldése',
-              onPress: () => {
-                navigation.navigate('OTPVerification', {
-                  email: email.trim().toLowerCase(),
-                  type: 'email',
-                });
-              },
-            },
-          ]
-        );
-        return;
-      }
-
-      Alert.alert('Hiba', errorMessage);
+      const message =
+        error.message?.includes('Invalid login credentials')
+          ? 'Hibás email cím vagy jelszó.'
+          : error.message || 'Hiba történt a bejelentkezés során.';
+      Alert.alert('Hiba', message);
     } finally {
       setLoading(false);
     }

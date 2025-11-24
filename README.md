@@ -191,11 +191,12 @@ npm run test:e2e
 
 ### Frontend Environment
 
-Hozz létre egy `.env` fájlt a projekt gyökerében:
+Hozz létre egy `.env` fájlt a projekt gyökerében (kiindulás: `env.example`):
 
 ```env
-API_BASE_URL=http://localhost:3000/api/v1
-EXPO_PUBLIC_API_URL=https://api.datingapp.com/api/v1
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_REDIRECT_URL=https://hevesitr.github.io/luxio-/auth-callback
 ```
 
 ### Backend Environment
@@ -245,6 +246,7 @@ AWS_S3_BUCKET=datingapp-media
 - [Adatvédelmi Szabályzat](docs/PRIVACY_POLICY.md)
 - [Felhasználási Feltételek](docs/TERMS_OF_SERVICE.md)
 - [Biztonsági Útmutató](docs/SAFETY_GUIDELINES.md)
+- [Supabase Setup](docs/SUPABASE_SETUP.md)
 
 > GitHub Pages változatok: engedélyezd a Pages szolgáltatást (`Settings → Pages → Source: main, /docs`), majd használd a `docs/web/privacy-policy.html`, `docs/web/terms-of-service.html` és `docs/web/safety-guidelines.html` URL-eket a Play Console-ban.
 

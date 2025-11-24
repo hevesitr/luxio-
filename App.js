@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import MatchService from './src/services/MatchService';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -47,6 +49,19 @@ import WebViewScreen from './src/screens/WebViewScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+const AuthStack = createStackNavigator();
+
+function AuthStackScreens() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="PasswordReset" component={PasswordResetScreen} />
+      <AuthStack.Screen name="Consent" component={ConsentScreen} />
+      <AuthStack.Screen name="WebView" component={WebViewScreen} />
+    </AuthStack.Navigator>
+  );
+}
 
 function ProfileStack({ addMatch, matches, removeMatch, navigation: tabNavigation }) {
   // Note: We removed the ref because function components cannot receive refs directly
@@ -107,11 +122,8 @@ function ProfileStack({ addMatch, matches, removeMatch, navigation: tabNavigatio
       <Stack.Screen name="Consent" component={ConsentScreen} />
       <Stack.Screen name="DataExport" component={DataExportScreen} />
       <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
-      <Stack.Screen name="PasswordReset" component={PasswordResetScreen} />
       <Stack.Screen name="WebView" component={WebViewScreen} />
+      <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
     </Stack.Navigator>
   );
 }
@@ -212,6 +224,26 @@ function TabNavigator({ matches, addMatch, removeMatch }) {
   );
 }
 
+function RootNavigator({ matches, addMatch, removeMatch }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#8A2BE2" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <AuthStackScreens />;
+  }
+
+  return (
+    <TabNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
+  );
+}
+
 export default function App() {
   const [matches, setMatches] = useState([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
@@ -273,11 +305,13 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <TabNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
-        </NavigationContainer>
-      </SafeAreaProvider>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
