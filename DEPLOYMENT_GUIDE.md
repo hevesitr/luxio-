@@ -88,7 +88,7 @@ PORT=3000
 NODE_ENV=production
 
 # CORS
-CORS_ORIGIN=https://datingapp.com
+CORS_ORIGIN=https://hevesitr.github.io/luxio-/
 
 # AWS
 AWS_ACCESS_KEY_ID=your_key

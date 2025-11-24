@@ -684,8 +684,7 @@ const SettingsScreen = ({ navigation }) => {
           <TouchableOpacity 
             style={styles.linkRow}
             onPress={() => {
-              // Navigate to Privacy Policy
-              navigation.navigate('WebView', { url: 'https://datingapp.com/privacy' });
+              navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/privacy-policy.html' });
             }}
           >
             <View style={styles.settingLeft}>
@@ -698,13 +697,25 @@ const SettingsScreen = ({ navigation }) => {
           <TouchableOpacity 
             style={styles.linkRow}
             onPress={() => {
-              // Navigate to Terms of Service
-              navigation.navigate('WebView', { url: 'https://datingapp.com/terms' });
+              navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/terms-of-service.html' });
             }}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="shield-checkmark" size={24} color="#4CAF50" />
               <Text style={styles.settingLabel}>Felhasználási Feltételek</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.linkRow}
+            onPress={() => {
+              navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/safety-guidelines.html' });
+            }}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="warning-outline" size={24} color="#FF7043" />
+              <Text style={styles.settingLabel}>Biztonsági Útmutató</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>

@@ -160,8 +160,7 @@ const ConsentScreen = ({ navigation, route }) => {
           </Text>
           <TouchableOpacity
             onPress={() => {
-              // Navigate to Terms of Service
-              navigation.navigate('WebView', { url: 'https://datingapp.com/terms' });
+              navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/terms-of-service.html' });
             }}
             style={styles.linkButton}
           >
@@ -193,8 +192,7 @@ const ConsentScreen = ({ navigation, route }) => {
           </Text>
           <TouchableOpacity
             onPress={() => {
-              // Navigate to Privacy Policy
-              navigation.navigate('WebView', { url: 'https://datingapp.com/privacy' });
+              navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/privacy-policy.html' });
             }}
             style={styles.linkButton}
           >

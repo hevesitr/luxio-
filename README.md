@@ -327,7 +327,7 @@ Ez a projekt MIT licenc alatt áll. Lásd: [LICENSE](LICENSE) fájl.
 ## 📞 KAPCSOLAT
 
 - **Email:** hevesi.tr@gmail.com
-- **Web:** https://datingapp.com
+- **Web:** https://hevesitr.github.io/luxio-/
 - **GitHub:** https://github.com/yourusername/dating-app
 
 ---

@@ -123,13 +123,13 @@ Modern társkereső alkalmazás AI-alapú ajánlásokkal, videó profilokkal és
 
 Ha kérdésed van vagy visszajelzést szeretnél adni, lépj velünk kapcsolatba:
 - Email: hevesi.tr@gmail.com
-- Web: https://datingapp.com
+- Web: https://hevesitr.github.io/luxio-/
 
 **📜 Jogi Információk:**
 
-- Felhasználási Feltételek: https://datingapp.com/terms
-- Adatvédelmi Szabályzat: https://datingapp.com/privacy
-- Biztonsági Útmutató: https://datingapp.com/safety
+- Felhasználási Feltételek: https://hevesitr.github.io/luxio-/web/terms-of-service.html
+- Adatvédelmi Szabályzat: https://hevesitr.github.io/luxio-/web/privacy-policy.html
+- Biztonsági Útmutató: https://hevesitr.github.io/luxio-/web/safety-guidelines.html
 
 ---
 
@@ -292,13 +292,13 @@ Modern társkereső AI-alapú ajánlásokkal és videó profilokkal
 - **17+** (Mature/Unrestricted Web Access)
 
 #### Privacy Policy URL
-- https://datingapp.com/privacy-policy
+- https://hevesitr.github.io/luxio-/web/privacy-policy.html
 
 #### Support URL
-- https://datingapp.com/support
+- https://hevesitr.github.io/luxio-/#support
 
 #### Marketing URL (Opcionális)
-- https://datingapp.com
+- https://hevesitr.github.io/luxio-/
 
 ### Google Play Console
 
@@ -313,7 +313,7 @@ Modern társkereső AI-alapú ajánlásokkal és videó profilokkal
 - **18+** (Mature 17+)
 
 #### Privacy Policy URL
-- https://datingapp.com/privacy-policy
+- https://hevesitr.github.io/luxio-/web/privacy-policy.html
 
 ---
 

@@ -429,7 +429,7 @@ const RegisterScreen = ({ navigation }) => {
               Elfogadom a{' '}
               <Text
                 style={styles.linkText}
-                onPress={() => navigation.navigate('WebView', { url: 'https://datingapp.com/terms' })}
+                onPress={() => navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/terms-of-service.html' })}
               >
                 Felhasználási Feltételeket
               </Text>
@@ -449,7 +449,7 @@ const RegisterScreen = ({ navigation }) => {
               Elfogadom az{' '}
               <Text
                 style={styles.linkText}
-                onPress={() => navigation.navigate('WebView', { url: 'https://datingapp.com/privacy' })}
+                onPress={() => navigation.navigate('WebView', { url: 'https://hevesitr.github.io/luxio-/web/privacy-policy.html' })}
               >
                 Adatvédelmi Szabályzatot
               </Text>

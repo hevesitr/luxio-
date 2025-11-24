@@ -111,7 +111,7 @@ társkereső, dating, match, ismerkedés, randevú, kapcsolat, AI, videó, bizto
 
 **Kötelező mindkét store-ban**
 
-URL: `https://datingapp.com/privacy-policy`
+URL: `https://hevesitr.github.io/luxio-/web/privacy-policy.html`
 
 ---
 
@@ -119,7 +119,7 @@ URL: `https://datingapp.com/privacy-policy`
 
 **Kötelező mindkét store-ban**
 
-URL: `https://datingapp.com/support`  
+URL: `https://hevesitr.github.io/luxio-/#support`  
 Email: `hevesi.tr@gmail.com`
 
 ---

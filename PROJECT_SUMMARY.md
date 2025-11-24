@@ -241,7 +241,7 @@ npm install react-native-iap          # In-App Purchase
 ## 📞 KAPCSOLAT
 
 - **Email:** hevesi.tr@gmail.com
-- **Web:** https://datingapp.com
+- **Web:** https://hevesitr.github.io/luxio-/
 - **GitHub:** https://github.com/yourusername/dating-app
 
 ---
