@@ -3,6 +3,16 @@
  * Képek és videók feltöltése/törlése Supabase Storage-ban
  */
 import { supabase } from './supabaseClient';
+import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
+
+const extra =
+  Constants?.expoConfig?.extra ||
+  Constants?.manifest?.extra ||
+  {};
+
+const SUPABASE_URL = extra?.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = extra?.SUPABASE_ANON_KEY || '';
 
 class SupabaseStorageService {
   // Bucket nevek
@@ -46,28 +56,55 @@ class SupabaseStorageService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      // React Native-ben közvetlenül a fájl URI-t használjuk
-      // A Supabase Storage React Native-ben támogatja a fájl URI-kat
-      const file = {
+      // React Native-ben a fájlt FormData-val kell feltölteni
+      // A Supabase Storage REST API-t használjuk közvetlenül
+      const formData = new FormData();
+      
+      // React Native FormData formátum
+      // @ts-ignore - React Native FormData formátum
+      formData.append('file', {
         uri: localUri,
         type: fileType,
         name: fileName.split('/').pop(),
-      };
+      });
 
-      // Feltöltés Supabase Storage-ba
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, file, {
-          contentType: fileType,
-          upsert: true, // Írja felül, ha már létezik (egyedi név miatt nem kellene előfordulnia)
+      // Supabase Storage REST API endpoint
+      // A session már deklarálva van fentebb, nem kell újra deklarálni
+
+      // Supabase URL és anon key
+      const supabaseUrl = SUPABASE_URL;
+      const supabaseKey = SUPABASE_ANON_KEY;
+      
+      // Storage API endpoint
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${fileName}`;
+      
+      try {
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': supabaseKey,
+          },
+          body: formData,
         });
 
-      if (error) {
-        console.error('Storage upload error:', error);
-        return { success: false, error: error.message };
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('Upload error response:', errorText);
+          throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        }
+
+        const uploadData = await uploadResponse.json();
+        console.log('Upload successful via REST API:', uploadData);
+        
+        // Sikeres feltöltés, de nincs data objektum, mert REST API-t használunk
+        // Folytassuk a publikus URL lekérésével
+      } catch (uploadError) {
+        console.error('REST API upload error:', uploadError);
+        return { success: false, error: uploadError.message };
       }
 
-      // Publikus URL lekérése
+      // Publikus URL lekérése (ez már működik)
       const { data: urlData } = supabase.storage
         .from(bucket)
         .getPublicUrl(fileName);
@@ -80,7 +117,6 @@ class SupabaseStorageService {
       }
 
       // React Native Image komponens kompatibilitás: biztosítsd, hogy a URL helyes formátumú
-      // Ha a URL-ben vannak szóközök vagy speciális karakterek, kódold őket
       publicUrl = publicUrl.trim();
       
       // Ellenőrizd, hogy a URL érvényes-e
@@ -90,6 +126,18 @@ class SupabaseStorageService {
         console.error('Invalid URL format:', publicUrl);
         return { success: false, error: 'Invalid URL format' };
       }
+
+      console.log('Upload successful:', {
+        bucket,
+        fileName,
+        publicUrl,
+      });
+
+      return {
+        success: true,
+        url: publicUrl,
+        path: fileName,
+      };
 
       console.log('Upload successful:', {
         bucket,

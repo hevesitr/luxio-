@@ -136,6 +136,19 @@ const ProfileScreen = ({ navigation }) => {
 
       if (uploadResult.success) {
         console.log('Upload successful, URL:', uploadResult.url);
+        console.log('Upload path:', uploadResult.path);
+        
+        // Teszteld, hogy a URL elérhető-e
+        try {
+          const testResponse = await fetch(uploadResult.url, { method: 'HEAD' });
+          console.log('URL test response status:', testResponse.status);
+          if (!testResponse.ok) {
+            console.warn('URL test failed, but continuing anyway');
+          }
+        } catch (testError) {
+          console.warn('URL test error:', testError);
+        }
+        
         const newPhotoObj = { 
           url: uploadResult.url, 
           isPrivate: false,
