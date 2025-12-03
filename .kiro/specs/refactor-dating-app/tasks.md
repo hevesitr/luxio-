@@ -213,7 +213,7 @@ All CRITICAL, HIGH PRIORITY, and MEDIUM PRIORITY tasks have been completed!
   - Privacy settings
   - Theme toggle
   - _Requirements: 3.4_
-  - **File:** `src/contexts/PreferencesContext.js`
+  - **File:** `src/context/PreferencesContext.js` ✅ CREATED
 
 - [x] 12.3 Create NotificationContext for notifications
   - Unread count tracking
@@ -222,7 +222,7 @@ All CRITICAL, HIGH PRIORITY, and MEDIUM PRIORITY tasks have been completed!
   - Real-time subscriptions
   - Mark as read functionality
   - _Requirements: 3.4_
-  - **File:** `src/contexts/NotificationContext.js`
+  - **File:** `src/context/NotificationContext.js` ✅ CREATED
 
 ---
 

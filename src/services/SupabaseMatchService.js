@@ -100,6 +100,24 @@ class SupabaseMatchService {
    */
   async saveLike(userId, likedUserId) {
     try {
+      // Ellenőrizzük, hogy már like-oltuk-e ezt a profilt
+      const { data: alreadyLiked, error: checkOwnError } = await supabase
+        .from('likes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('liked_user_id', likedUserId)
+        .single();
+
+      if (checkOwnError && checkOwnError.code !== 'PGRST116') {
+        throw checkOwnError;
+      }
+
+      // Ha már like-oltuk, ne csináljunk semmit
+      if (alreadyLiked) {
+        Logger.debug('Already liked this profile', { userId, likedUserId });
+        return { success: true, isMatch: false, alreadyLiked: true };
+      }
+
       // Ellenőrizzük, hogy a másik fél is like-olt-e minket
       const { data: existingLike, error: checkError } = await supabase
         .from('likes')
@@ -145,6 +163,24 @@ class SupabaseMatchService {
    */
   async savePass(userId, passedUserId) {
     try {
+      // Ellenőrizzük, hogy már pass-oltuk-e ezt a profilt
+      const { data: alreadyPassed, error: checkError } = await supabase
+        .from('passes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('passed_user_id', passedUserId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      // Ha már pass-oltuk, ne csináljunk semmit
+      if (alreadyPassed) {
+        Logger.debug('Already passed this profile', { userId, passedUserId });
+        return { success: true, alreadyPassed: true };
+      }
+
       const { error } = await supabase
         .from('passes')
         .insert({
