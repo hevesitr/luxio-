@@ -5,6 +5,9 @@
 import { supabase } from './supabaseClient';
 import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
+import ImageCompressionService from './ImageCompressionService';
+import Logger from './Logger';
+import ErrorHandler from './ErrorHandler';
 
 const extra =
   Constants?.expoConfig?.extra ||
@@ -23,7 +26,7 @@ class SupabaseStorageService {
   };
 
   /**
-   * Kép feltöltése Supabase Storage-ba
+   * Kép feltöltése Supabase Storage-ba (tömörítéssel)
    * @param {string} localUri - Lokális fájl URI (pl. file://... vagy content://...)
    * @param {string} bucket - Bucket neve (avatars, photos, videos)
    * @param {string} userId - Felhasználó ID
@@ -31,7 +34,21 @@ class SupabaseStorageService {
    * @returns {Promise<{success: boolean, url?: string, error?: string}>}
    */
   static async uploadImage(localUri, bucket, userId, fileName = null) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Kép tömörítése először
+      Logger.debug('Compressing image before upload', { localUri });
+      const compressionResult = await ImageCompressionService.compressImage(localUri);
+      
+      let imageUri = localUri;
+      if (compressionResult.success && compressionResult.data.compressed) {
+        imageUri = compressionResult.data.uri;
+        Logger.success('Image compressed', { 
+          originalSize: compressionResult.data.originalSizeKB,
+          compressedSize: compressionResult.data.sizeKB,
+          reduction: compressionResult.data.reduction 
+        });
+      }
+
       // Generálj egyedi fájlnevet, ha nincs megadva
       if (!fileName) {
         const timestamp = Date.now();
@@ -47,13 +64,13 @@ class SupabaseStorageService {
       }
 
       // Fájl típus meghatározása
-      const fileExtension = localUri.split('.').pop() || 'jpg';
+      const fileExtension = imageUri.split('.').pop() || 'jpg';
       const fileType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
 
       // Ellenőrizd, hogy be van-e jelentkezve
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        return { success: false, error: 'Not authenticated' };
+        throw new Error('Not authenticated');
       }
 
       // React Native-ben a fájlt FormData-val kell feltölteni

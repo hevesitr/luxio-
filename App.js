@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { PreferencesProvider } from './src/contexts/PreferencesContext';
+import { NotificationProvider } from './src/contexts/NotificationContext';
 import MatchService from './src/services/MatchService';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -316,11 +318,15 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
-          </NavigationContainer>
-        </SafeAreaProvider>
+        <PreferencesProvider>
+          <NotificationProvider>
+            <SafeAreaProvider>
+              <NavigationContainer>
+                <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
+              </NavigationContainer>
+            </SafeAreaProvider>
+          </NotificationProvider>
+        </PreferencesProvider>
       </AuthProvider>
     </ThemeProvider>
   );

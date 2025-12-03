@@ -4,13 +4,14 @@
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
 import SupabaseStorageService from './SupabaseStorageService';
+import ErrorHandler, { ErrorCodes } from './ErrorHandler';
 
 class ProfileService {
   /**
    * Profil frissítése
    */
   async updateProfile(userId, updates) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
@@ -21,11 +22,8 @@ class ProfileService {
       if (error) throw error;
       
       Logger.success('Profile updated', { userId });
-      return { success: true, data };
-    } catch (error) {
-      Logger.error('Profile update failed', error);
-      return { success: false, error: error.message };
-    }
+      return data;
+    }, { operation: 'updateProfile', userId });
   }
 
   /**

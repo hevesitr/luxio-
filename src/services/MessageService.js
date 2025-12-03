@@ -3,13 +3,33 @@
  */
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
+import ErrorHandler, { ErrorCodes } from './ErrorHandler';
 
 class MessageService {
   /**
    * Üzenet küldése
+   * Implements Requirement 4.5
    */
   async sendMessage(matchId, senderId, content, type = 'text') {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Match aktív-e ellenőrzés
+      const { data: match, error: matchError } = await supabase
+        .from('matches')
+        .select('status')
+        .eq('id', matchId)
+        .single();
+
+      if (matchError) throw matchError;
+      
+      if (match.status !== 'active') {
+        throw ErrorHandler.createError(
+          ErrorCodes.BUSINESS_USER_BLOCKED,
+          'Match is not active',
+          { matchId, status: match.status }
+        );
+      }
+
+      // Üzenet mentése
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -25,12 +45,15 @@ class MessageService {
 
       if (error) throw error;
 
+      // Match last_message_at frissítése
+      await supabase
+        .from('matches')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', matchId);
+
       Logger.success('Message sent', { matchId, type });
-      return { success: true, data };
-    } catch (error) {
-      Logger.error('Message send failed', error);
-      return { success: false, error: error.message };
-    }
+      return data;
+    }, { operation: 'sendMessage', matchId, senderId });
   }
 
   /**
@@ -260,6 +283,248 @@ class MessageService {
       Logger.error('Video message send failed', error);
       return { success: false, error: error.message };
     }
+  }
+}
+
+export default new MessageService();
+
+
+  /**
+   * Typing indicator küldése
+   * Implements Requirement 4.4
+   */
+  async sendTypingIndicator(matchId, userId) {
+    try {
+      // Presence channel használata
+      const channel = supabase.channel(`match:${matchId}`);
+      
+      await channel.track({
+        user_id: userId,
+        typing: true,
+        timestamp: new Date().toISOString(),
+      });
+
+      Logger.debug('Typing indicator sent', { matchId, userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('Typing indicator failed', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Typing indicator leállítása
+   */
+  async stopTypingIndicator(matchId, userId) {
+    try {
+      const channel = supabase.channel(`match:${matchId}`);
+      
+      await channel.track({
+        user_id: userId,
+        typing: false,
+        timestamp: new Date().toISOString(),
+      });
+
+      Logger.debug('Typing indicator stopped', { matchId, userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('Stop typing indicator failed', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Presence tracking - ki van online
+   */
+  subscribeToPresence(matchId, callback) {
+    const channel = supabase.channel(`match:${matchId}`, {
+      config: {
+        presence: {
+          key: matchId,
+        },
+      },
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        Logger.debug('Presence synced', { matchId, state });
+        callback({ type: 'sync', state });
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        Logger.debug('User joined', { matchId, newPresences });
+        callback({ type: 'join', presences: newPresences });
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        Logger.debug('User left', { matchId, leftPresences });
+        callback({ type: 'leave', presences: leftPresences });
+      })
+      .subscribe();
+
+    return channel;
+  }
+
+  /**
+   * Üzenet pagination - régebbi üzenetek betöltése
+   * Implements Requirement 4.3
+   */
+  async getMessagesPaginated(matchId, limit = 50, offset = 0) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error, count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact' })
+        .eq('match_id', matchId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      // Fordított sorrend (legrégebbi elől)
+      const messages = data.reverse();
+
+      Logger.debug('Messages paginated', { 
+        matchId, 
+        count: messages.length,
+        total: count,
+        offset 
+      });
+
+      return {
+        messages,
+        total: count,
+        hasMore: offset + limit < count,
+      };
+    }, { operation: 'getMessagesPaginated', matchId });
+  }
+
+  /**
+   * Üzenet szerkesztése
+   */
+  async editMessage(messageId, newContent) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .update({
+          content: newContent,
+          edited_at: new Date().toISOString(),
+        })
+        .eq('id', messageId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      Logger.success('Message edited', { messageId });
+      return data;
+    }, { operation: 'editMessage', messageId });
+  }
+
+  /**
+   * Üzenet reakció hozzáadása
+   */
+  async addReaction(messageId, userId, emoji) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('message_reactions')
+        .insert({
+          message_id: messageId,
+          user_id: userId,
+          emoji: emoji,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      Logger.success('Reaction added', { messageId, emoji });
+      return data;
+    }, { operation: 'addReaction', messageId });
+  }
+
+  /**
+   * Üzenet reakció törlése
+   */
+  async removeReaction(reactionId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('message_reactions')
+        .delete()
+        .eq('id', reactionId);
+
+      if (error) throw error;
+
+      Logger.success('Reaction removed', { reactionId });
+      return true;
+    }, { operation: 'removeReaction', reactionId });
+  }
+
+  /**
+   * Conversation metadata lekérése
+   */
+  async getConversationMetadata(matchId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data: match, error: matchError } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          user1:profiles!matches_user_id_fkey(*),
+          user2:profiles!matches_matched_user_id_fkey(*)
+        `)
+        .eq('id', matchId)
+        .single();
+
+      if (matchError) throw matchError;
+
+      const { count: messageCount } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('match_id', matchId);
+
+      Logger.debug('Conversation metadata fetched', { matchId });
+
+      return {
+        match,
+        messageCount: messageCount || 0,
+      };
+    }, { operation: 'getConversationMetadata', matchId });
+  }
+
+  /**
+   * Bulk message operations - több üzenet törlése
+   */
+  async deleteMessages(messageIds) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .in('id', messageIds);
+
+      if (error) throw error;
+
+      Logger.success('Messages deleted', { count: messageIds.length });
+      return true;
+    }, { operation: 'deleteMessages', count: messageIds.length });
+  }
+
+  /**
+   * Message search - üzenetek keresése
+   */
+  async searchMessages(matchId, query) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('match_id', matchId)
+        .ilike('content', `%${query}%`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      Logger.debug('Messages searched', { matchId, query, count: data.length });
+      return data;
+    }, { operation: 'searchMessages', matchId, query });
   }
 }
 

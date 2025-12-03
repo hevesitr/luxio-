@@ -1,252 +1,428 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+/**
+ * AnalyticsService - Esemény követés és analytics
+ * Implements Requirements 12.1, 12.2, 12.5
+ */
+import Logger from './Logger';
+import ErrorHandler from './ErrorHandler';
+import { supabase } from './supabaseClient';
 
 class AnalyticsService {
-  static STORAGE_KEY = '@dating_app_analytics';
-
-  // Alapértelmezett statisztikák
-  static defaultStats = {
-    totalSwipes: 0,
-    rightSwipes: 0,
-    leftSwipes: 0,
-    superLikes: 0,
-    matches: 0,
-    messagesSent: 0,
-    profileViews: 0,
-    undoUsed: 0,
-    likesReceived: 0,
-    activeConversations: 0,
-    textMessages: 0,
-    voiceMessages: 0,
-    videoMessages: 0,
-    dailyActivity: this.generateEmptyDailyActivity(),
-    matchGrowth7d: 0,
-    avgResponseTime: 'N/A',
-    lastReset: new Date().toISOString(),
-  };
-
-  // Üres napi aktivitás generálása
-  static generateEmptyDailyActivity() {
-    return Array.from({ length: 7 }, () => ({ swipes: 0, matches: 0 }));
-  }
-
-  // Statisztikák betöltése
-  static async getStats() {
-    try {
-      const jsonValue = await AsyncStorage.getItem(this.STORAGE_KEY);
-      return jsonValue != null ? JSON.parse(jsonValue) : this.defaultStats;
-    } catch (e) {
-      console.error('Error loading stats:', e);
-      return this.defaultStats;
-    }
-  }
-
-  // Statisztikák mentése
-  static async saveStats(stats) {
-    try {
-      const jsonValue = JSON.stringify(stats);
-      await AsyncStorage.setItem(this.STORAGE_KEY, jsonValue);
-    } catch (e) {
-      console.error('Error saving stats:', e);
-    }
-  }
-
-  // Esemény rögzítése
-  static async trackEvent(eventType) {
-    const stats = await this.getStats();
+  constructor() {
+    this.userId = null;
+    this.sessionId = null;
+    this.sessionStartTime = null;
     
-    switch (eventType) {
-      case 'swipe_right':
-        stats.rightSwipes += 1;
-        stats.totalSwipes += 1;
-        break;
-      case 'swipe_left':
-        stats.leftSwipes += 1;
-        stats.totalSwipes += 1;
-        break;
-      case 'super_like':
-        stats.superLikes += 1;
-        stats.totalSwipes += 1;
-        break;
-      case 'match':
-        stats.matches += 1;
-        break;
-      case 'message_sent':
-        stats.messagesSent += 1;
-        break;
-      case 'profile_view':
-        stats.profileViews += 1;
-        break;
-      case 'undo':
-        stats.undoUsed += 1;
-        break;
-      case 'like_received':
-        stats.likesReceived += 1;
-        break;
-      case 'text_message':
-        stats.textMessages += 1;
-        stats.messagesSent += 1;
-        break;
-      case 'voice_message':
-        stats.voiceMessages += 1;
-        stats.messagesSent += 1;
-        break;
-      case 'video_message':
-        stats.videoMessages += 1;
-        stats.messagesSent += 1;
-        break;
-      case 'conversation_started':
-        stats.activeConversations += 1;
-        break;
-    }
+    // PII mezők, amiket ki kell szűrni
+    this.piiFields = [
+      'email',
+      'phone',
+      'phone_number',
+      'full_name',
+      'first_name',
+      'last_name',
+      'address',
+      'credit_card',
+      'ssn',
+      'password',
+    ];
 
-    // Napi aktivitás frissítése
-    const today = new Date().getDay();
-    if (!stats.dailyActivity) {
-      stats.dailyActivity = this.generateEmptyDailyActivity();
-    }
-    if (eventType === 'swipe_right' || eventType === 'swipe_left' || eventType === 'super_like') {
-      stats.dailyActivity[today].swipes += 1;
-    }
-    if (eventType === 'match') {
-      stats.dailyActivity[today].matches += 1;
-    }
+    // Esemény típusok
+    this.eventTypes = {
+      // User events
+      USER_SIGNED_UP: 'user_signed_up',
+      USER_SIGNED_IN: 'user_signed_in',
+      USER_SIGNED_OUT: 'user_signed_out',
+      PROFILE_UPDATED: 'profile_updated',
+      PROFILE_PHOTO_UPLOADED: 'profile_photo_uploaded',
 
-    await this.saveStats(stats);
-    return stats;
+      // Discovery events
+      PROFILE_VIEWED: 'profile_viewed',
+      PROFILE_SWIPED_RIGHT: 'profile_swiped_right',
+      PROFILE_SWIPED_LEFT: 'profile_swiped_left',
+      SUPER_LIKE_SENT: 'super_like_sent',
+      MATCH_CREATED: 'match_created',
+
+      // Messaging events
+      MESSAGE_SENT: 'message_sent',
+      MESSAGE_RECEIVED: 'message_received',
+      CONVERSATION_OPENED: 'conversation_opened',
+
+      // Premium events
+      SUBSCRIPTION_STARTED: 'subscription_started',
+      SUBSCRIPTION_CANCELLED: 'subscription_cancelled',
+      BOOST_ACTIVATED: 'boost_activated',
+      REWIND_USED: 'rewind_used',
+
+      // Safety events
+      USER_REPORTED: 'user_reported',
+      USER_BLOCKED: 'user_blocked',
+      USER_UNMATCHED: 'user_unmatched',
+
+      // Screen events
+      SCREEN_VIEWED: 'screen_viewed',
+      
+      // Error events
+      ERROR_OCCURRED: 'error_occurred',
+    };
   }
 
-  // Statisztikák visszaállítása
-  static async resetStats() {
-    await this.saveStats({
-      ...this.defaultStats,
-      dailyActivity: this.generateEmptyDailyActivity(),
-      lastReset: new Date().toISOString(),
+  /**
+   * Session inicializálása
+   */
+  initSession(userId) {
+    this.userId = userId;
+    this.sessionId = this.generateSessionId();
+    this.sessionStartTime = new Date();
+
+    Logger.debug('Analytics session initialized', {
+      userId,
+      sessionId: this.sessionId,
+    });
+
+    this.trackEvent(this.eventTypes.USER_SIGNED_IN, {
+      timestamp: this.sessionStartTime.toISOString(),
     });
   }
 
-  // Statisztikák inicializálása hiányzó mezőkkel
-  static async initializeStats() {
-    const stats = await this.getStats();
-    const initialized = {
-      ...this.defaultStats,
-      ...stats,
-      dailyActivity: stats.dailyActivity || this.generateEmptyDailyActivity(),
-      likesReceived: stats.likesReceived || 0,
-      activeConversations: stats.activeConversations || 0,
-      textMessages: stats.textMessages || 0,
-      voiceMessages: stats.voiceMessages || 0,
-      videoMessages: stats.videoMessages || 0,
-    };
-    await this.saveStats(initialized);
-    return initialized;
-  }
-
-  // Számított metrikák
-  static calculateMetrics(stats) {
-    const rightSwipeRate = stats.totalSwipes > 0
-      ? Math.round((stats.rightSwipes / stats.totalSwipes) * 100)
-      : 0;
-
-    const matchRate = stats.rightSwipes > 0
-      ? Math.round((stats.matches / stats.rightSwipes) * 100)
-      : 0;
-
-    const avgMessagesPerMatch = stats.matches > 0
-      ? Math.round(stats.messagesSent / stats.matches)
-      : 0;
-
-    // Match növekedés számítása (7 nap)
-    const matchGrowth7d = this.calculateMatchGrowth(stats);
-
-    // Átlagos válaszidő (szimulált)
-    const avgResponseTime = this.calculateAvgResponseTime(stats);
-
-    return {
-      rightSwipeRate,
-      matchRate,
-      avgMessagesPerMatch,
-      selectivityScore: 100 - rightSwipeRate, // Minél alacsonyabb a swipe rate, annál szelektívebb
-      matchGrowth7d,
-      avgResponseTime,
-    };
-  }
-
-  // Match növekedés számítása
-  static calculateMatchGrowth(stats) {
-    if (!stats.dailyActivity || stats.dailyActivity.length < 7) {
-      return 0;
+  /**
+   * Session lezárása
+   */
+  endSession() {
+    if (this.sessionStartTime) {
+      const duration = Date.now() - this.sessionStartTime.getTime();
+      
+      this.trackEvent(this.eventTypes.USER_SIGNED_OUT, {
+        session_duration: duration,
+        session_duration_minutes: Math.round(duration / 60000),
+      });
     }
-    
-    const last7Days = stats.dailyActivity.slice(-7);
-    const firstHalf = last7Days.slice(0, 3).reduce((sum, day) => sum + day.matches, 0);
-    const secondHalf = last7Days.slice(4).reduce((sum, day) => sum + day.matches, 0);
-    
-    if (firstHalf === 0) return secondHalf > 0 ? 100 : 0;
-    
-    return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
+
+    this.userId = null;
+    this.sessionId = null;
+    this.sessionStartTime = null;
+
+    Logger.debug('Analytics session ended');
   }
 
-  // Átlagos válaszidő számítása (szimulált)
-  static calculateAvgResponseTime(stats) {
-    if (stats.messagesSent === 0) return 'N/A';
-    
-    // Szimulált válaszidő: 5-120 perc között véletlenszerű
-    const avgMinutes = Math.floor(Math.random() * 115) + 5;
-    
-    if (avgMinutes < 60) {
-      return `${avgMinutes} perc`;
-    } else {
-      const hours = Math.floor(avgMinutes / 60);
-      const mins = avgMinutes % 60;
-      return mins > 0 ? `${hours}h ${mins}min` : `${hours} óra`;
+  /**
+   * Esemény követése
+   * Implements Requirement 12.2
+   */
+  trackEvent(eventName, properties = {}) {
+    try {
+      // PII szűrése
+      const sanitizedProperties = this.sanitizePII(properties);
+
+      const event = {
+        event_name: eventName,
+        user_id: this.userId,
+        session_id: this.sessionId,
+        properties: sanitizedProperties,
+        timestamp: new Date().toISOString(),
+        platform: 'mobile',
+      };
+
+      // Esemény mentése adatbázisba
+      this.saveEvent(event);
+
+      Logger.debug('Event tracked', {
+        event: eventName,
+        properties: sanitizedProperties,
+      });
+
+      return { success: true };
+    } catch (error) {
+      Logger.error('Event tracking failed', error);
+      return { success: false, error: error.message };
     }
   }
 
-  // Statisztikák szöveges összegzése
-  static getInsights(stats, metrics) {
-    const insights = [];
+  /**
+   * Screen tracking
+   */
+  trackScreen(screenName, properties = {}) {
+    return this.trackEvent(this.eventTypes.SCREEN_VIEWED, {
+      screen_name: screenName,
+      ...properties,
+    });
+  }
 
-    if (metrics.rightSwipeRate > 70) {
-      insights.push({
-        icon: '❤️',
-        title: 'Kedves vagy!',
-        description: 'Sokaknak adsz esélyt, ez növeli a match esélyedet!',
+  /**
+   * User properties beállítása
+   */
+  setUserProperties(userId, properties) {
+    try {
+      const sanitizedProperties = this.sanitizePII(properties);
+
+      Logger.debug('User properties set', {
+        userId,
+        properties: sanitizedProperties,
       });
-    } else if (metrics.rightSwipeRate < 30) {
-      insights.push({
-        icon: '🎯',
-        title: 'Szelektív vagy!',
-        description: 'Tudod mit keresel, és ez jó stratégia!',
+
+      // User properties mentése
+      this.saveUserProperties(userId, sanitizedProperties);
+
+      return { success: true };
+    } catch (error) {
+      Logger.error('Set user properties failed', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Hiba naplózása
+   * Implements Requirement 12.1
+   */
+  logError(error, context = {}) {
+    try {
+      const sanitizedContext = this.sanitizePII(context);
+
+      const errorLog = {
+        error_message: error.message || String(error),
+        error_stack: error.stack || null,
+        error_code: error.code || null,
+        user_id: this.userId,
+        session_id: this.sessionId,
+        context: sanitizedContext,
+        timestamp: new Date().toISOString(),
+        platform: 'mobile',
+      };
+
+      // Hiba mentése
+      this.saveError(errorLog);
+
+      // Esemény követése
+      this.trackEvent(this.eventTypes.ERROR_OCCURRED, {
+        error_message: error.message,
+        error_code: error.code,
+        ...sanitizedContext,
       });
+
+      Logger.error('Error logged to analytics', errorLog);
+
+      return { success: true };
+    } catch (err) {
+      Logger.error('Error logging failed', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Warning naplózása
+   */
+  logWarning(message, context = {}) {
+    try {
+      const sanitizedContext = this.sanitizePII(context);
+
+      Logger.warn(message, sanitizedContext);
+
+      this.trackEvent('warning_occurred', {
+        warning_message: message,
+        ...sanitizedContext,
+      });
+
+      return { success: true };
+    } catch (error) {
+      Logger.error('Warning logging failed', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Performance mérés
+   */
+  measurePerformance(metricName, duration, metadata = {}) {
+    try {
+      const sanitizedMetadata = this.sanitizePII(metadata);
+
+      this.trackEvent('performance_metric', {
+        metric_name: metricName,
+        duration_ms: duration,
+        ...sanitizedMetadata,
+      });
+
+      Logger.debug('Performance measured', {
+        metric: metricName,
+        duration: `${duration}ms`,
+      });
+
+      return { success: true };
+    } catch (error) {
+      Logger.error('Performance measurement failed', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * PII szűrése
+   * Implements Requirement 12.5
+   */
+  sanitizePII(data) {
+    if (!data || typeof data !== 'object') {
+      return data;
     }
 
-    if (metrics.matchRate > 50) {
-      insights.push({
-        icon: '🔥',
-        title: 'Vonzó Profil!',
-        description: 'Magas match arányod van, tetszesz az embereknek!',
-      });
+    const sanitized = Array.isArray(data) ? [] : {};
+
+    for (const [key, value] of Object.entries(data)) {
+      const lowerKey = key.toLowerCase();
+
+      // PII mező ellenőrzése
+      if (this.piiFields.some(field => lowerKey.includes(field))) {
+        sanitized[key] = '[REDACTED]';
+        continue;
+      }
+
+      // Email pattern ellenőrzése
+      if (typeof value === 'string' && this.isEmail(value)) {
+        sanitized[key] = '[REDACTED_EMAIL]';
+        continue;
+      }
+
+      // Phone pattern ellenőrzése
+      if (typeof value === 'string' && this.isPhoneNumber(value)) {
+        sanitized[key] = '[REDACTED_PHONE]';
+        continue;
+      }
+
+      // Rekurzív szűrés nested objektumokhoz
+      if (typeof value === 'object' && value !== null) {
+        sanitized[key] = this.sanitizePII(value);
+      } else {
+        sanitized[key] = value;
+      }
     }
 
-    if (stats.superLikes > 10) {
-      insights.push({
-        icon: '⭐',
-        title: 'Super Liker!',
-        description: 'Szereted kimutatni, ha valaki nagyon tetszik!',
-      });
-    }
+    return sanitized;
+  }
 
-    if (stats.undoUsed > 20) {
-      insights.push({
-        icon: '🔄',
-        title: 'Meggondolod magad!',
-        description: 'Gyakran használod az visszafordítás gombot!',
-      });
-    }
+  /**
+   * Email pattern ellenőrzése
+   */
+  isEmail(str) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(str);
+  }
 
-    return insights;
+  /**
+   * Telefonszám pattern ellenőrzése
+   */
+  isPhoneNumber(str) {
+    const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+    return phoneRegex.test(str);
+  }
+
+  /**
+   * Esemény mentése adatbázisba
+   */
+  async saveEvent(event) {
+    try {
+      await supabase
+        .from('analytics_events')
+        .insert(event);
+    } catch (error) {
+      Logger.error('Save event failed', error);
+    }
+  }
+
+  /**
+   * Hiba mentése adatbázisba
+   */
+  async saveError(errorLog) {
+    try {
+      await supabase
+        .from('error_logs')
+        .insert(errorLog);
+    } catch (error) {
+      Logger.error('Save error log failed', error);
+    }
+  }
+
+  /**
+   * User properties mentése
+   */
+  async saveUserProperties(userId, properties) {
+    try {
+      await supabase
+        .from('user_properties')
+        .upsert({
+          user_id: userId,
+          properties: properties,
+          updated_at: new Date().toISOString(),
+        });
+    } catch (error) {
+      Logger.error('Save user properties failed', error);
+    }
+  }
+
+  /**
+   * Session ID generálása
+   */
+  generateSessionId() {
+    return `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  }
+
+  /**
+   * Funnel tracking - konverziós tölcsér követése
+   */
+  trackFunnelStep(funnelName, stepName, properties = {}) {
+    return this.trackEvent('funnel_step', {
+      funnel_name: funnelName,
+      step_name: stepName,
+      ...properties,
+    });
+  }
+
+  /**
+   * A/B teszt tracking
+   */
+  trackExperiment(experimentName, variant, properties = {}) {
+    return this.trackEvent('experiment_viewed', {
+      experiment_name: experimentName,
+      variant: variant,
+      ...properties,
+    });
+  }
+
+  /**
+   * Revenue tracking
+   */
+  trackRevenue(amount, currency, productId, properties = {}) {
+    return this.trackEvent('revenue', {
+      amount: amount,
+      currency: currency,
+      product_id: productId,
+      ...properties,
+    });
+  }
+
+  /**
+   * Engagement metrics
+   */
+  async getEngagementMetrics(userId, startDate, endDate) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('timestamp', startDate)
+        .lte('timestamp', endDate);
+
+      if (error) throw error;
+
+      // Metrikák számítása
+      const metrics = {
+        total_events: data.length,
+        unique_sessions: new Set(data.map(e => e.session_id)).size,
+        swipes: data.filter(e => e.event_name.includes('swiped')).length,
+        matches: data.filter(e => e.event_name === this.eventTypes.MATCH_CREATED).length,
+        messages: data.filter(e => e.event_name === this.eventTypes.MESSAGE_SENT).length,
+      };
+
+      Logger.debug('Engagement metrics calculated', { userId, metrics });
+      return metrics;
+    }, { operation: 'getEngagementMetrics', userId });
   }
 }
 
-export default AnalyticsService;
-
+export default new AnalyticsService();

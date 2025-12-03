@@ -1,0 +1,516 @@
+/**
+ * PaymentService - Prémium előfizetések és fizetések kezelése
+ * Implements Requirements 7.1, 7.2, 7.3, 7.4
+ */
+import { supabase } from './supabaseClient';
+import Logger from './Logger';
+import ErrorHandler, { ErrorCodes } from './ErrorHandler';
+
+class PaymentService {
+  constructor() {
+    this.subscriptionPlans = {
+      MONTHLY: {
+        id: 'premium_monthly',
+        name: 'Premium Monthly',
+        price: 9.99,
+        currency: 'USD',
+        duration: 30, // days
+        features: [
+          'unlimited_swipes',
+          'see_who_liked',
+          'super_likes',
+          'unlimited_rewinds',
+          'boost',
+        ],
+      },
+      QUARTERLY: {
+        id: 'premium_quarterly',
+        name: 'Premium Quarterly',
+        price: 24.99,
+        currency: 'USD',
+        duration: 90, // days
+        features: [
+          'unlimited_swipes',
+          'see_who_liked',
+          'super_likes',
+          'unlimited_rewinds',
+          'boost',
+        ],
+      },
+      YEARLY: {
+        id: 'premium_yearly',
+        name: 'Premium Yearly',
+        price: 79.99,
+        currency: 'USD',
+        duration: 365, // days
+        features: [
+          'unlimited_swipes',
+          'see_who_liked',
+          'super_likes',
+          'unlimited_rewinds',
+          'boost',
+          'priority_support',
+        ],
+      },
+    };
+  }
+
+  /**
+   * Előfizetés létrehozása
+   */
+  async createSubscription(userId, planId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const plan = Object.values(this.subscriptionPlans).find(p => p.id === planId);
+      
+      if (!plan) {
+        throw new Error('Invalid subscription plan');
+      }
+
+      // Előfizetés mentése
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + plan.duration);
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          plan_id: planId,
+          status: 'active',
+          started_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          price: plan.price,
+          currency: plan.currency,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Profil frissítése - premium státusz
+      await this.grantPremiumFeatures(userId, expiresAt);
+
+      Logger.success('Subscription created', { userId, planId });
+      return data;
+    }, { operation: 'createSubscription', userId, planId });
+  }
+
+  /**
+   * Előfizetés lemondása
+   */
+  async cancelSubscription(userId, subscriptionId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq('id', subscriptionId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      // Premium funkciók visszavonása
+      await this.revokePremiumFeatures(userId);
+
+      Logger.success('Subscription cancelled', { userId, subscriptionId });
+      return true;
+    }, { operation: 'cancelSubscription', userId, subscriptionId });
+  }
+
+  /**
+   * Előfizetés státusz lekérése
+   */
+  async getSubscriptionStatus(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      // Ha nincs aktív előfizetés
+      if (!data) {
+        return {
+          isPremium: false,
+          subscription: null,
+        };
+      }
+
+      // Lejárat ellenőrzése
+      const expiresAt = new Date(data.expires_at);
+      const now = new Date();
+      const isExpired = now > expiresAt;
+
+      if (isExpired) {
+        // Előfizetés lejárt, státusz frissítése
+        await supabase
+          .from('subscriptions')
+          .update({ status: 'expired' })
+          .eq('id', data.id);
+
+        await this.revokePremiumFeatures(userId);
+
+        return {
+          isPremium: false,
+          subscription: { ...data, status: 'expired' },
+        };
+      }
+
+      Logger.debug('Subscription status fetched', { userId, isPremium: true });
+
+      return {
+        isPremium: true,
+        subscription: data,
+        expiresAt: data.expires_at,
+        daysRemaining: Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)),
+      };
+    }, { operation: 'getSubscriptionStatus', userId });
+  }
+
+  /**
+   * Fizetés feldolgozása (mock - valós implementációhoz Stripe/PayPal kell)
+   */
+  async processPayment(userId, amount, method = 'card') {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // MOCK IMPLEMENTATION
+      // Valós implementációhoz integrálni kell Stripe-ot vagy más payment gateway-t
+      
+      Logger.warn('Mock payment processing', { userId, amount, method });
+
+      // Fizetés mentése
+      const { data, error } = await supabase
+        .from('payments')
+        .insert({
+          user_id: userId,
+          amount: amount,
+          currency: 'USD',
+          method: method,
+          status: 'completed',
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      Logger.success('Payment processed', { userId, amount });
+
+      return {
+        success: true,
+        paymentId: data.id,
+        amount: data.amount,
+        status: 'completed',
+      };
+    }, { operation: 'processPayment', userId, amount });
+  }
+
+  /**
+   * Premium user ellenőrzése
+   */
+  async isPremiumUser(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_premium, premium_expires_at')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      // Lejárat ellenőrzése
+      if (data.is_premium && data.premium_expires_at) {
+        const expiresAt = new Date(data.premium_expires_at);
+        const now = new Date();
+        
+        if (now > expiresAt) {
+          // Lejárt, frissítés
+          await this.revokePremiumFeatures(userId);
+          return false;
+        }
+      }
+
+      return data.is_premium || false;
+    }, { operation: 'isPremiumUser', userId });
+  }
+
+  /**
+   * Premium funkciók megadása
+   */
+  async grantPremiumFeatures(userId, expiresAt = null) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_premium: true,
+          premium_expires_at: expiresAt ? expiresAt.toISOString() : null,
+          premium_granted_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      Logger.success('Premium features granted', { userId });
+      return true;
+    }, { operation: 'grantPremiumFeatures', userId });
+  }
+
+  /**
+   * Premium funkciók visszavonása
+   */
+  async revokePremiumFeatures(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_premium: false,
+          premium_expires_at: null,
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      Logger.success('Premium features revoked', { userId });
+      return true;
+    }, { operation: 'revokePremiumFeatures', userId });
+  }
+
+  /**
+   * Super Like használata
+   * Implements Requirement 7.3
+   */
+  async useSuperLike(userId, targetUserId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Premium user ellenőrzése
+      const isPremium = await this.isPremiumUser(userId);
+      if (!isPremium.success || !isPremium.data) {
+        throw ErrorHandler.createError(
+          ErrorCodes.BUSINESS_PREMIUM_REQUIRED,
+          'Super likes require premium subscription',
+          { userId }
+        );
+      }
+
+      // Napi limit ellenőrzése (5 super like / nap)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { count, error: countError } = await supabase
+        .from('likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('type', 'super')
+        .gte('liked_at', today.toISOString());
+
+      if (countError) throw countError;
+
+      if (count >= 5) {
+        throw ErrorHandler.createError(
+          ErrorCodes.BUSINESS_DAILY_LIMIT_EXCEEDED,
+          'Daily super like limit exceeded',
+          { userId, used: count, limit: 5 }
+        );
+      }
+
+      // Super like mentése
+      const { data, error } = await supabase
+        .from('likes')
+        .insert({
+          user_id: userId,
+          liked_user_id: targetUserId,
+          type: 'super',
+          liked_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Értesítés küldése a célszemélynek
+      await this.sendSuperLikeNotification(targetUserId, userId);
+
+      Logger.success('Super like used', { userId, targetUserId, remaining: 4 - count });
+
+      return {
+        like: data,
+        remaining: 4 - count,
+      };
+    }, { operation: 'useSuperLike', userId, targetUserId });
+  }
+
+  /**
+   * Super like értesítés küldése
+   */
+  async sendSuperLikeNotification(recipientId, senderId) {
+    try {
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: recipientId,
+          type: 'super_like',
+          from_user_id: senderId,
+          created_at: new Date().toISOString(),
+          is_read: false,
+        });
+
+      Logger.debug('Super like notification sent', { recipientId, senderId });
+    } catch (error) {
+      Logger.error('Super like notification failed', error);
+    }
+  }
+
+  /**
+   * Rewind használata (utolsó swipe visszavonása)
+   * Implements Requirement 7.4
+   */
+  async useRewind(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Premium user ellenőrzése
+      const isPremium = await this.isPremiumUser(userId);
+      if (!isPremium.success || !isPremium.data) {
+        throw ErrorHandler.createError(
+          ErrorCodes.BUSINESS_PREMIUM_REQUIRED,
+          'Rewind requires premium subscription',
+          { userId }
+        );
+      }
+
+      // Utolsó like vagy pass lekérése
+      const { data: lastLike } = await supabase
+        .from('likes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('liked_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const { data: lastPass } = await supabase
+        .from('passes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('passed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Melyik volt később
+      let lastAction = null;
+      let actionType = null;
+
+      if (lastLike && lastPass) {
+        const likeTime = new Date(lastLike.liked_at);
+        const passTime = new Date(lastPass.passed_at);
+        
+        if (likeTime > passTime) {
+          lastAction = lastLike;
+          actionType = 'like';
+        } else {
+          lastAction = lastPass;
+          actionType = 'pass';
+        }
+      } else if (lastLike) {
+        lastAction = lastLike;
+        actionType = 'like';
+      } else if (lastPass) {
+        lastAction = lastPass;
+        actionType = 'pass';
+      }
+
+      if (!lastAction) {
+        throw new Error('No action to rewind');
+      }
+
+      // Akció törlése
+      const table = actionType === 'like' ? 'likes' : 'passes';
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', lastAction.id);
+
+      if (error) throw error;
+
+      Logger.success('Rewind used', { userId, actionType, targetUserId: lastAction.liked_user_id || lastAction.passed_user_id });
+
+      return {
+        rewound: true,
+        actionType,
+        profile: lastAction.liked_user_id || lastAction.passed_user_id,
+      };
+    }, { operation: 'useRewind', userId });
+  }
+
+  /**
+   * Boost használata (profil kiemelése)
+   */
+  async useBoost(userId, duration = 30) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Premium user ellenőrzése
+      const isPremium = await this.isPremiumUser(userId);
+      if (!isPremium.success || !isPremium.data) {
+        throw ErrorHandler.createError(
+          ErrorCodes.BUSINESS_PREMIUM_REQUIRED,
+          'Boost requires premium subscription',
+          { userId }
+        );
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + duration);
+
+      const { data, error } = await supabase
+        .from('boosts')
+        .insert({
+          user_id: userId,
+          started_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          status: 'active',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      Logger.success('Boost activated', { userId, duration });
+
+      return {
+        boost: data,
+        expiresAt: expiresAt.toISOString(),
+        duration,
+      };
+    }, { operation: 'useBoost', userId, duration });
+  }
+
+  /**
+   * Előfizetési tervek lekérése
+   */
+  getSubscriptionPlans() {
+    return {
+      success: true,
+      data: Object.values(this.subscriptionPlans),
+    };
+  }
+
+  /**
+   * Fizetési előzmények lekérése
+   */
+  async getPaymentHistory(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      Logger.debug('Payment history fetched', { userId, count: data.length });
+      return data;
+    }, { operation: 'getPaymentHistory', userId });
+  }
+}
+
+export default new PaymentService();
