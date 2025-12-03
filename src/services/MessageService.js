@@ -284,10 +284,6 @@ class MessageService {
       return { success: false, error: error.message };
     }
   }
-}
-
-export default new MessageService();
-
 
   /**
    * Typing indicator küldése

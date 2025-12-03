@@ -15,11 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import ConsentScreen from './ConsentScreen';
 import { SupabaseAuthService } from '../services/SupabaseAuthService';
 
 const RegisterScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1: Regisztráció, 2: Consent
 
@@ -129,33 +131,43 @@ const RegisterScreen = ({ navigation }) => {
       const normalizedEmail = email.trim().toLowerCase();
       const birthDateString = birthDate.toISOString().split('T')[0];
 
-      const { user, session } = await SupabaseAuthService.signUpUser({
-        name: name.trim(),
-        email: normalizedEmail,
-        phone: phone.trim() || null,
+      // Use AuthContext signUp method
+      const result = await signUp(
+        normalizedEmail,
         password,
-        gender,
-        lookingFor,
-        birthDate: birthDateString,
-        consents,
-      });
-
-      const title = '✅ Regisztráció sikeres';
-      let message =
-        'Ellenőrizd az email fiókodat és erősítsd meg a regisztrációt a Luxio használatához.';
-
-      if (session && user?.email_confirmed_at) {
-        message = 'Fiókod létrejött, kezdheted is az ismerkedést!';
-      }
-
-      Alert.alert(title, message, [
         {
-          text: 'Rendben',
-          onPress: () => {
-            navigation.navigate('Login', { email: normalizedEmail });
+          full_name: name.trim(),
+          phone: phone.trim() || null,
+          gender,
+          looking_for: lookingFor,
+          birth_date: birthDateString,
+          consent_terms: consents.terms,
+          consent_privacy: consents.privacy,
+          consent_marketing: consents.marketing,
+          consent_analytics: consents.analytics,
+        }
+      );
+
+      if (result.success) {
+        const title = '✅ Regisztráció sikeres';
+        const message = result.requiresEmailConfirmation
+          ? 'Ellenőrizd az email fiókodat és erősítsd meg a regisztrációt a Luxio használatához.'
+          : 'Fiókod létrejött, kezdheted is az ismerkedést!';
+
+        Alert.alert(title, message, [
+          {
+            text: 'Rendben',
+            onPress: () => {
+              if (result.requiresEmailConfirmation) {
+                navigation.navigate('Login', { email: normalizedEmail });
+              }
+              // If no email confirmation required, AuthContext will handle navigation
+            },
           },
-        },
-      ]);
+        ]);
+      } else {
+        throw new Error(result.error || 'Registration failed');
+      }
     } catch (error) {
       console.error('Registration error:', error);
       const errorMessage =

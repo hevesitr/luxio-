@@ -17,16 +17,16 @@ ALTER TABLE passes ENABLE ROW LEVEL SECURITY;
 -- Users can view their own profile
 CREATE POLICY "Users can view own profile"
 ON profiles FOR SELECT
-USING (auth.uid()::text = id);
+USING (auth.uid() = id);
 
 -- Users can view profiles they haven't passed on
 CREATE POLICY "Users can view potential matches"
 ON profiles FOR SELECT
 USING (
-  auth.uid()::text != id
+  auth.uid() != id
   AND NOT EXISTS (
     SELECT 1 FROM passes
-    WHERE passes.user_id = auth.uid()::text
+    WHERE passes.user_id = auth.uid()
     AND passes.passed_user_id = profiles.id
   )
 );
@@ -34,13 +34,13 @@ USING (
 -- Users can update their own profile
 CREATE POLICY "Users can update own profile"
 ON profiles FOR UPDATE
-USING (auth.uid()::text = id)
-WITH CHECK (auth.uid()::text = id);
+USING (auth.uid() = id)
+WITH CHECK (auth.uid() = id);
 
 -- Users can insert their own profile
 CREATE POLICY "Users can insert own profile"
 ON profiles FOR INSERT
-WITH CHECK (auth.uid()::text = id);
+WITH CHECK (auth.uid() = id);
 
 -- ============================================
 -- MATCHES TABLE POLICIES
@@ -50,15 +50,15 @@ WITH CHECK (auth.uid()::text = id);
 CREATE POLICY "Users can view own matches"
 ON matches FOR SELECT
 USING (
-  auth.uid()::text = user_id
-  OR auth.uid()::text = matched_user_id
+  auth.uid() = user_id
+  OR auth.uid() = matched_user_id
 );
 
 -- Users can create matches (when mutual like exists)
 CREATE POLICY "Users can create matches"
 ON matches FOR INSERT
 WITH CHECK (
-  auth.uid()::text = user_id
+  auth.uid() = user_id
   AND EXISTS (
     SELECT 1 FROM likes
     WHERE likes.user_id = matches.matched_user_id
@@ -70,12 +70,12 @@ WITH CHECK (
 CREATE POLICY "Users can update own matches"
 ON matches FOR UPDATE
 USING (
-  auth.uid()::text = user_id
-  OR auth.uid()::text = matched_user_id
+  auth.uid() = user_id
+  OR auth.uid() = matched_user_id
 )
 WITH CHECK (
-  auth.uid()::text = user_id
-  OR auth.uid()::text = matched_user_id
+  auth.uid() = user_id
+  OR auth.uid() = matched_user_id
 );
 
 -- ============================================
@@ -90,8 +90,8 @@ USING (
     SELECT 1 FROM matches
     WHERE matches.id = messages.match_id
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
     AND matches.status = 'active'
   )
@@ -101,13 +101,13 @@ USING (
 CREATE POLICY "Users can send messages in their matches"
 ON messages FOR INSERT
 WITH CHECK (
-  auth.uid()::text = sender_id
+  auth.uid() = sender_id
   AND EXISTS (
     SELECT 1 FROM matches
     WHERE matches.id = messages.match_id
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
     AND matches.status = 'active'
   )
@@ -121,8 +121,8 @@ USING (
     SELECT 1 FROM matches
     WHERE matches.id = messages.match_id
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
   )
 );
@@ -130,7 +130,7 @@ USING (
 -- Users can delete their own messages
 CREATE POLICY "Users can delete own messages"
 ON messages FOR DELETE
-USING (auth.uid()::text = sender_id);
+USING (auth.uid() = sender_id);
 
 -- ============================================
 -- LIKES TABLE POLICIES
@@ -139,16 +139,16 @@ USING (auth.uid()::text = sender_id);
 -- Users can view likes they received
 CREATE POLICY "Users can view received likes"
 ON likes FOR SELECT
-USING (auth.uid()::text = liked_user_id);
+USING (auth.uid() = liked_user_id);
 
 -- Premium users can view all their received likes
 CREATE POLICY "Premium users can view all received likes"
 ON likes FOR SELECT
 USING (
-  auth.uid()::text = liked_user_id
+  auth.uid() = liked_user_id
   AND EXISTS (
     SELECT 1 FROM profiles
-    WHERE profiles.id = auth.uid()::text
+    WHERE profiles.id = auth.uid()
     AND profiles.is_premium = true
   )
 );
@@ -157,14 +157,14 @@ USING (
 CREATE POLICY "Users can create likes"
 ON likes FOR INSERT
 WITH CHECK (
-  auth.uid()::text = user_id
+  auth.uid() = user_id
   AND user_id != liked_user_id
 );
 
 -- Users can delete their own likes
 CREATE POLICY "Users can delete own likes"
 ON likes FOR DELETE
-USING (auth.uid()::text = user_id);
+USING (auth.uid() = user_id);
 
 -- ============================================
 -- PASSES TABLE POLICIES
@@ -173,13 +173,13 @@ USING (auth.uid()::text = user_id);
 -- Users can view their own passes
 CREATE POLICY "Users can view own passes"
 ON passes FOR SELECT
-USING (auth.uid()::text = user_id);
+USING (auth.uid() = user_id);
 
 -- Users can create passes
 CREATE POLICY "Users can create passes"
 ON passes FOR INSERT
 WITH CHECK (
-  auth.uid()::text = user_id
+  auth.uid() = user_id
   AND user_id != passed_user_id
 );
 
@@ -222,8 +222,8 @@ WITH CHECK (
     SELECT 1 FROM matches
     WHERE matches.id::text = (storage.foldername(name))[1]
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
     AND matches.status = 'active'
   )
@@ -237,8 +237,8 @@ USING (
     SELECT 1 FROM matches
     WHERE matches.id::text = (storage.foldername(name))[1]
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
   )
 );
@@ -252,8 +252,8 @@ WITH CHECK (
     SELECT 1 FROM matches
     WHERE matches.id::text = (storage.foldername(name))[1]
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
     AND matches.status = 'active'
   )
@@ -267,8 +267,8 @@ USING (
     SELECT 1 FROM matches
     WHERE matches.id::text = (storage.foldername(name))[1]
     AND (
-      matches.user_id = auth.uid()::text
-      OR matches.matched_user_id = auth.uid()::text
+      matches.user_id = auth.uid()
+      OR matches.matched_user_id = auth.uid()
     )
   )
 );
@@ -278,7 +278,7 @@ USING (
 -- ============================================
 
 -- Function to check if user is blocked
-CREATE OR REPLACE FUNCTION is_user_blocked(user_id_param text, target_user_id_param text)
+CREATE OR REPLACE FUNCTION is_user_blocked(user_id_param uuid, target_user_id_param uuid)
 RETURNS boolean AS $$
 BEGIN
   RETURN EXISTS (
@@ -290,7 +290,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to check if user has premium
-CREATE OR REPLACE FUNCTION is_premium_user(user_id_param text)
+CREATE OR REPLACE FUNCTION is_premium_user(user_id_param uuid)
 RETURNS boolean AS $$
 BEGIN
   RETURN EXISTS (

@@ -1,16 +1,48 @@
 -- Storage Policies for Luxio Dating App
+-- This script DROPS existing policies and creates new ones
 -- Run this in Supabase SQL Editor AFTER creating the storage buckets
 
 -- ============================================
--- AVATARS BUCKET POLICIES
+-- DROP EXISTING POLICIES (if they exist)
 -- ============================================
 
--- Anyone can view avatars (public bucket)
+-- Drop avatars policies
+DROP POLICY IF EXISTS "Anyone can view avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
+
+-- Drop photos policies
+DROP POLICY IF EXISTS "Anyone can view photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload their own photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own photos" ON storage.objects;
+
+-- Drop videos policies
+DROP POLICY IF EXISTS "Anyone can view videos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload their own videos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own videos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own videos" ON storage.objects;
+
+-- Drop voice-messages policies
+DROP POLICY IF EXISTS "Users can view their own voice messages" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload voice messages" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own voice messages" ON storage.objects;
+
+-- Drop video-messages policies
+DROP POLICY IF EXISTS "Users can view their own video messages" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload video messages" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own video messages" ON storage.objects;
+
+-- ============================================
+-- CREATE NEW POLICIES
+-- ============================================
+
+-- AVATARS BUCKET POLICIES
 CREATE POLICY "Anyone can view avatars"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'avatars');
 
--- Users can upload their own avatar
 CREATE POLICY "Users can upload their own avatar"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -18,7 +50,6 @@ CREATE POLICY "Users can upload their own avatar"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can update their own avatar
 CREATE POLICY "Users can update their own avatar"
   ON storage.objects FOR UPDATE
   USING (
@@ -26,7 +57,6 @@ CREATE POLICY "Users can update their own avatar"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can delete their own avatar
 CREATE POLICY "Users can delete their own avatar"
   ON storage.objects FOR DELETE
   USING (
@@ -34,16 +64,11 @@ CREATE POLICY "Users can delete their own avatar"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- ============================================
 -- PHOTOS BUCKET POLICIES
--- ============================================
-
--- Anyone can view photos (public bucket)
 CREATE POLICY "Anyone can view photos"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'photos');
 
--- Users can upload their own photos
 CREATE POLICY "Users can upload their own photos"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -51,7 +76,6 @@ CREATE POLICY "Users can upload their own photos"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can update their own photos
 CREATE POLICY "Users can update their own photos"
   ON storage.objects FOR UPDATE
   USING (
@@ -59,7 +83,6 @@ CREATE POLICY "Users can update their own photos"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can delete their own photos
 CREATE POLICY "Users can delete their own photos"
   ON storage.objects FOR DELETE
   USING (
@@ -67,16 +90,11 @@ CREATE POLICY "Users can delete their own photos"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- ============================================
 -- VIDEOS BUCKET POLICIES
--- ============================================
-
--- Anyone can view videos (public bucket)
 CREATE POLICY "Anyone can view videos"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'videos');
 
--- Users can upload their own videos
 CREATE POLICY "Users can upload their own videos"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -84,7 +102,6 @@ CREATE POLICY "Users can upload their own videos"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can update their own videos
 CREATE POLICY "Users can update their own videos"
   ON storage.objects FOR UPDATE
   USING (
@@ -92,7 +109,6 @@ CREATE POLICY "Users can update their own videos"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can delete their own videos
 CREATE POLICY "Users can delete their own videos"
   ON storage.objects FOR DELETE
   USING (
@@ -100,11 +116,7 @@ CREATE POLICY "Users can delete their own videos"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- ============================================
 -- VOICE-MESSAGES BUCKET POLICIES (PRIVATE)
--- ============================================
-
--- Users can view their own voice messages
 CREATE POLICY "Users can view their own voice messages"
   ON storage.objects FOR SELECT
   USING (
@@ -112,7 +124,6 @@ CREATE POLICY "Users can view their own voice messages"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can upload voice messages
 CREATE POLICY "Users can upload voice messages"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -120,7 +131,6 @@ CREATE POLICY "Users can upload voice messages"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can delete their own voice messages
 CREATE POLICY "Users can delete their own voice messages"
   ON storage.objects FOR DELETE
   USING (
@@ -128,11 +138,7 @@ CREATE POLICY "Users can delete their own voice messages"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- ============================================
 -- VIDEO-MESSAGES BUCKET POLICIES (PRIVATE)
--- ============================================
-
--- Users can view their own video messages
 CREATE POLICY "Users can view their own video messages"
   ON storage.objects FOR SELECT
   USING (
@@ -140,7 +146,6 @@ CREATE POLICY "Users can view their own video messages"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can upload video messages
 CREATE POLICY "Users can upload video messages"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -148,7 +153,6 @@ CREATE POLICY "Users can upload video messages"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Users can delete their own video messages
 CREATE POLICY "Users can delete their own video messages"
   ON storage.objects FOR DELETE
   USING (
@@ -162,12 +166,10 @@ CREATE POLICY "Users can delete their own video messages"
 
 -- Check if policies were created successfully
 SELECT 
-  schemaname,
-  tablename,
   policyname,
-  permissive,
-  roles,
-  cmd
+  cmd,
+  permissive
 FROM pg_policies
 WHERE tablename = 'objects'
+  AND schemaname = 'storage'
 ORDER BY policyname;

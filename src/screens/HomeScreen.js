@@ -33,12 +33,16 @@ import MatchService from '../services/MatchService';
 import SupabaseMatchService from '../services/SupabaseMatchService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
+import { usePreferences } from '../contexts/PreferencesContext';
+import { useAuth } from '../context/AuthContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ACTION_BUTTON_SIZE = 52;
 
 const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   const { theme } = useTheme();
+  const { getDiscoveryFilters, saveDiscoveryFilters } = usePreferences();
+  const { user } = useAuth();
   const [profiles, setProfiles] = useState(initialProfiles);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [history, setHistory] = useState([]);
@@ -280,6 +284,45 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     }, [route?.params?.showMatchPopup, route?.params?.matchPopupParams])
   );
 
+  // Load discovery feed from Supabase
+  useEffect(() => {
+    const loadDiscoveryFeed = async () => {
+      if (!user?.id) {
+        Logger.warn('No user ID available for discovery feed');
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        
+        // Get filters from PreferencesContext
+        const filters = getDiscoveryFilters();
+        
+        // Load discovery feed from Supabase
+        const result = await SupabaseMatchService.getDiscoveryFeed(user.id, filters);
+        
+        if (result.success && result.data && result.data.length > 0) {
+          Logger.success('Discovery feed loaded from Supabase', { count: result.data.length });
+          setProfiles(result.data);
+        } else {
+          // Fallback to local profiles if Supabase fails
+          Logger.warn('Using local profiles as fallback');
+          const filtered = filterProfilesByPriority(initialProfiles);
+          setProfiles(filtered);
+        }
+      } catch (error) {
+        Logger.error('Discovery feed load error', error);
+        // Fallback to local profiles
+        const filtered = filterProfilesByPriority(initialProfiles);
+        setProfiles(filtered);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDiscoveryFeed();
+  }, [user?.id]);
+
   // Simulate loading and load stories
   useEffect(() => {
     const init = async () => {
@@ -299,12 +342,6 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
       });
       
       setStories(storiesWithProfile);
-      
-      // Prioritásos szűrés alkalmazása
-      const filtered = filterProfilesByPriority(initialProfiles);
-      setProfiles(filtered);
-      
-      setIsLoading(false);
     };
     
     init();
