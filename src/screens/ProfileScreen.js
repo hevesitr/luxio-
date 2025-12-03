@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import EditProfileModal from '../components/EditProfileModal';
 import ProfileCompletionService from '../services/ProfileCompletionService';
+import ProfileService from '../services/ProfileService';
+import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import SupabaseStorageService from '../services/SupabaseStorageService';
@@ -85,12 +87,40 @@ const ProfileScreen = ({ navigation }) => {
     setCompletionMessage(message);
   }, [userProfile]);
 
-  const handleSaveProfile = (updatedProfile) => {
-    setUserProfile({
-      ...userProfile,
-      ...updatedProfile,
-    });
-    Alert.alert('✅ Siker', 'Profilod sikeresen frissítve!');
+  const handleSaveProfile = async (updatedProfile) => {
+    try {
+      // Optimista UI frissítés
+      setUserProfile({
+        ...userProfile,
+        ...updatedProfile,
+      });
+
+      // Mentés Supabase-be
+      if (profile?.id) {
+        const result = await ProfileService.updateProfile(profile.id, {
+          bio: updatedProfile.bio,
+          age: updatedProfile.age,
+          interests: updatedProfile.interests,
+          job_title: updatedProfile.job,
+          education: updatedProfile.education,
+          relationship_goal: updatedProfile.relationshipGoal,
+        });
+
+        if (result.success) {
+          Logger.success('Profile updated successfully');
+          Alert.alert('✅ Siker', 'Profilod sikeresen frissítve!');
+        } else {
+          Logger.error('Profile update failed', result.error);
+          Alert.alert('Hiba', 'Nem sikerült frissíteni a profilt. Próbáld újra később.');
+        }
+      } else {
+        Logger.warn('No user ID available, profile only updated locally');
+        Alert.alert('✅ Siker', 'Profilod helyileg frissítve!');
+      }
+    } catch (error) {
+      Logger.error('Save profile error', error);
+      Alert.alert('Hiba', 'Nem sikerült menteni a profilt.');
+    }
   };
 
   const pickImage = async () => {
@@ -135,17 +165,36 @@ const ProfileScreen = ({ navigation }) => {
       );
 
       if (uploadResult.success) {
-        console.log('Upload successful, URL:', uploadResult.url);
+        Logger.success('Photo uploaded successfully', { url: uploadResult.url });
         const newPhotoObj = { 
           url: uploadResult.url, 
           isPrivate: false,
           path: uploadResult.path 
         };
+        
+        // Optimista UI frissítés
         setUserProfile(prev => ({
           ...prev,
           photos: [...prev.photos, newPhotoObj],
         }));
-        Alert.alert('✅ Siker', 'Fotó sikeresen feltöltve!');
+
+        // Profil frissítése Supabase-ben
+        try {
+          const photoUrls = [...userProfile.photos.map(p => p.url), uploadResult.url];
+          const result = await ProfileService.updateProfile(profile.id, {
+            photos: photoUrls,
+          });
+          
+          if (result.success) {
+            Alert.alert('✅ Siker', 'Fotó sikeresen feltöltve!');
+          } else {
+            Logger.error('Profile photo update failed', result.error);
+            Alert.alert('✅ Siker', 'Fotó feltöltve, de a profil frissítése sikertelen.');
+          }
+        } catch (error) {
+          Logger.error('Profile update error', error);
+          Alert.alert('✅ Siker', 'Fotó feltöltve!');
+        }
       } else {
         Alert.alert('Hiba', `Feltöltés sikertelen: ${uploadResult.error}`);
       }

@@ -46,6 +46,11 @@ import LoginScreen from './src/screens/LoginScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import PasswordResetScreen from './src/screens/PasswordResetScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
+import LiveStreamScreen from './src/screens/LiveStreamScreen';
+import IncomingCallScreen from './src/screens/IncomingCallScreen';
+import ChatRoomScreen from './src/screens/ChatRoomScreen';
+import ChatRoomsScreen from './src/screens/ChatRoomsScreen';
+import PhotoUploadScreen from './src/screens/PhotoUploadScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -123,6 +128,11 @@ function ProfileStack({ addMatch, matches, removeMatch, navigation: tabNavigatio
       <Stack.Screen name="DataExport" component={DataExportScreen} />
       <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
       <Stack.Screen name="WebView" component={WebViewScreen} />
+      <Stack.Screen name="LiveStream" component={LiveStreamScreen} />
+      <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
+      <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
+      <Stack.Screen name="ChatRooms" component={ChatRoomsScreen} />
+      <Stack.Screen name="PhotoUpload" component={PhotoUploadScreen} />
       <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
     </Stack.Navigator>
   );

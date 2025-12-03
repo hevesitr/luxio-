@@ -30,6 +30,8 @@ import StoryService from '../services/StoryService';
 import GamificationService from '../services/GamificationService';
 import AIRecommendationService from '../services/AIRecommendationService';
 import MatchService from '../services/MatchService';
+import SupabaseMatchService from '../services/SupabaseMatchService';
+import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -370,33 +372,36 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     setCurrentIndex((prev) => prev + 1);
   };
 
-  const handleSwipeRight = (profile) => {
-    console.log('Swipe right:', profile.name);
+  const handleSwipeRight = async (profile) => {
+    Logger.debug('Swipe right', { profileName: profile.name });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // 50% esély a match-re (szimulált)
-    const isMatch = Math.random() > 0.5;
-    
-    if (isMatch) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setMatchedProfile(profile);
-      setTimeout(() => {
-        setMatchAnimVisible(true);
-        onMatch(profile);
-      }, 500);
+    // Like mentése Supabase-be
+    try {
+      const result = await SupabaseMatchService.saveLike(currentUser.id, profile.id);
+      
+      if (result.success && result.isMatch) {
+        // Match történt!
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setMatchedProfile(profile);
+        setTimeout(() => {
+          setMatchAnimVisible(true);
+          onMatch(profile);
+        }, 500);
+        
+        // Gamifikáció: match növelése
+        GamificationService.incrementMatch();
+      }
+    } catch (error) {
+      Logger.error('Swipe right error', error);
+      Alert.alert('Hiba', 'Nem sikerült menteni a like-ot. Ellenőrizd az internetkapcsolatot.');
     }
     
-    setHistory((prev) => [...prev, { profile, action: 'right', index: currentIndex, isMatch }]);
-    // Immediate index update - no timeout
+    setHistory((prev) => [...prev, { profile, action: 'right', index: currentIndex }]);
     setCurrentIndex((prev) => prev + 1);
     
     // Gamifikáció: like növelése
     GamificationService.incrementLike();
-    
-    // Ha match van, növeljük a match statisztikát is
-    if (isMatch) {
-      GamificationService.incrementMatch();
-    }
   };
 
   const handleCloseMatchAnim = () => {

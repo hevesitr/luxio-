@@ -1,4 +1,4 @@
-# 💕 Luxio - Modern Társkereső Alkalmazás
+# 💕 Lovex - Modern Társkereső Alkalmazás
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![React Native](https://img.shields.io/badge/React%20Native-0.77.0-blue.svg)](https://reactnative.dev/)
@@ -12,6 +12,7 @@ Modern, biztonságos társkereső alkalmazás AI-alapú ajánlásokkal, videó p
 
 - [Főbb Funkciók](#főbb-funkciók)
 - [Technológiai Stack](#technológiai-stack)
+- [Supabase Integráció](#supabase-integráció)
 - [Telepítés](#telepítés)
 - [Fejlesztés](#fejlesztés)
 - [Backend](#backend)
@@ -83,13 +84,92 @@ Modern, biztonságos társkereső alkalmazás AI-alapú ajánlásokkal, videó p
 - **React Native WebView** (dokumentációk)
 
 ### Backend
-- **Node.js** + **Express**
-- **PostgreSQL** (adatbázis)
+- **Supabase** (PostgreSQL + Real-time + Storage + Auth)
+- **Node.js** + **Express** (opcionális API)
 - **JWT** (autentikáció)
 - **bcrypt** (jelszó hashing)
 - **Helmet** (biztonsági headers)
 - **express-validator** (validáció)
 - **Winston** (logging)
+
+---
+
+## 🔥 SUPABASE INTEGRÁCIÓ
+
+### ✅ Implementált Funkciók
+
+#### 📊 Adatbázis
+- **profiles**: Felhasználói profilok (fotók, bio, érdeklődések)
+- **matches**: Match-ek kezelése (mutual like detektálás)
+- **likes**: Like-ok mentése
+- **passes**: Pass-ek (elutasítások)
+- **messages**: Üzenetek (text, voice, video)
+
+#### 💾 Storage
+- **avatars**: Profilképek
+- **photos**: Profil fotók (több kép)
+- **videos**: Videó profilok
+- **voice-messages**: Hangüzenetek
+- **video-messages**: Videóüzenetek
+
+#### ⚡ Real-time
+- Azonnali üzenet kézbesítés
+- WebSocket alapú kommunikáció
+- Automatikus újracsatlakozás
+
+#### 🔒 Biztonság
+- Row Level Security (RLS) policies
+- Csak saját adatok elérése
+- Automatikus session kezelés
+
+### 📦 Service Réteg
+
+```javascript
+// ProfileService - Profil kezelés
+import ProfileService from './services/ProfileService';
+await ProfileService.updateProfile(userId, { bio: 'Új bio' });
+
+// SupabaseMatchService - Match kezelés
+import SupabaseMatchService from './services/SupabaseMatchService';
+const result = await SupabaseMatchService.saveLike(userId, likedUserId);
+if (result.isMatch) { /* Match történt! */ }
+
+// MessageService - Real-time üzenetek
+import MessageService from './services/MessageService';
+await MessageService.sendMessage(matchId, senderId, 'Hello!');
+```
+
+### 🚀 Setup Útmutató
+
+**Gyors setup (15 perc):**
+
+1. **SQL Séma futtatása**
+   ```bash
+   # Supabase Dashboard → SQL Editor
+   # Futtasd: supabase/schema_extended.sql
+   ```
+
+2. **Storage bucket-ek létrehozása**
+   ```bash
+   # Supabase Dashboard → Storage
+   # Hozd létre: avatars, photos, videos, voice-messages, video-messages
+   ```
+
+3. **Realtime engedélyezése**
+   ```bash
+   # Supabase Dashboard → Database → Replication
+   # Engedélyezd: messages tábla
+   ```
+
+**Részletes útmutató:** [docs/SUPABASE_SETUP_GUIDE.md](docs/SUPABASE_SETUP_GUIDE.md)  
+**Gyors referencia:** [SUPABASE_QUICK_REFERENCE.md](SUPABASE_QUICK_REFERENCE.md)
+
+### 📱 Offline Support
+
+Az alkalmazás offline módban is működik:
+- Lokális cache AsyncStorage-ban
+- Automatikus szinkronizálás online állapotban
+- Optimista UI frissítések
 
 ---
 
@@ -329,7 +409,7 @@ Ez a projekt MIT licenc alatt áll. Lásd: [LICENSE](LICENSE) fájl.
 ## 📞 KAPCSOLAT
 
 - **Email:** hevesi.tr@gmail.com
-- **Web:** https://hevesitr.github.io/luxio-/
+- **Web:** https://hevesitr.github.io/lovex-/
 - **GitHub:** https://github.com/yourusername/dating-app
 
 ---

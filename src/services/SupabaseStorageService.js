@@ -136,33 +136,30 @@ class SupabaseStorageService {
   }
 
   /**
-   * Videó feltöltése
+   * Általános fájl feltöltése (hang, videó, stb.)
    * @param {string} localUri - Lokális fájl URI
-   * @param {string} userId - Felhasználó ID
-   * @param {string} fileName - Fájl neve
+   * @param {string} bucket - Bucket neve
+   * @param {string} filePath - Teljes fájl elérési út (userId/filename)
+   * @param {string} contentType - MIME type (pl. 'audio/m4a', 'video/mp4')
    * @returns {Promise<{success: boolean, url?: string, error?: string}>}
    */
-  static async uploadVideo(localUri, userId, fileName) {
+  static async uploadFile(localUri, bucket, filePath, contentType) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const filePath = `${userId}/${fileName}`;
-
-      // React Native-ben közvetlenül a fájl URI-t használjuk
       const file = {
         uri: localUri,
-        type: 'video/mp4',
-        name: fileName,
+        type: contentType,
+        name: filePath.split('/').pop(),
       };
 
-      // Feltöltés
       const { data, error } = await supabase.storage
-        .from(this.BUCKETS.VIDEOS)
+        .from(bucket)
         .upload(filePath, file, {
-          contentType: 'video/mp4',
+          contentType: contentType,
           upsert: false,
         });
 
@@ -171,9 +168,8 @@ class SupabaseStorageService {
         return { success: false, error: error.message };
       }
 
-      // Publikus URL
       const { data: urlData } = supabase.storage
-        .from(this.BUCKETS.VIDEOS)
+        .from(bucket)
         .getPublicUrl(filePath);
 
       return {
@@ -182,9 +178,20 @@ class SupabaseStorageService {
         path: filePath,
       };
     } catch (error) {
-      console.error('Upload video error:', error);
+      console.error('Upload file error:', error);
       return { success: false, error: error.message };
     }
+  }
+
+  /**
+   * Videó feltöltése
+   * @param {string} localUri - Lokális fájl URI
+   * @param {string} bucket - Bucket neve
+   * @param {string} filePath - Teljes fájl elérési út (userId/filename)
+   * @returns {Promise<{success: boolean, url?: string, error?: string}>}
+   */
+  static async uploadVideo(localUri, bucket, filePath) {
+    return this.uploadFile(localUri, bucket, filePath, 'video/mp4');
   }
 
   /**

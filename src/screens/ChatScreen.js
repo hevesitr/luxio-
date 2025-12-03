@@ -19,6 +19,8 @@ import VideoMessage from '../components/VideoMessage';
 import VideoRecorder from '../components/VideoRecorder';
 import AnalyticsService from '../services/AnalyticsService';
 import GamificationService from '../services/GamificationService';
+import MessageService from '../services/MessageService';
+import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { currentUser } from '../data/userProfile';
 
@@ -49,26 +51,98 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     setIceBreakers(generatedIceBreakers);
   }, []);
 
-  const sendMessage = (text = null) => {
+  // Üzenetek betöltése és real-time figyelés
+  useEffect(() => {
+    if (!match?.matchId) {
+      Logger.warn('No matchId available for loading messages');
+      return;
+    }
+
+    // Üzenetek betöltése
+    const loadMessages = async () => {
+      try {
+        const result = await MessageService.getMessages(match.matchId);
+        if (result.success && result.data) {
+          const formattedMessages = result.data.map(msg => ({
+            id: msg.id,
+            text: msg.content,
+            sender: msg.sender_id === currentUser.id ? 'me' : 'them',
+            timestamp: new Date(msg.created_at),
+            readStatus: msg.is_read ? 'read' : 'delivered',
+            type: msg.type || 'text',
+          }));
+          setMessages(formattedMessages);
+        }
+      } catch (error) {
+        Logger.error('Load messages error', error);
+      }
+    };
+
+    loadMessages();
+
+    // Real-time üzenetek figyelése
+    const subscription = MessageService.subscribeToMessages(match.matchId, (newMessage) => {
+      // Csak akkor adjuk hozzá, ha nem mi küldtük
+      if (newMessage.sender_id !== currentUser.id) {
+        const formattedMessage = {
+          id: newMessage.id,
+          text: newMessage.content,
+          sender: 'them',
+          timestamp: new Date(newMessage.created_at),
+          readStatus: 'delivered',
+          type: newMessage.type || 'text',
+        };
+        setMessages(prev => [...prev, formattedMessage]);
+      }
+    });
+
+    // Cleanup
+    return () => {
+      MessageService.unsubscribeFromMessages(subscription);
+    };
+  }, [match?.matchId]);
+
+  const sendMessage = async (text = null) => {
     const messageText = text || inputText.trim();
     if (messageText && typeof messageText === 'string' && messageText.length > 0) {
-      const newMessage = {
-        id: Date.now() + Math.random(), // Unique ID based on timestamp
+      // Optimista UI frissítés
+      const tempMessage = {
+        id: Date.now() + Math.random(),
         text: String(messageText),
         sender: 'me',
         timestamp: new Date(),
-        readStatus: 'sent', // Kezdetben csak elküldve
+        readStatus: 'sent',
       };
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
+      setMessages((prevMessages) => [...prevMessages, tempMessage]);
       setInputText('');
-      setShowIceBreakers(false);  // Hide ice breakers after first message
+      setShowIceBreakers(false);
+
+      // Üzenet küldése Supabase-be
+      try {
+        if (match?.matchId) {
+          const result = await MessageService.sendMessage(
+            match.matchId,
+            currentUser.id,
+            messageText,
+            'text'
+          );
+          
+          if (!result.success) {
+            Logger.warn('Message send failed, keeping local message', result.error);
+          }
+        } else {
+          Logger.warn('No matchId available, message only stored locally');
+        }
+      } catch (error) {
+        Logger.error('Send message error', error);
+      }
 
       if (onUpdateLastMessage) {
         onUpdateLastMessage({
           text: messageText,
           sender: 'me',
           type: 'text',
-          timestamp: newMessage.timestamp.toISOString(),
+          timestamp: tempMessage.timestamp.toISOString(),
         });
       }
       

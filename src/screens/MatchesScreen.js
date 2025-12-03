@@ -18,6 +18,8 @@ import AnimatedAvatar from '../components/AnimatedAvatar';
 import ChatScreen from './ChatScreen';
 import { currentUser } from '../data/userProfile';
 import MatchService from '../services/MatchService';
+import SupabaseMatchService from '../services/SupabaseMatchService';
+import Logger from '../services/Logger';
 
 const SETTINGS_KEY = '@user_settings';
 
@@ -155,12 +157,23 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
     setSelectedMatch(null);
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
+    try {
+      // Szinkronizáljuk a match-eket Supabase-ből
+      Logger.debug('Refreshing matches from Supabase');
+      await SupabaseMatchService.syncMatchesToLocal(currentUser.id);
+      
+      // Frissítjük a last messages-t is
+      await loadLastMessages();
+      
+      Logger.success('Matches refreshed successfully');
+    } catch (error) {
+      Logger.error('Failed to refresh matches', error);
+      Alert.alert('Hiba', 'Nem sikerült frissíteni a match-eket. Ellenőrizd az internetkapcsolatot.');
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
   const sortedMatches = useMemo(() => {
@@ -197,10 +210,28 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
         {
           text: 'Törlés',
           style: 'destructive',
-          onPress: () => {
-            if (removeMatch) {
-              removeMatch(match.id);
+          onPress: async () => {
+            try {
+              // Töröljük a match-et Supabase-ből
+              if (match.matchId) {
+                Logger.debug('Deleting match from Supabase', { matchId: match.matchId });
+                const result = await SupabaseMatchService.deleteMatch(match.matchId);
+                
+                if (!result.success) {
+                  throw new Error(result.error);
+                }
+              }
+              
+              // Töröljük lokálisan is
+              if (removeMatch) {
+                removeMatch(match.id);
+              }
+              
               Alert.alert('✅ Sikeres', 'A match törölve lett.');
+              Logger.success('Match deleted successfully');
+            } catch (error) {
+              Logger.error('Failed to delete match', error);
+              Alert.alert('Hiba', 'Nem sikerült törölni a match-et. Próbáld újra később.');
             }
           },
         },
