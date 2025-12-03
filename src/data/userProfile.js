@@ -1,5 +1,6 @@
 // Példa felhasználó profil
 export const currentUser = {
+  id: 'd80c5450-7522-49e5-84a6-4ad219f8cc57', // UUID formátum a Supabase-hez
   name: 'Te',
   age: 25,
   gender: 'male', // 'male', 'female', 'other'

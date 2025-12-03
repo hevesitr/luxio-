@@ -133,6 +133,7 @@ class SupabaseMatchService {
       return { success: true, isMatch: false };
     } catch (error) {
       Logger.error('Like save failed', error);
+      console.error('DETAILED ERROR:', JSON.stringify(error, null, 2));
       return { success: false, error: error.message };
     }
   }

@@ -114,17 +114,29 @@ async function testSupabaseConnection() {
       log('\nEgyedi bucket ellenőrzés...', 'cyan');
       for (const bucket of buckets) {
         try {
-          const { data, error } = await supabase.storage.from(bucket).list('', { limit: 1 });
-          if (error) {
-            if (error.message.includes('not found') || error.message.includes('does not exist')) {
+          // Próbáljunk meg feltölteni egy teszt fájlt
+          const testFileName = `test_${Date.now()}.txt`;
+          const { error: uploadError } = await supabase.storage
+            .from(bucket)
+            .upload(testFileName, 'test', { upsert: false });
+          
+          if (uploadError) {
+            if (uploadError.message.includes('not found') || uploadError.message.includes('does not exist')) {
               error(`Bucket hiányzik: ${bucket}`);
+              warn(`Hozd létre a Supabase Dashboard → Storage menüben!`);
               failedTests++;
+            } else if (uploadError.message.includes('already exists')) {
+              // A fájl már létezik, ami azt jelenti, hogy a bucket is létezik
+              success(`Bucket OK: ${bucket}`);
+              passedTests++;
             } else {
-              // Más hiba, de a bucket valószínűleg létezik
-              success(`Bucket OK: ${bucket} (létezik, de nincs listázási jog)`);
+              // Más hiba, de a bucket valószínűleg létezik (pl. policy hiba)
+              success(`Bucket OK: ${bucket} (létezik)`);
               passedTests++;
             }
           } else {
+            // Sikeres feltöltés, töröljük a teszt fájlt
+            await supabase.storage.from(bucket).remove([testFileName]);
             success(`Bucket OK: ${bucket}`);
             passedTests++;
           }
