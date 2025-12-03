@@ -44,7 +44,30 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   const { theme } = useTheme();
   const { getDiscoveryFilters, saveDiscoveryFilters } = usePreferences();
   const { user } = useAuth();
-  const [profiles, setProfiles] = useState(initialProfiles);
+  // TEMPORARY: Create a simple test profile to debug
+  const testProfile = {
+    id: 999,
+    name: 'Test User',
+    age: 25,
+    gender: 'female',
+    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop',
+    photos: ['https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop'],
+    distance: 5,
+    bio: 'Test profile for debugging',
+    interests: ['Test'],
+    isVerified: true,
+    lastActive: new Date(),
+  };
+  
+  const [profiles, setProfiles] = useState([testProfile]);
+  
+  // DEBUG: Log in render (not useEffect)
+  console.log('=== HOMESCREEN RENDER ===');
+  console.log('profiles state:', profiles);
+  console.log('profiles[0]:', profiles[0]);
+  console.log('profiles[0]?.name:', profiles[0]?.name);
+  console.log('profiles[0]?.age:', profiles[0]?.age);
+  console.log('typeof profiles[0]?.age:', typeof profiles[0]?.age);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -285,44 +308,37 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     }, [route?.params?.showMatchPopup, route?.params?.matchPopupParams])
   );
 
-  // Load discovery feed from Supabase
+  // TEMPORARILY DISABLED: Load discovery feed from Supabase
+  // useEffect(() => {
+  //   const loadDiscoveryFeed = async () => {
+  //     try {
+  //       setIsLoading(true);
+  //       
+  //       // Always use local profiles for now (Supabase profiles table is empty)
+  //       Logger.info('Using local profiles');
+  //       console.log('Initial profiles count:', initialProfiles.length);
+  //       console.log('First profile:', initialProfiles[0]);
+  //       
+  //       // TEMPORARY FIX: Skip filtering to debug the issue
+  //       setProfiles(initialProfiles);
+  //       console.log('Profiles set directly from initialProfiles');
+  //     } catch (error) {
+  //       Logger.error('Discovery feed load error', error);
+  //       // Fallback to local profiles
+  //       const filtered = filterProfilesByPriority(initialProfiles);
+  //       setProfiles(filtered);
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
+  //
+  //   loadDiscoveryFeed();
+  // }, []);
+  
+  // Keep loading state false
   useEffect(() => {
-    const loadDiscoveryFeed = async () => {
-      if (!user?.id) {
-        Logger.warn('No user ID available for discovery feed');
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        
-        // Get filters from PreferencesContext
-        const filters = getDiscoveryFilters();
-        
-        // Load discovery feed from Supabase
-        const result = await SupabaseMatchService.getDiscoveryFeed(user.id, filters);
-        
-        if (result.success && result.data && result.data.length > 0) {
-          Logger.success('Discovery feed loaded from Supabase', { count: result.data.length });
-          setProfiles(result.data);
-        } else {
-          // Fallback to local profiles if Supabase fails
-          Logger.warn('Using local profiles as fallback');
-          const filtered = filterProfilesByPriority(initialProfiles);
-          setProfiles(filtered);
-        }
-      } catch (error) {
-        Logger.error('Discovery feed load error', error);
-        // Fallback to local profiles
-        const filtered = filterProfilesByPriority(initialProfiles);
-        setProfiles(filtered);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadDiscoveryFeed();
-  }, [user?.id]);
+    setIsLoading(false);
+  }, []);
 
   // Simulate loading and load stories
   useEffect(() => {

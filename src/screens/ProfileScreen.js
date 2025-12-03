@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Constants from 'expo-constants';
 import {
   View,
   Text,
@@ -64,19 +65,48 @@ const ProfileScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (!profile) {
+      console.log('No profile data available');
       return;
     }
 
+    // Segédfüggvény az érvényes kép URL előállításához
+    const getValidPhotoUrl = (url) => {
+      if (!url) {
+        console.log('Nincs megadva profilkép URL');
+        return null;
+      }
+      
+      // Ha már teljes URL, akkor azt használjuk
+      if (url.startsWith('http')) {
+        return url;
+      }
+      
+      // Ha csak egy fájlnév van megadva, akkor összeállítjuk a teljes URL-t
+      const projectId = 'xgvubkbfhleeagdvkhds';
+      // Módosított útvonal: public/profiles mappa használata
+      const finalUrl = `https://${projectId}.supabase.co/storage/v1/object/public/profiles/${url}`;
+      
+      console.log('Profilkép URL:', {
+        eredeti: url,
+        végleges: finalUrl,
+        profilId: profile?.id
+      });
+      
+      return finalUrl;
+    };
+
+    // Használjuk a profile_picture mezőt, ha az létezik, különben az avatar_url-t
+    const profilePicture = profile.profile_picture || profile.avatar_url;
+    
     setUserProfile(prev => ({
       ...prev,
       name: profile.full_name || prev.name,
       age: calculateAge(profile.birth_date) || prev.age,
       bio: profile.bio || prev.bio,
-      photo: profile.avatar_url || prev.photo,
-      interests:
-        (profile.interests && profile.interests.length > 0
-          ? profile.interests
-          : prev.interests),
+      photo: getValidPhotoUrl(profilePicture) || prev.photo,
+      interests: (profile.interests && profile.interests.length > 0)
+        ? profile.interests
+        : prev.interests,
     }));
   }, [profile]);
 

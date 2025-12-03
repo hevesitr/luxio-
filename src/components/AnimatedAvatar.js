@@ -89,7 +89,7 @@ const AnimatedAvatar = ({ source, size = 70, online = false, style }) => {
         ]}
       >
         <Image
-          source={source}
+          source={typeof source === 'string' ? { uri: source } : source}
           style={[
             styles.image,
             {
@@ -98,6 +98,10 @@ const AnimatedAvatar = ({ source, size = 70, online = false, style }) => {
               borderRadius: size / 2,
             },
           ]}
+          onError={(error) => {
+            console.log('Hiba a profilkép betöltésekor:', error);
+          }}
+          resizeMode="cover"
         />
         {online && (
           <View style={styles.onlineIndicator}>

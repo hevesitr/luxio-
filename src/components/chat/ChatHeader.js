@@ -1,41 +1,51 @@
+/**
+ * Chat Header Component
+ * Header for chat screen with profile info
+ */
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const ChatHeader = ({ match, onBack, onVideoCall, onVoiceCall, onMoreOptions, theme }) => {
+const ChatHeader = ({ profile, onBack, isTyping = false }) => {
   return (
-    <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+    <View style={styles.container}>
+      {/* Back button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={onBack}
+      >
+        <Ionicons name="chevron-back" size={28} color="#007AFF" />
       </TouchableOpacity>
-
-      <TouchableOpacity style={styles.profileInfo} onPress={onMoreOptions}>
+      
+      {/* Profile info */}
+      <TouchableOpacity style={styles.profileInfo}>
         <Image
-          source={{ uri: match.photo }}
+          source={{ uri: profile?.photo_url }}
           style={styles.avatar}
         />
-        <View style={styles.nameContainer}>
-          <Text style={[styles.name, { color: theme.colors.text }]}>
-            {match.name}
-          </Text>
-          <View style={styles.statusContainer}>
-            <View style={[styles.onlineIndicator, { backgroundColor: '#4CAF50' }]} />
-            <Text style={[styles.status, { color: theme.colors.textSecondary }]}>
-              Online
-            </Text>
-          </View>
+        
+        <View style={styles.textContainer}>
+          <Text style={styles.name}>{profile?.name}</Text>
+          {isTyping && (
+            <Text style={styles.typing}>typing...</Text>
+          )}
         </View>
       </TouchableOpacity>
-
+      
+      {/* Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity onPress={onVoiceCall} style={styles.actionButton}>
-          <Ionicons name="call" size={22} color={theme.colors.primary} />
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="videocam" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onVideoCall} style={styles.actionButton}>
-          <Ionicons name="videocam" size={22} color={theme.colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onMoreOptions} style={styles.actionButton}>
-          <Ionicons name="ellipsis-vertical" size={22} color={theme.colors.text} />
+        
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="ellipsis-vertical" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -43,17 +53,17 @@ const ChatHeader = ({ match, onBack, onVideoCall, onVoiceCall, onMoreOptions, th
 };
 
 const styles = StyleSheet.create({
-  header: {
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: 5,
-    marginRight: 10,
+    marginRight: 8,
   },
   profileInfo: {
     flex: 1,
@@ -66,34 +76,25 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
   },
-  nameContainer: {
+  textContainer: {
     flex: 1,
   },
   name: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 2,
+    color: '#000',
   },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  onlineIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  status: {
-    fontSize: 12,
+  typing: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontStyle: 'italic',
   },
   actions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 16,
   },
   actionButton: {
-    padding: 8,
+    padding: 4,
   },
 });
 

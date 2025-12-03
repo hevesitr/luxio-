@@ -13,8 +13,8 @@ import { NotificationProvider } from './src/context/NotificationContext';
 import MatchService from './src/services/MatchService';
 import { queryClient } from './src/config/queryClient';
 
-import HomeScreen from './src/screens/HomeScreen';
-import MatchesScreen from './src/screens/MatchesScreen';
+import HomeScreen from './src/screens/HomeScreen.OPTIMIZED';
+import MatchesScreen from './src/screens/MatchesScreen.OPTIMIZED';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';

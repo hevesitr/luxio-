@@ -51,8 +51,15 @@ export const NotificationProvider = ({ children }) => {
    * Értesítések betöltése
    */
   const loadNotifications = async () => {
+    // Ellenőrizzük, hogy van-e bejelentkezett felhasználó
+    if (!user?.id) {
+      Logger.debug('Skipping notifications load - no user logged in');
+      return;
+    }
+
     try {
       setLoading(true);
+      Logger.debug('Loading notifications for user', { userId: user.id });
 
       const { data, error } = await supabase
         .from('notifications')
@@ -61,12 +68,47 @@ export const NotificationProvider = ({ children }) => {
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (error) {
+        Logger.error('Supabase error when loading notifications', {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
 
-      setNotifications(data);
-      Logger.debug('Notifications loaded', { count: data.length });
+      // Ellenőrizzük, hogy van-e adat
+      if (!data) {
+        Logger.debug('No notifications data returned from Supabase');
+        setNotifications([]);
+        return;
+      }
+
+      setNotifications(Array.isArray(data) ? data : []);
+      Logger.debug('Successfully loaded notifications', { 
+        count: data.length,
+        firstNotification: data[0] 
+      });
     } catch (error) {
-      Logger.error('Load notifications failed', error);
+      Logger.error('Failed to load notifications', {
+        error: error.message,
+        userId: user?.id,
+        stack: error.stack
+      });
+      
+      // Kezeljük a hálózati hibákat
+      if (error.message?.includes('Network request failed')) {
+        Logger.warn('Network error - check internet connection');
+      }
+      
+      // Kezeld a Supabase specifikus hibákat
+      if (error.code === 'PGRST116') {
+        Logger.warn('Resource not found - check table permissions');
+      }
+      
+      // Üres tömb beállítása, hogy ne maradjon undefined
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -77,39 +119,79 @@ export const NotificationProvider = ({ children }) => {
    */
   let notificationSubscription = null;
 
-  const subscribeToNotifications = () => {
-    if (!user) return;
+  const subscribeToNotifications = async () => {
+    if (!user?.id) {
+      Logger.debug('Cannot subscribe to notifications - no user ID');
+      return;
+    }
 
-    // Új üzenetek figyelése
-    notificationSubscription = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          handleNewNotification(payload.new);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          // Ellenőrizzük, hogy a felhasználó kapja-e az üzenetet
-          checkIfMessageForUser(payload.new);
-        }
-      )
-      .subscribe();
+    try {
+      // Ellenőrizzük, hogy létezik-e a notifications tábla
+      const { error: tableCheckError } = await supabase
+        .from('notifications')
+        .select('*')
+        .limit(1);
 
-    Logger.debug('Subscribed to notifications', { userId: user.id });
+      if (tableCheckError && tableCheckError.code === '42P01') {
+        // 42P01 = undefined_table
+        Logger.warn('Notifications table does not exist in Supabase', {
+          userId: user.id,
+          error: tableCheckError
+        });
+        return;
+      } else if (tableCheckError) {
+        throw tableCheckError;
+      }
+
+      // Ha eljutunk idáig, akkor a tábla létezik, feliratkozhatunk
+      notificationSubscription = supabase
+        .channel(`notifications:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            handleNewNotification(payload.new);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+          },
+          (payload) => {
+            checkIfMessageForUser(payload.new);
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) {
+            Logger.error('Error in notification subscription', {
+              status,
+              error: err,
+              userId: user.id
+            });
+          } else {
+            Logger.debug('Successfully subscribed to notifications', {
+              status,
+              userId: user.id
+            });
+          }
+        });
+
+      Logger.debug('Subscribed to notifications', { userId: user.id });
+    } catch (error) {
+      Logger.error('Failed to set up notification subscription', {
+        error: error.message,
+        code: error.code,
+        userId: user.id
+      });
+    }
   };
 
   /**

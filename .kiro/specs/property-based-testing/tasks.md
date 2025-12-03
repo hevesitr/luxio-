@@ -9,45 +9,61 @@ This plan implements comprehensive property-based testing for the Dating Applica
 ## TASKS
 
 - [ ] 1. Setup and Configuration
-- [ ] 1.1 Install fast-check library
+- [x] 1.1 Install fast-check library
+
+
   - Run `npm install --save-dev fast-check`
   - Verify installation in package.json
   - _Requirements: 1.1_
 
+
+
 - [ ] 1.2 Configure Jest for property tests
   - Update jest.config.js with property test patterns
   - Set test timeout to 10 seconds
+
+
   - Configure coverage collection
   - _Requirements: 1.2, 1.4_
 
-- [ ] 1.3 Create test directory structure
+- [x] 1.3 Create test directory structure
+
+
   - Create `src/services/__tests__/properties/` directory
   - Create `src/services/__tests__/generators/` directory
   - _Requirements: 1.1_
 
-- [ ] 2. Test Data Generators
+- [x] 2. Test Data Generators
+
+
 - [ ] 2.1 Implement user generators
   - Create userGenerator with id, name, age, gender
   - Create profileGenerator with interests, location, bio
   - Add validation constraints (age 18-99, name 2-50 chars)
   - _Requirements: 2.1, 4.1_
+
+
   - **File:** `src/services/__tests__/generators/userGenerators.js`
 
 - [ ] 2.2 Implement message generators
   - Create messageGenerator with id, sender, receiver, content
   - Add timestamp generator
   - Add content length constraints (1-500 chars)
+
+
   - _Requirements: 3.1_
   - **File:** `src/services/__tests__/generators/messageGenerators.js`
 
 - [ ] 2.3 Implement location generators
   - Create locationGenerator with valid lat/long
+
   - Create distanceGenerator for test distances
   - Add coordinate validation
   - _Requirements: 5.1, 5.2_
   - **File:** `src/services/__tests__/generators/locationGenerators.js`
 
-- [ ] 3. Match Service Property Tests
+- [x] 3. Match Service Property Tests
+
 - [ ] 3.1 Write property test for like count increment
   - **Property 1: Like count increment**
   - **Validates: Requirements 2.1**
@@ -62,22 +78,29 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - Verify exactly one match created for each
   - _Requirements: 2.2_
 
+
+
 - [ ] 3.3 Write property test for pass exclusion
   - **Property 3: Pass exclusion**
   - **Validates: Requirements 2.3**
   - Generate user and profile, save pass
   - Verify profile excluded from future feeds
+
+
   - _Requirements: 2.3_
 
 - [ ]* 3.4 Write property test for swipe history ordering
   - **Property 4: Swipe history ordering**
   - **Validates: Requirements 2.4**
+
   - Generate sequence of swipes
   - Verify history returns chronological order
   - _Requirements: 2.4_
 
 - [ ] 3.5 Write property test for daily swipe limit
   - **Property 5: Daily swipe limit enforcement**
+
+
   - **Validates: Requirements 2.5**
   - Generate 101 swipes for free user
   - Verify 101st swipe is rejected
@@ -98,23 +121,28 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - Verify chronological order
   - _Requirements: 3.2_
 
+
+
 - [ ] 4.3 Write property test for message deletion
   - **Property 8: Message deletion consistency**
   - **Validates: Requirements 3.3**
   - Generate message, delete it
   - Verify not retrievable
+
   - _Requirements: 3.3_
 
 - [ ]* 4.4 Write property test for unmatch cascade
   - **Property 9: Unmatch cascade deletion**
   - **Validates: Requirements 3.4**
   - Create conversation with messages
+
   - Unmatch and verify all messages deleted
   - _Requirements: 3.4_
 
 - [ ]* 4.5 Write property test for pagination
   - **Property 10: Pagination non-overlap**
   - **Validates: Requirements 3.5**
+
   - Generate messages, paginate
   - Verify no overlap and correct order
   - _Requirements: 3.5_
@@ -145,15 +173,22 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - **Property 14: Invalid profile rejection**
   - **Validates: Requirements 4.4**
   - Generate invalid profiles
+
+
+
   - Verify rejection and no state change
   - _Requirements: 4.4_
 
-- [ ] 5.5 Write property test for age calculation
+- [x] 5.5 Write property test for age calculation
+
   - **Property 15: Age calculation correctness**
   - **Validates: Requirements 4.5**
   - Generate birthdates
   - Verify age calculation accuracy
+
+
   - _Requirements: 4.5_
+
 
 - [ ] 6. Location Service Property Tests
 - [ ] 6.1 Write property test for distance non-negativity
@@ -161,21 +196,27 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - **Validates: Requirements 5.1**
   - Generate random location pairs
   - Verify distance >= 0
+
   - _Requirements: 5.1_
 
 - [ ] 6.2 Write property test for distance identity
   - **Property 17: Distance identity**
   - **Validates: Requirements 5.2**
+
+
   - Generate random locations
   - Verify distance(x, x) = 0
   - _Requirements: 5.2_
 
-- [ ] 6.3 Write property test for Haversine accuracy
+- [x] 6.3 Write property test for Haversine accuracy
+
   - **Property 18: Haversine accuracy**
   - **Validates: Requirements 5.3**
   - Test against known distances
   - Verify within 1km accuracy
   - _Requirements: 5.3_
+
+
 
 - [ ] 6.4 Write property test for distance sorting
   - **Property 19: Distance sorting order**
@@ -192,18 +233,23 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - _Requirements: 5.5_
 
 - [ ] 7. Discovery Feed Property Tests
-- [ ] 7.1 Write property test for seen profile exclusion
+- [x] 7.1 Write property test for seen profile exclusion
+
+
   - **Property 21: Seen profile exclusion**
   - **Validates: Requirements 6.1**
   - Generate seen profiles
   - Verify excluded from feed
   - _Requirements: 6.1_
 
+
 - [ ] 7.2 Write property test for age filter
   - **Property 22: Age filter correctness**
   - **Validates: Requirements 6.2**
   - Generate age range filter
   - Verify all results within range
+
+
   - _Requirements: 6.2_
 
 - [ ] 7.3 Write property test for distance filter
@@ -213,18 +259,23 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - Verify all results within radius
   - _Requirements: 6.3_
 
-- [ ] 7.4 Write property test for gender filter
+- [x] 7.4 Write property test for gender filter
+
+
   - **Property 24: Gender filter correctness**
   - **Validates: Requirements 6.4**
   - Generate gender preference
   - Verify all results match preference
   - _Requirements: 6.4_
 
+
 - [ ] 8. Compatibility Algorithm Property Tests
 - [ ] 8.1 Write property test for score bounds
   - **Property 25: Compatibility score bounds**
   - **Validates: Requirements 7.1**
   - Generate random profile pairs
+
+
   - Verify 0 <= score <= 100
   - _Requirements: 7.1_
 
@@ -245,11 +296,14 @@ This plan implements comprehensive property-based testing for the Dating Applica
 - [ ]* 8.4 Write property test for no common interests
   - **Property 28: No common interests zero score**
   - **Validates: Requirements 7.4**
+
+
   - Generate profiles with no overlap
   - Verify zero interest score
   - _Requirements: 7.4_
 
-- [ ]* 8.5 Write property test for compatibility idempotence
+- [x]* 8.5 Write property test for compatibility idempotence
+
   - **Property 29: Compatibility idempotence**
   - **Validates: Requirements 7.5**
   - Calculate compatibility multiple times
@@ -277,6 +331,9 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - Swipe then rewind
   - Verify profile restored
   - _Requirements: 8.3_
+
+
+
 
 - [ ]* 9.4 Write property test for subscription expiration
   - **Property 33: Subscription expiration revocation**

@@ -249,7 +249,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
           <View style={styles.info}>
             <View style={styles.nameRow}>
               <Text style={styles.name}>{profile.name}</Text>
-              <Text style={styles.age}>{profile.age}</Text>
+              <Text style={styles.age}>{profile.age != null && !isNaN(profile.age) ? profile.age : 25}</Text>
               {profile.isVerified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={24} color="#2196F3" />

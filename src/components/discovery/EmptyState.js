@@ -1,70 +1,82 @@
+/**
+ * Empty State Component
+ * Displays when there's no content to show
+ */
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-/**
- * EmptyState Component
- * 
- * Displays when no profiles are available
- * Shows message and action button to reset or adjust filters
- */
-const EmptyState = ({ theme, onReset }) => {
-  const styles = createStyles(theme);
-
+const EmptyState = ({ 
+  icon = 'heart-outline',
+  title, 
+  subtitle, 
+  buttonText, 
+  onButtonPress 
+}) => {
   return (
     <View style={styles.container}>
-      <Ionicons
-        name="heart-dislike"
-        size={80}
-        color="rgba(255, 255, 255, 0.3)"
-      />
-      <Text style={styles.title}>Nincs több profil</Text>
-      <Text style={styles.subtitle}>
-        Elfogytak a profilok ezen a környéken.{'\n'}
-        Próbáld újra később vagy módosítsd a szűrőket!
-      </Text>
-      {onReset && (
-        <TouchableOpacity style={styles.button} onPress={onReset}>
-          <Text style={styles.buttonText}>Újrakezdés</Text>
+      <View style={styles.iconContainer}>
+        <Ionicons name={icon} size={80} color="#ccc" />
+      </View>
+      
+      <Text style={styles.title}>{title}</Text>
+      
+      {subtitle && (
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      )}
+      
+      {buttonText && onButtonPress && (
+        <TouchableOpacity
+          style={styles.button}
+          onPress={onButtonPress}
+        >
+          <Text style={styles.buttonText}>{buttonText}</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 };
 
-const createStyles = (theme) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 40,
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: theme.colors.text,
-      marginTop: 20,
-      marginBottom: 10,
-    },
-    subtitle: {
-      fontSize: 16,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 24,
-      marginBottom: 30,
-    },
-    button: {
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 30,
-      paddingVertical: 14,
-      borderRadius: 25,
-    },
-    buttonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  iconContainer: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
 
 export default EmptyState;
