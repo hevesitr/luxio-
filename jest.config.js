@@ -11,14 +11,24 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/__tests__/**/*.properties.test.js',
+    '**/__tests__/properties/**/*.test.js',
     '**/?(*.)+(spec|test).js'
   ],
-  testTimeout: 10000, // 10 seconds for property tests
+  testTimeout: 10000, // 10 seconds for property tests with 100 iterations
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/**/*.test.{js,jsx}',
+    '!src/**/__tests__/**',
     '!**/node_modules/**',
   ],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70
+    }
+  },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^expo-location$': '<rootDir>/__mocks__/expo-location.js',

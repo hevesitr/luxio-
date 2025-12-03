@@ -18,6 +18,8 @@ This plan implements comprehensive property-based testing for the Dating Applica
 
 
 
+
+
 - [ ] 1.2 Configure Jest for property tests
   - Update jest.config.js with property test patterns
   - Set test timeout to 10 seconds
@@ -26,26 +28,42 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - Configure coverage collection
   - _Requirements: 1.2, 1.4_
 
+
+
 - [x] 1.3 Create test directory structure
+
+
+
+
 
 
   - Create `src/services/__tests__/properties/` directory
   - Create `src/services/__tests__/generators/` directory
   - _Requirements: 1.1_
 
+
+
+
+
 - [x] 2. Test Data Generators
 
 
-- [ ] 2.1 Implement user generators
+- [x] 2.1 Implement user generators
+
+
+
+
   - Create userGenerator with id, name, age, gender
   - Create profileGenerator with interests, location, bio
   - Add validation constraints (age 18-99, name 2-50 chars)
+
   - _Requirements: 2.1, 4.1_
 
 
   - **File:** `src/services/__tests__/generators/userGenerators.js`
 
-- [ ] 2.2 Implement message generators
+- [x] 2.2 Implement message generators
+
   - Create messageGenerator with id, sender, receiver, content
   - Add timestamp generator
   - Add content length constraints (1-500 chars)
@@ -59,23 +77,29 @@ This plan implements comprehensive property-based testing for the Dating Applica
 
   - Create distanceGenerator for test distances
   - Add coordinate validation
+
+
   - _Requirements: 5.1, 5.2_
   - **File:** `src/services/__tests__/generators/locationGenerators.js`
 
 - [x] 3. Match Service Property Tests
 
-- [ ] 3.1 Write property test for like count increment
+- [x] 3.1 Write property test for like count increment
+
+
   - **Property 1: Like count increment**
   - **Validates: Requirements 2.1**
   - Generate random user and profile
   - Save like and verify count increases by 1
   - _Requirements: 2.1_
 
+
 - [ ] 3.2 Write property test for mutual like match creation
   - **Property 2: Mutual like creates match**
   - **Validates: Requirements 2.2**
   - Generate two users who mutually like
   - Verify exactly one match created for each
+
   - _Requirements: 2.2_
 
 
@@ -97,6 +121,8 @@ This plan implements comprehensive property-based testing for the Dating Applica
   - Verify history returns chronological order
   - _Requirements: 2.4_
 
+
+
 - [ ] 3.5 Write property test for daily swipe limit
   - **Property 5: Daily swipe limit enforcement**
 
@@ -109,6 +135,8 @@ This plan implements comprehensive property-based testing for the Dating Applica
 - [ ] 4. Message Service Property Tests
 - [ ] 4.1 Write property test for message persistence
   - **Property 6: Message persistence round-trip**
+
+
   - **Validates: Requirements 3.1**
   - Generate random message
   - Send then retrieve, verify equivalence
