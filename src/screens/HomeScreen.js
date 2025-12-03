@@ -31,6 +31,7 @@ import GamificationService from '../services/GamificationService';
 import AIRecommendationService from '../services/AIRecommendationService';
 import MatchService from '../services/MatchService';
 import SupabaseMatchService from '../services/SupabaseMatchService';
+import PaymentService from '../services/PaymentService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -482,13 +483,47 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     });
   }, [chatProfile, matchedProfile]);
 
-  const handleUndo = () => {
-    if (history.length > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      const lastAction = history[history.length - 1];
-      setHistory((prev) => prev.slice(0, -1));
-      setCurrentIndex(lastAction.index);
-      Alert.alert('↩️ Visszafordítva', 'Az utolsó döntésed visszavonva!');
+  const handleUndo = async () => {
+    if (history.length === 0) return;
+    
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Jelentkezz be a visszavonáshoz');
+      return;
+    }
+
+    try {
+      // Check if user is premium
+      const isPremiumResult = await PaymentService.isPremiumUser(user.id);
+      
+      if (!isPremiumResult.success || !isPremiumResult.data) {
+        // Not premium, show upgrade prompt
+        Alert.alert(
+          '↩️ Rewind',
+          'A Rewind prémium funkció. Szeretnéd aktiválni a prémium előfizetést?',
+          [
+            { text: 'Mégsem', style: 'cancel' },
+            { 
+              text: 'Prémium', 
+              onPress: () => navigation.navigate('Premium')
+            }
+          ]
+        );
+        return;
+      }
+
+      // Use rewind
+      const result = await PaymentService.useRewind(user.id);
+      
+      if (result.success) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const lastAction = history[history.length - 1];
+        setHistory((prev) => prev.slice(0, -1));
+        setCurrentIndex(lastAction.index);
+        Alert.alert('↩️ Visszafordítva', 'Az utolsó döntésed visszavonva!');
+      }
+    } catch (error) {
+      console.error('Rewind error:', error);
+      Alert.alert('Hiba', error.message || 'Nem sikerült visszavonni a döntést');
     }
   };
 
@@ -506,20 +541,68 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     }
   };
 
-  const handleSuperLikePress = () => {
-    if (currentIndex < profiles.length) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const profile = profiles[currentIndex];
-      Alert.alert(
-        '⭐ Super Like!',
-        `${profile.name}-nak Super Like-ot küldtél!`,
-        [{ text: 'OK' }]
-      );
-      onMatch(profile);
-      if (cardRef.current && cardRef.current.superLike) {
-        cardRef.current.superLike();
-      } else if (cardRef.current) {
-        cardRef.current.swipeRight();
+  const handleSuperLikePress = async () => {
+    if (currentIndex >= profiles.length) return;
+    
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Jelentkezz be a Super Like használatához');
+      return;
+    }
+
+    const profile = profiles[currentIndex];
+    
+    try {
+      // Check if user is premium
+      const isPremiumResult = await PaymentService.isPremiumUser(user.id);
+      
+      if (!isPremiumResult.success || !isPremiumResult.data) {
+        // Not premium, show upgrade prompt
+        Alert.alert(
+          '⭐ Super Like',
+          'A Super Like prémium funkció. Szeretnéd aktiválni a prémium előfizetést?',
+          [
+            { text: 'Mégsem', style: 'cancel' },
+            { 
+              text: 'Prémium', 
+              onPress: () => navigation.navigate('Premium')
+            }
+          ]
+        );
+        return;
+      }
+
+      // Use super like
+      const result = await PaymentService.useSuperLike(user.id, profile.id);
+      
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+          '⭐ Super Like!',
+          `${profile.name}-nak Super Like-ot küldtél!\n${result.data.remaining} Super Like maradt ma.`,
+          [{ text: 'OK' }]
+        );
+        
+        // Animate the card
+        if (cardRef.current && cardRef.current.superLike) {
+          cardRef.current.superLike();
+        } else if (cardRef.current) {
+          cardRef.current.swipeRight();
+        }
+        
+        onMatch(profile);
+      }
+    } catch (error) {
+      console.error('Super like error:', error);
+      
+      // Check if it's a daily limit error
+      if (error.message?.includes('limit')) {
+        Alert.alert(
+          'Napi limit elérve',
+          'Elérted a napi 5 Super Like limitet. Holnap újra használhatod!',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Hiba', error.message || 'Nem sikerült elküldeni a Super Like-ot');
       }
     }
   };

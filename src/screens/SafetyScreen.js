@@ -6,12 +6,23 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import SafetyService from '../services/SafetyService';
+import { useAuth } from '../contexts/AuthContext';
 
-const SafetyScreen = ({ navigation }) => {
+const SafetyScreen = ({ navigation, route }) => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  
+  // Get reported user from navigation params (if coming from profile/chat)
+  const reportedUserId = route?.params?.userId;
+  const reportedUserName = route?.params?.userName;
+
   const safetyTips = [
     {
       icon: '🛡️',
@@ -97,18 +108,23 @@ const SafetyScreen = ({ navigation }) => {
   };
 
   const handleReport = () => {
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Jelentkezz be a jelentéshez');
+      return;
+    }
+
+    if (!reportedUserId) {
+      Alert.alert('Hiba', 'Nincs kiválasztva felhasználó a jelentéshez');
+      return;
+    }
+
     Alert.alert(
       'Felhasználó jelentése',
-      'Válassz egy okot:',
+      reportedUserName ? `${reportedUserName} jelentése` : 'Válassz egy okot:',
       [
         ...reportReasons.map(reason => ({
           text: reason,
-          onPress: () => {
-            Alert.alert(
-              '✅ Jelentés elküldve',
-              'Köszönjük a jelentésed. Csapatunk hamarosan átnézi és megteszi a szükséges lépéseket.\n\nA biztonságod a legfontosabb számunkra!'
-            );
-          },
+          onPress: () => submitReport(reason),
         })),
         { text: 'Mégse', style: 'cancel' },
       ],
@@ -116,21 +132,82 @@ const SafetyScreen = ({ navigation }) => {
     );
   };
 
+  const submitReport = async (reason) => {
+    try {
+      setLoading(true);
+
+      const result = await SafetyService.reportUser(
+        user.id,
+        reportedUserId,
+        reason,
+        '' // Optional evidence/details
+      );
+
+      if (result.success) {
+        Alert.alert(
+          '✅ Jelentés elküldve',
+          'Köszönjük a jelentésed. Csapatunk hamarosan átnézi és megteszi a szükséges lépéseket.\n\nA biztonságod a legfontosabb számunkra!',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        throw new Error(result.error?.message || 'Jelentés sikertelen');
+      }
+    } catch (error) {
+      console.error('Report error:', error);
+      Alert.alert('Hiba', error.message || 'Nem sikerült elküldeni a jelentést');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBlock = () => {
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Jelentkezz be a blokkoláshoz');
+      return;
+    }
+
+    if (!reportedUserId) {
+      Alert.alert('Hiba', 'Nincs kiválasztva felhasználó a blokkoláshoz');
+      return;
+    }
+
     Alert.alert(
       'Felhasználó blokkolása',
-      'Biztosan blokkolni szeretnéd ezt a felhasználót? Többé nem fog tudni kapcsolatba lépni veled.',
+      reportedUserName 
+        ? `Biztosan blokkolni szeretnéd ${reportedUserName}-t? Többé nem fog tudni kapcsolatba lépni veled.`
+        : 'Biztosan blokkolni szeretnéd ezt a felhasználót? Többé nem fog tudni kapcsolatba lépni veled.',
       [
         { text: 'Mégse', style: 'cancel' },
         {
           text: 'Blokkolás',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('🚫 Blokkolva', 'A felhasználó sikeresen blokkolva.');
-          },
+          onPress: submitBlock,
         },
       ]
     );
+  };
+
+  const submitBlock = async () => {
+    try {
+      setLoading(true);
+
+      const result = await SafetyService.blockUser(user.id, reportedUserId);
+
+      if (result.success) {
+        Alert.alert(
+          '🚫 Blokkolva',
+          'A felhasználó sikeresen blokkolva. Többé nem fog tudni kapcsolatba lépni veled.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        throw new Error(result.error?.message || 'Blokkolás sikertelen');
+      }
+    } catch (error) {
+      console.error('Block error:', error);
+      Alert.alert('Hiba', error.message || 'Nem sikerült blokkolni a felhasználót');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -145,30 +222,57 @@ const SafetyScreen = ({ navigation }) => {
 
       <ScrollView>
         {/* Gyors műveletek */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚡ Gyors műveletek</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionButton} onPress={handleReport}>
-              <LinearGradient
-                colors={['#F44336', '#E53935']}
-                style={styles.quickActionGradient}
+        {reportedUserId && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⚡ Gyors műveletek</Text>
+            {reportedUserName && (
+              <Text style={styles.sectionSubtitle}>
+                Műveletek: {reportedUserName}
+              </Text>
+            )}
+            <View style={styles.quickActions}>
+              <TouchableOpacity 
+                style={styles.quickActionButton} 
+                onPress={handleReport}
+                disabled={loading}
               >
-                <Ionicons name="flag" size={24} color="#fff" />
-                <Text style={styles.quickActionText}>Jelentés</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#F44336', '#E53935']}
+                  style={styles.quickActionGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="flag" size={24} color="#fff" />
+                      <Text style={styles.quickActionText}>Jelentés</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.quickActionButton} onPress={handleBlock}>
-              <LinearGradient
-                colors={['#9C27B0', '#8E24AA']}
-                style={styles.quickActionGradient}
+              <TouchableOpacity 
+                style={styles.quickActionButton} 
+                onPress={handleBlock}
+                disabled={loading}
               >
-                <Ionicons name="ban" size={24} color="#fff" />
-                <Text style={styles.quickActionText}>Blokkolás</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#9C27B0', '#8E24AA']}
+                  style={styles.quickActionGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="ban" size={24} color="#fff" />
+                      <Text style={styles.quickActionText}>Blokkolás</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Segélyhívó számok */}
         <View style={styles.section}>
@@ -272,6 +376,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 15,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+    marginTop: -10,
   },
   quickActions: {
     flexDirection: 'row',

@@ -5,11 +5,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/contexts/PreferencesContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import MatchService from './src/services/MatchService';
+import { queryClient } from './src/config/queryClient';
 
 import HomeScreen from './src/screens/HomeScreen';
 import MatchesScreen from './src/screens/MatchesScreen';
@@ -316,19 +318,21 @@ export default function App() {
   };
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <PreferencesProvider>
-          <NotificationProvider>
-            <SafeAreaProvider>
-              <NavigationContainer>
-                <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
-              </NavigationContainer>
-            </SafeAreaProvider>
-          </NotificationProvider>
-        </PreferencesProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <PreferencesProvider>
+            <NotificationProvider>
+              <SafeAreaProvider>
+                <NavigationContainer>
+                  <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
+                </NavigationContainer>
+              </SafeAreaProvider>
+            </NotificationProvider>
+          </PreferencesProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

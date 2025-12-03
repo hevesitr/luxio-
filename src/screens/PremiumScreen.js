@@ -6,44 +6,118 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import PremiumService from '../services/PremiumService';
+import PaymentService from '../services/PaymentService';
+import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const PremiumScreen = ({ navigation }) => {
   const { theme } = useTheme();
-  const [currentTier, setCurrentTier] = useState(PremiumService.TIERS.FREE);
-  const [selectedTier, setSelectedTier] = useState(PremiumService.TIERS.GOLD);
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState('premium_gold');
+  const [plans, setPlans] = useState([]);
 
   useEffect(() => {
-    loadCurrentTier();
+    loadSubscriptionData();
   }, []);
 
-  const loadCurrentTier = async () => {
-    const tier = await PremiumService.getUserTier();
-    setCurrentTier(tier);
+  const loadSubscriptionData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get available plans
+      const plansResult = PaymentService.getSubscriptionPlans();
+      if (plansResult.success) {
+        setPlans(plansResult.data);
+        // Set default selected plan to Gold (middle tier)
+        const goldPlan = plansResult.data.find(p => p.id === 'premium_quarterly');
+        if (goldPlan) {
+          setSelectedPlan(goldPlan.id);
+        }
+      }
+
+      // Get current subscription status
+      if (user?.id) {
+        const statusResult = await PaymentService.getSubscriptionStatus(user.id);
+        if (statusResult.success) {
+          setSubscriptionStatus(statusResult.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading subscription data:', error);
+      Alert.alert('Hiba', 'Nem sikerült betölteni az előfizetési adatokat');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePurchase = async () => {
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Jelentkezz be az előfizetéshez');
+      return;
+    }
+
+    const plan = plans.find(p => p.id === selectedPlan);
+    if (!plan) {
+      Alert.alert('Hiba', 'Érvénytelen csomag');
+      return;
+    }
+
     Alert.alert(
       '✨ Előfizetés',
-      `Szeretnéd aktiválni a ${PremiumService.getTierDisplayName(selectedTier)}-t ${PremiumService.PRICING[selectedTier]} Ft/hóért?`,
+      `Szeretnéd aktiválni a ${plan.name}-t $${plan.price}/${plan.duration} napért?`,
       [
         { text: 'Mégsem', style: 'cancel' },
         {
           text: 'Fizetés',
           onPress: async () => {
-            // In real app, this would process payment
-            const success = await PremiumService.setUserTier(selectedTier);
-            if (success) {
-              Alert.alert(
-                '🎉 Sikeres vásárlás!',
-                `Aktiváltad a ${PremiumService.getTierDisplayName(selectedTier)}-t!`,
-                [{ text: 'OK', onPress: () => navigation.goBack() }]
+            try {
+              setLoading(true);
+
+              // Process payment (mock implementation)
+              const paymentResult = await PaymentService.processPayment(
+                user.id,
+                plan.price,
+                'card'
               );
+
+              if (!paymentResult.success) {
+                throw new Error('Payment failed');
+              }
+
+              // Create subscription
+              const subscriptionResult = await PaymentService.createSubscription(
+                user.id,
+                plan.id
+              );
+
+              if (subscriptionResult.success) {
+                Alert.alert(
+                  '🎉 Sikeres vásárlás!',
+                  `Aktiváltad a ${plan.name}-t!`,
+                  [{ 
+                    text: 'OK', 
+                    onPress: () => {
+                      loadSubscriptionData();
+                      navigation.goBack();
+                    }
+                  }]
+                );
+              }
+            } catch (error) {
+              console.error('Purchase error:', error);
+              Alert.alert(
+                'Hiba',
+                error.message || 'Nem sikerült feldolgozni a fizetést'
+              );
+            } finally {
+              setLoading(false);
             }
           },
         },
@@ -51,17 +125,15 @@ const PremiumScreen = ({ navigation }) => {
     );
   };
 
-  const PricingCard = ({ tier, isPopular = false }) => {
-    const isSelected = selectedTier === tier;
-    const isCurrent = currentTier === tier;
-    const displayName = PremiumService.getTierDisplayName(tier);
-    const price = PremiumService.PRICING[tier];
-    const benefits = PremiumService.getTierBenefits(tier);
+  const PricingCard = ({ plan, isPopular = false }) => {
+    const isSelected = selectedPlan === plan.id;
+    const isCurrent = subscriptionStatus?.isPremium && 
+                      subscriptionStatus?.subscription?.plan_id === plan.id;
 
     const colors = {
-      [PremiumService.TIERS.PLUS]: ['#2196F3', '#42A5F5'],
-      [PremiumService.TIERS.GOLD]: ['#FFD700', '#FFC107'],
-      [PremiumService.TIERS.PLATINUM]: ['#E0E0E0', '#BDBDBD'],
+      'premium_monthly': ['#2196F3', '#42A5F5'],
+      'premium_quarterly': ['#FFD700', '#FFC107'],
+      'premium_yearly': ['#E0E0E0', '#BDBDBD'],
     };
 
     return (
@@ -71,8 +143,9 @@ const PremiumScreen = ({ navigation }) => {
           isSelected && styles.selectedCard,
           isCurrent && styles.currentCard,
         ]}
-        onPress={() => setSelectedTier(tier)}
+        onPress={() => !isCurrent && setSelectedPlan(plan.id)}
         activeOpacity={0.8}
+        disabled={isCurrent}
       >
         {isPopular && (
           <View style={styles.popularBadge}>
@@ -81,19 +154,21 @@ const PremiumScreen = ({ navigation }) => {
         )}
 
         <LinearGradient
-          colors={colors[tier]}
+          colors={colors[plan.id] || ['#2196F3', '#42A5F5']}
           style={styles.tierHeader}
         >
-          <Text style={styles.tierName}>{displayName}</Text>
-          <Text style={styles.tierPrice}>{price.toLocaleString()} Ft</Text>
-          <Text style={styles.tierPeriod}>/ hónap</Text>
+          <Text style={styles.tierName}>{plan.name}</Text>
+          <Text style={styles.tierPrice}>${plan.price}</Text>
+          <Text style={styles.tierPeriod}>/ {plan.duration} nap</Text>
         </LinearGradient>
 
         <View style={styles.benefitsList}>
-          {benefits.map((benefit, index) => (
+          {plan.features.map((feature, index) => (
             <View key={index} style={styles.benefitItem}>
               <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.benefitText}>{benefit}</Text>
+              <Text style={styles.benefitText}>
+                {getFeatureDisplayName(feature)}
+              </Text>
             </View>
           ))}
         </View>
@@ -107,7 +182,32 @@ const PremiumScreen = ({ navigation }) => {
     );
   };
 
+  const getFeatureDisplayName = (feature) => {
+    const featureNames = {
+      'unlimited_swipes': 'Korlátlan swipe',
+      'see_who_liked': 'Lásd ki lájkolt',
+      'super_likes': '5 Super Like / nap',
+      'unlimited_rewinds': 'Korlátlan visszavonás',
+      'boost': 'Havi Boost',
+      'priority_support': 'Prioritásos támogatás',
+    };
+    return featureNames[feature] || feature;
+  };
+
   const styles = createStyles(theme);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.footerText, { marginTop: 20 }]}>
+            Előfizetési adatok betöltése...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -120,12 +220,24 @@ const PremiumScreen = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {subscriptionStatus?.isPremium && (
+          <View style={styles.currentSubscriptionBanner}>
+            <Ionicons name="checkmark-circle" size={32} color="#4CAF50" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bannerTitle}>Aktív előfizetés</Text>
+              <Text style={styles.bannerText}>
+                {subscriptionStatus.daysRemaining} nap van hátra
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.hero}>
           <LinearGradient
             colors={['#FF3B75', '#FF6B9D']}
             style={styles.heroGradient}
           >
-            <Ionicons name="sparkles" size={60} color={theme.colors.text} />
+            <Ionicons name="sparkles" size={60} color="#FFF" />
             <Text style={styles.heroTitle}>Upgrade Your Experience</Text>
             <Text style={styles.heroSubtitle}>
               Szerezz több matchet és éld meg a teljes prémium élményt
@@ -134,9 +246,13 @@ const PremiumScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.pricingContainer}>
-          <PricingCard tier={PremiumService.TIERS.PLUS} />
-          <PricingCard tier={PremiumService.TIERS.GOLD} isPopular />
-          <PricingCard tier={PremiumService.TIERS.PLATINUM} />
+          {plans.map((plan, index) => (
+            <PricingCard 
+              key={plan.id} 
+              plan={plan} 
+              isPopular={index === 1} 
+            />
+          ))}
         </View>
 
         <View style={styles.featuresSection}>
@@ -200,19 +316,24 @@ const PremiumScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {currentTier !== selectedTier && (
+      {!subscriptionStatus?.isPremium && (
         <View style={styles.bottomBar}>
           <TouchableOpacity
             style={styles.purchaseButton}
             onPress={handlePurchase}
+            disabled={loading}
           >
             <LinearGradient
               colors={['#FF3B75', '#FF6B9D']}
               style={styles.purchaseGradient}
             >
-              <Text style={styles.purchaseText}>
-                Előfizetés - {PremiumService.PRICING[selectedTier].toLocaleString()} Ft/hó
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.purchaseText}>
+                  Előfizetés - ${plans.find(p => p.id === selectedPlan)?.price || 0}
+                </Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -236,6 +357,28 @@ const createStyles = (theme) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     backgroundColor: 'transparent',
+  },
+  currentSubscriptionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 15,
+    padding: 20,
+    margin: 20,
+    gap: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  bannerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4CAF50',
+    marginBottom: 5,
+  },
+  bannerText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    opacity: 0.8,
   },
   backButton: {
     padding: 5,
