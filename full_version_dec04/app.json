@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "LoveX Demo",
+    "slug": "lovex-demo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FF69B4"
+      }
+    },
+    "web": {},
+    "extra": {
+      "eas": {
+        "projectId": "demo-project-id"
+      }
+    }
+  }
+}

@@ -159,7 +159,7 @@ const SugarBabyScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
-                    {profile.name}, {profile.age}
+                    {profile.name}, {typeof profile.age === 'number' && !isNaN(profile.age) && profile.age > 0 ? profile.age : '?'}
                   </Text>
                   <View style={styles.profileDetails}>
                     <Ionicons name="location" size={14} color="rgba(255,255,255,0.6)" />

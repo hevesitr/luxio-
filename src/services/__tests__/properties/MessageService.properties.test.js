@@ -43,13 +43,35 @@ describe('MessageService Properties', () => {
                   select: jest.fn().mockReturnValue({
                     eq: jest.fn().mockReturnValue({
                       single: jest.fn().mockResolvedValue({
-                        data: { id: matchId, status: 'active' },
+                        data: {
+                          id: matchId,
+                          status: 'active',
+                          user_id: 'user1',
+                          matched_user_id: 'user2'
+                        },
                         error: null,
                       }),
                     }),
                   }),
                   update: jest.fn().mockReturnValue({
                     eq: jest.fn().mockResolvedValue({ error: null }),
+                  }),
+                };
+              }
+              if (table === 'message_receipts') {
+                return {
+                  insert: jest.fn().mockReturnValue({
+                    select: jest.fn().mockReturnValue({
+                      single: jest.fn().mockResolvedValue({
+                        data: {
+                          id: 'receipt-123',
+                          message_id: messageId,
+                          recipient_id: 'user2',
+                          status: 'delivered',
+                        },
+                        error: null,
+                      }),
+                    }),
                   }),
                 };
               }
@@ -99,12 +121,15 @@ describe('MessageService Properties', () => {
               message.content
             );
 
+            // Verify send was successful (wrapServiceCall format)
+            expect(sentMessage.success).toBe(true);
+            expect(sentMessage.data.content).toBe(message.content);
+            expect(sentMessage.data.sender_id).toBe(message.senderId);
+
             // Retrieve messages
             const retrievedResult = await MessageService.getMessages(matchId);
 
             // Verify round-trip
-            expect(sentMessage.data.content).toBe(message.content);
-            expect(sentMessage.data.sender_id).toBe(message.senderId);
             expect(retrievedResult.success).toBe(true);
             expect(retrievedResult.data[0].content).toBe(message.content);
             expect(retrievedResult.data[0].sender_id).toBe(message.senderId);

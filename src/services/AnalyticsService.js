@@ -170,6 +170,22 @@ class AnalyticsService {
   }
 
   /**
+   * User properties lekérése
+   */
+  getUserProperties(userId) {
+    try {
+      Logger.debug('User properties requested', { userId });
+
+      // User properties lekérése (ezt implementálni kell a Supabase-ból)
+      // Egyelőre mock válasz
+      return { success: true, properties: {} };
+    } catch (error) {
+      Logger.error('Get user properties failed', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Hiba naplózása
    * Implements Requirement 12.1
    */

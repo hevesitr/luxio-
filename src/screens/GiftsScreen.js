@@ -113,7 +113,9 @@ const GiftsScreen = ({ navigation, route }) => {
       {profile ? (
         <View style={styles.profileCard}>
           <Image source={{ uri: profile.photo }} style={styles.profilePhoto} />
-          <Text style={styles.profileName}>{profile.name}, {profile.age}</Text>
+          <Text style={styles.profileName}>
+            {profile.name}, {typeof profile.age === 'number' && !isNaN(profile.age) && profile.age > 0 ? profile.age : '?'}
+          </Text>
           <Text style={styles.profileSubtext}>Küldj neki egy ajándékot! 💝</Text>
         </View>
       ) : (

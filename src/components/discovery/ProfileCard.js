@@ -2,7 +2,7 @@
  * Profile Card Component
  * Displays user profile in discovery feed
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,23 +11,109 @@ import {
   Dimensions,
   TouchableOpacity,
   ScrollView,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const ProfileCard = ({ profile, isActive }) => {
+const ProfileCard = ({ profile, isActive, onSwipeLeft, onSwipeRight }) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+        useNativeDriver: false
+      }),
+      onPanResponderRelease: (e, gesture) => {
+        const { dx, dy, vx, vy } = gesture;
+
+        // Horizontal swipe threshold
+        const horizontalThreshold = SCREEN_WIDTH * 0.3;
+
+        if (Math.abs(dx) > horizontalThreshold) {
+          if (dx > 0) {
+            // Swipe right - Like
+            Animated.spring(pan, {
+              toValue: { x: SCREEN_WIDTH, y: dy },
+              useNativeDriver: false,
+            }).start(() => {
+              onSwipeRight && onSwipeRight();
+              pan.setValue({ x: 0, y: 0 });
+            });
+          } else {
+            // Swipe left - Pass
+            Animated.spring(pan, {
+              toValue: { x: -SCREEN_WIDTH, y: dy },
+              useNativeDriver: false,
+            }).start(() => {
+              onSwipeLeft && onSwipeLeft();
+              pan.setValue({ x: 0, y: 0 });
+            });
+          }
+        } else {
+          // Reset position if not swiped far enough
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   if (!profile) return null;
-  
+
+  // Kezeljük a különböző adatstruktúrákat (Supabase vs Mock)
   const photos = profile.photos || [];
-  const currentPhoto = photos[currentPhotoIndex] || profile.photo_url;
-  
-  const age = profile.age || profile.date_of_birth 
-    ? new Date().getFullYear() - new Date(profile.date_of_birth).getFullYear()
-    : null;
+  const currentPhoto = photos[currentPhotoIndex] ||
+                      profile.photo_url ||
+                      profile.avatar_url ||
+                      profile.profile_picture ||
+                      'https://via.placeholder.com/400x500?text=No+Image';
+
+  // Név kezelése különböző mezőkből
+  const displayName = profile.name || profile.full_name || 'Ismeretlen';
+
+  // Kor kezelése
+  const age = (() => {
+    // Először próbáljuk a profile.age mezőt
+    if (typeof profile.age === 'number' && !isNaN(profile.age) && profile.age > 0) {
+      return profile.age;
+    }
+
+    // Ha nincs age mező vagy érvénytelen, próbáljuk a date_of_birth-ot
+    if (profile.date_of_birth) {
+      try {
+        const birthYear = new Date(profile.date_of_birth).getFullYear();
+        const currentYear = new Date().getFullYear();
+        const calculatedAge = currentYear - birthYear;
+
+        // Ellenőrizzük, hogy ésszerű kor-e (18-100 év)
+        if (calculatedAge >= 18 && calculatedAge <= 100) {
+          return calculatedAge;
+        }
+      } catch (error) {
+        // Hibás dátum formátum esetén folytatjuk
+      }
+    }
+
+    // Ha semmi sem működik, null-t adunk vissza
+    return null;
+  })();
+
+  // Város/helyszín kezelése
+  const city = profile.city || 'Budapest'; // Default Budapest
+
+  // Bio kezelése
+  const bio = profile.bio || 'Nincs bemutatkozás.';
+
+  // Ellenőrzött státusz kezelése
+  const isVerified = profile.is_verified || profile.isVerified || false;
   
   const handlePhotoPress = (side) => {
     if (side === 'left' && currentPhotoIndex > 0) {
@@ -38,7 +124,18 @@ const ProfileCard = ({ profile, isActive }) => {
   };
   
   return (
-    <View style={styles.container}>
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          transform: [
+            { translateX: pan.x },
+            { translateY: pan.y },
+          ]
+        }
+      ]}
+      {...panResponder.panHandlers}
+    >
       {/* Photo */}
       <Image
         source={{ uri: currentPhoto }}
@@ -87,31 +184,31 @@ const ProfileCard = ({ profile, isActive }) => {
       <View style={styles.infoContainer}>
         <View style={styles.nameRow}>
           <Text style={styles.name}>
-            {profile.name || profile.full_name}
+            {displayName}
             {age && <Text style={styles.age}>, {age}</Text>}
           </Text>
-          
-          {profile.is_verified && (
+
+          {isVerified && (
             <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
           )}
         </View>
-        
-        {profile.bio && (
+
+        {bio && (
           <Text style={styles.bio} numberOfLines={3}>
-            {profile.bio}
+            {bio}
           </Text>
         )}
-        
+
         {/* Tags */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.tagsContainer}
         >
-          {profile.city && (
+          {city && (
             <View style={styles.tag}>
               <Ionicons name="location" size={14} color="#fff" />
-              <Text style={styles.tagText}>{profile.city}</Text>
+              <Text style={styles.tagText}>{city}</Text>
             </View>
           )}
           
@@ -152,7 +249,7 @@ const ProfileCard = ({ profile, isActive }) => {
           </ScrollView>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -161,7 +258,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(245,245,245,0.01)', // KRITIKUS: Android PanResponder fix
   },
   photo: {
     width: '100%',

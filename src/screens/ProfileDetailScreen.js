@@ -210,7 +210,9 @@ const ProfileDetailScreen = ({ route, navigation }) => {
           >
             <View style={styles.nameContainer}>
               <Text style={styles.name}>{profile.name}</Text>
-              <Text style={styles.age}>{profile.age}</Text>
+              <Text style={styles.age}>
+                {typeof profile.age === 'number' && !isNaN(profile.age) && profile.age > 0 ? profile.age : '?'}
+              </Text>
               {profile.isVerified && (
                 <Ionicons name="checkmark-circle" size={28} color="#2196F3" />
               )}

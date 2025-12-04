@@ -103,7 +103,7 @@ const ProfileViewsScreen = ({ navigation }) => {
         <Image source={{ uri: item.profile.photo }} style={styles.viewPhoto} />
         <View style={styles.viewInfo}>
           <Text style={styles.viewName}>
-            {item.profile.name}, {item.profile.age}
+            {item.profile.name}, {typeof item.profile.age === 'number' && !isNaN(item.profile.age) && item.profile.age > 0 ? item.profile.age : '?'}
           </Text>
           <Text style={styles.viewTime}>
             {formatTimeAgo(item.viewedAt)}

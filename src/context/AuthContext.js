@@ -13,7 +13,9 @@ const AuthContext = createContext({
   user: null,
   profile: null,
   loading: true,
+  hasCompletedOnboarding: false,
   refreshProfile: () => {},
+  completeOnboarding: () => Promise.resolve(),
   signOut: () => Promise.resolve(),
 });
 
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
   const loadProfile = useCallback(
     async (currentUser) => {
@@ -71,6 +74,10 @@ export const AuthProvider = ({ children }) => {
         }
 
         setProfile(profileData);
+
+        // Check onboarding status
+        const onboardingCompleted = profileData?.onboarding_completed || false;
+        setHasCompletedOnboarding(onboardingCompleted);
       } catch (error) {
         console.warn('AuthContext: profile load failed', error.message);
       }
@@ -109,6 +116,24 @@ export const AuthProvider = ({ children }) => {
   const handleSignOut = async () => {
     await SupabaseAuthService.signOut();
     setProfile(null);
+    setHasCompletedOnboarding(false);
+  };
+
+  const handleCompleteOnboarding = async () => {
+    if (!session?.user) return;
+
+    try {
+      await SupabaseAuthService.upsertProfile({
+        id: session.user.id,
+        onboarding_completed: true,
+        onboarding_completed_at: new Date().toISOString(),
+      });
+
+      setHasCompletedOnboarding(true);
+    } catch (error) {
+      console.error('Failed to complete onboarding:', error);
+      throw error;
+    }
   };
 
   const value = {
@@ -116,8 +141,10 @@ export const AuthProvider = ({ children }) => {
     user: session?.user ?? null,
     profile,
     loading,
+    hasCompletedOnboarding,
     refreshProfile: () =>
       session?.user ? loadProfile(session.user) : Promise.resolve(),
+    completeOnboarding: handleCompleteOnboarding,
     signOut: handleSignOut,
   };
 

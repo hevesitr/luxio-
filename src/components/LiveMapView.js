@@ -427,7 +427,9 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
                           {Callout && (
                             <Callout tooltip={false}>
                               <View style={styles.calloutContainer}>
-                                <Text style={styles.calloutName}>{profile.name}, {profile.age}</Text>
+                                <Text style={styles.calloutName}>
+                                  {profile.name}, {typeof profile.age === 'number' && !isNaN(profile.age) && profile.age > 0 ? profile.age : '?'}
+                                </Text>
                                 {profile.address && (
                                   <Text style={styles.calloutAddress}>{profile.address}</Text>
                                 )}

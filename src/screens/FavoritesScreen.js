@@ -122,7 +122,7 @@ const FavoritesScreen = ({ navigation }) => {
         <View style={styles.favoriteInfo}>
           <View style={styles.favoriteHeader}>
             <Text style={styles.favoriteName}>
-              {item.profile.name}, {item.profile.age}
+              {item.profile.name}, {typeof item.profile.age === 'number' && !isNaN(item.profile.age) && item.profile.age > 0 ? item.profile.age : '?'}
             </Text>
             {item.profile.isVerified && (
               <Ionicons name="checkmark-circle" size={18} color="#2196F3" />

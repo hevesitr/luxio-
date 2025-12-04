@@ -8,19 +8,19 @@ import ErrorHandler, { ErrorCodes } from './ErrorHandler';
 class MessageService {
   /**
    * Üzenet küldése
-   * Implements Requirement 4.5
+   * Implements Requirement 4.5 - Delivery receipt generation
    */
   async sendMessage(matchId, senderId, content, type = 'text') {
     return ErrorHandler.wrapServiceCall(async () => {
       // Match aktív-e ellenőrzés
       const { data: match, error: matchError } = await supabase
         .from('matches')
-        .select('status')
+        .select('status, user_id, matched_user_id')
         .eq('id', matchId)
         .single();
 
       if (matchError) throw matchError;
-      
+
       if (match.status !== 'active') {
         throw ErrorHandler.createError(
           ErrorCodes.BUSINESS_USER_BLOCKED,
@@ -29,41 +29,71 @@ class MessageService {
         );
       }
 
+      const now = new Date().toISOString();
+
       // Üzenet mentése
-      const { data, error } = await supabase
+      const { data: message, error: messageError } = await supabase
         .from('messages')
         .insert({
           match_id: matchId,
           sender_id: senderId,
           content: content,
           type: type,
-          created_at: new Date().toISOString(),
+          created_at: now,
           is_read: false,
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (messageError) throw messageError;
+
+      // Delivery receipt generálása - Requirement 4.5
+      const recipientId = senderId === match.user_id ? match.matched_user_id : match.user_id;
+
+      const { data: receipt, error: receiptError } = await supabase
+        .from('message_receipts')
+        .insert({
+          message_id: message.id,
+          recipient_id: recipientId,
+          status: 'delivered',
+          delivered_at: now,
+        })
+        .select()
+        .single();
+
+      if (receiptError) {
+        Logger.warn('Failed to create delivery receipt', { messageId: message.id, error: receiptError });
+        // Ne szakítsuk meg az üzenetküldést receipt hiba miatt
+      } else {
+        Logger.debug('Delivery receipt created', { messageId: message.id, receiptId: receipt.id });
+      }
 
       // Match last_message_at frissítése
       await supabase
         .from('matches')
-        .update({ last_message_at: new Date().toISOString() })
+        .update({ last_message_at: now })
         .eq('id', matchId);
 
-      Logger.success('Message sent', { matchId, type });
-      return data;
+      Logger.success('Message sent with delivery receipt', { matchId, type, messageId: message.id });
+      return {
+        ...message,
+        delivery_receipt: receipt || null
+      };
     }, { operation: 'sendMessage', matchId, senderId });
   }
 
   /**
-   * Üzenetek lekérése egy match-hez
+   * Üzenetek lekérése egy match-hez (egyszerű verzió)
+   * Returns most recent messages without pagination
    */
   async getMessages(matchId, limit = 50) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select(`
+          *,
+          sender:profiles!messages_sender_id_fkey(full_name, avatar_url)
+        `)
         .eq('match_id', matchId)
         .order('created_at', { ascending: true })
         .limit(limit);
@@ -71,31 +101,54 @@ class MessageService {
       if (error) throw error;
 
       Logger.debug('Messages fetched', { matchId, count: data.length });
-      return { success: true, data };
-    } catch (error) {
-      Logger.error('Messages fetch failed', error);
-      return { success: false, error: error.message };
-    }
+      return data;
+    }, { operation: 'getMessages', matchId });
   }
 
   /**
-   * Üzenet olvasottnak jelölése
+   * Üzenet olvasottnak jelölése - Read receipt generation
+   * Implements Requirement 4.5
    */
-  async markAsRead(messageId) {
-    try {
-      const { error } = await supabase
+  async markAsRead(messageId, userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const now = new Date().toISOString();
+
+      // Üzenet olvasottnak jelölése
+      const { data: message, error: messageError } = await supabase
         .from('messages')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', messageId);
+        .update({ is_read: true, read_at: now })
+        .eq('id', messageId)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (messageError) throw messageError;
 
-      Logger.debug('Message marked as read', { messageId });
-      return { success: true };
-    } catch (error) {
-      Logger.error('Mark as read failed', error);
-      return { success: false, error: error.message };
-    }
+      // Read receipt generálása - Requirement 4.5
+      const { data: receipt, error: receiptError } = await supabase
+        .from('message_receipts')
+        .upsert({
+          message_id: messageId,
+          recipient_id: userId,
+          status: 'read',
+          read_at: now,
+        }, {
+          onConflict: 'message_id,recipient_id'
+        })
+        .select()
+        .single();
+
+      if (receiptError) {
+        Logger.warn('Failed to create read receipt', { messageId, error: receiptError });
+      } else {
+        Logger.debug('Read receipt created', { messageId, receiptId: receipt.id });
+      }
+
+      Logger.success('Message marked as read', { messageId });
+      return {
+        ...message,
+        read_receipt: receipt || null
+      };
+    }, { operation: 'markAsRead', messageId, userId });
   }
 
   /**
@@ -124,7 +177,7 @@ class MessageService {
    * Olvasatlan üzenetek száma
    */
   async getUnreadCount(userId) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       // Először lekérjük a felhasználó match-eit
       const { data: matches, error: matchError } = await supabase
         .from('matches')
@@ -147,18 +200,32 @@ class MessageService {
       if (error) throw error;
 
       Logger.debug('Unread count fetched', { userId, count });
-      return { success: true, count: count || 0 };
-    } catch (error) {
-      Logger.error('Unread count fetch failed', error);
-      return { success: false, error: error.message, count: 0 };
-    }
+      return count || 0;
+    }, { operation: 'getUnreadCount', userId });
   }
 
   /**
    * Üzenet törlése
    */
-  async deleteMessage(messageId) {
-    try {
+  async deleteMessage(messageId, userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Ellenőrizzük, hogy a felhasználó saját üzenete-e
+      const { data: message, error: checkError } = await supabase
+        .from('messages')
+        .select('sender_id')
+        .eq('id', messageId)
+        .single();
+
+      if (checkError) throw checkError;
+
+      if (message.sender_id !== userId) {
+        throw ErrorHandler.createError(
+          ErrorCodes.PERMISSION_ERROR,
+          'Cannot delete other users messages',
+          { messageId, userId }
+        );
+      }
+
       const { error } = await supabase
         .from('messages')
         .delete()
@@ -167,15 +234,12 @@ class MessageService {
       if (error) throw error;
 
       Logger.success('Message deleted', { messageId });
-      return { success: true };
-    } catch (error) {
-      Logger.error('Message deletion failed', error);
-      return { success: false, error: error.message };
-    }
+      return true;
+    }, { operation: 'deleteMessage', messageId, userId });
   }
 
   /**
-   * Real-time üzenet figyelés
+   * Real-time üzenet figyelés - Implements Requirement 4.2
    */
   subscribeToMessages(matchId, callback) {
     const subscription = supabase
@@ -189,12 +253,13 @@ class MessageService {
           filter: `match_id=eq.${matchId}`,
         },
         (payload) => {
-          Logger.debug('New message received', { matchId });
+          Logger.debug('New message received', { matchId, messageId: payload.new.id });
           callback(payload.new);
         }
       )
       .subscribe();
 
+    Logger.info('Subscribed to real-time messages', { matchId });
     return subscription;
   }
 
@@ -204,7 +269,7 @@ class MessageService {
   unsubscribeFromMessages(subscription) {
     if (subscription) {
       supabase.removeChannel(subscription);
-      Logger.debug('Unsubscribed from messages');
+      Logger.info('Unsubscribed from real-time messages');
     }
   }
 
@@ -212,9 +277,9 @@ class MessageService {
    * Hangüzenet feltöltése
    */
   async sendVoiceMessage(matchId, senderId, audioUri) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       const SupabaseStorageService = require('./SupabaseStorageService').default;
-      
+
       // Feltöltés a Storage-ba
       const uploadResult = await SupabaseStorageService.uploadFile(
         audioUri,
@@ -235,25 +300,18 @@ class MessageService {
         'voice'
       );
 
-      if (!messageResult.success) {
-        throw new Error(messageResult.error);
-      }
-
-      Logger.success('Voice message sent', { matchId });
-      return { success: true, data: messageResult.data };
-    } catch (error) {
-      Logger.error('Voice message send failed', error);
-      return { success: false, error: error.message };
-    }
+      Logger.success('Voice message sent', { matchId, messageId: messageResult.id });
+      return messageResult;
+    }, { operation: 'sendVoiceMessage', matchId, senderId });
   }
 
   /**
    * Videóüzenet feltöltése
    */
   async sendVideoMessage(matchId, senderId, videoUri) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       const SupabaseStorageService = require('./SupabaseStorageService').default;
-      
+
       // Feltöltés a Storage-ba
       const uploadResult = await SupabaseStorageService.uploadVideo(
         videoUri,
@@ -273,48 +331,45 @@ class MessageService {
         'video'
       );
 
-      if (!messageResult.success) {
-        throw new Error(messageResult.error);
-      }
-
-      Logger.success('Video message sent', { matchId });
-      return { success: true, data: messageResult.data };
-    } catch (error) {
-      Logger.error('Video message send failed', error);
-      return { success: false, error: error.message };
-    }
+      Logger.success('Video message sent', { matchId, messageId: messageResult.id });
+      return messageResult;
+    }, { operation: 'sendVideoMessage', matchId, senderId });
   }
 
   /**
    * Typing indicator küldése
-   * Implements Requirement 4.4
+   * Implements Requirement 4.4 - Real-time typing indicators
    */
   async sendTypingIndicator(matchId, userId) {
-    try {
-      // Presence channel használata
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Presence channel használata - real-time typing indicators
       const channel = supabase.channel(`match:${matchId}`);
-      
+
       await channel.track({
         user_id: userId,
         typing: true,
         timestamp: new Date().toISOString(),
       });
 
+      // Automatikus leállítás 3 másodperc után
+      setTimeout(() => {
+        this.stopTypingIndicator(matchId, userId).catch(err =>
+          Logger.warn('Auto-stop typing failed', err)
+        );
+      }, 3000);
+
       Logger.debug('Typing indicator sent', { matchId, userId });
-      return { success: true };
-    } catch (error) {
-      Logger.error('Typing indicator failed', error);
-      return { success: false, error: error.message };
-    }
+      return true;
+    }, { operation: 'sendTypingIndicator', matchId, userId });
   }
 
   /**
    * Typing indicator leállítása
    */
   async stopTypingIndicator(matchId, userId) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       const channel = supabase.channel(`match:${matchId}`);
-      
+
       await channel.track({
         user_id: userId,
         typing: false,
@@ -322,15 +377,13 @@ class MessageService {
       });
 
       Logger.debug('Typing indicator stopped', { matchId, userId });
-      return { success: true };
-    } catch (error) {
-      Logger.error('Stop typing indicator failed', error);
-      return { success: false, error: error.message };
-    }
+      return true;
+    }, { operation: 'stopTypingIndicator', matchId, userId });
   }
 
   /**
    * Presence tracking - ki van online
+   * Implements Requirement 4.4 - Typing indicators and presence
    */
   subscribeToPresence(matchId, callback) {
     const channel = supabase.channel(`match:${matchId}`, {
@@ -344,51 +397,69 @@ class MessageService {
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        Logger.debug('Presence synced', { matchId, state });
+        Logger.debug('Presence synced', { matchId, userCount: Object.keys(state).length });
         callback({ type: 'sync', state });
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        Logger.debug('User joined', { matchId, newPresences });
+        Logger.debug('User joined', { matchId, userId: newPresences[0]?.user_id });
         callback({ type: 'join', presences: newPresences });
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        Logger.debug('User left', { matchId, leftPresences });
+        Logger.debug('User left', { matchId, userId: leftPresences[0]?.user_id });
         callback({ type: 'leave', presences: leftPresences });
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          Logger.info('Presence tracking active', { matchId });
+        }
+      });
 
     return channel;
   }
 
   /**
-   * Üzenet pagination - régebbi üzenetek betöltése
-   * Implements Requirement 4.3
+   * Üzenet cursor-based pagination - régebbi üzenetek betöltése
+   * Implements Requirement 4.3 - Cursor-based pagination for infinite scroll
    */
-  async getMessagesPaginated(matchId, limit = 50, offset = 0) {
+  async getMessagesPaginated(matchId, limit = 50, cursor = null) {
     return ErrorHandler.wrapServiceCall(async () => {
-      const { data, error, count } = await supabase
+      let query = supabase
         .from('messages')
         .select('*', { count: 'exact' })
         .eq('match_id', matchId)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .limit(limit);
+
+      // Cursor-based pagination - sokkal hatékonyabb offset-nél
+      if (cursor) {
+        query = query.lt('created_at', cursor);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
-      // Fordított sorrend (legrégebbi elől)
+      // Fordított sorrend (legrégebbi elől a UI számára)
       const messages = data.reverse();
 
-      Logger.debug('Messages paginated', { 
-        matchId, 
+      // Következő cursor az utolsó üzenet időbélyege
+      const nextCursor = messages.length > 0 ? messages[messages.length - 1].created_at : null;
+      const hasMore = messages.length === limit;
+
+      Logger.debug('Messages cursor-paginated', {
+        matchId,
         count: messages.length,
         total: count,
-        offset 
+        cursor,
+        nextCursor,
+        hasMore
       });
 
       return {
         messages,
         total: count,
-        hasMore: offset + limit < count,
+        hasMore,
+        nextCursor,
       };
     }, { operation: 'getMessagesPaginated', matchId });
   }
@@ -489,8 +560,25 @@ class MessageService {
   /**
    * Bulk message operations - több üzenet törlése
    */
-  async deleteMessages(messageIds) {
+  async deleteMessages(messageIds, userId) {
     return ErrorHandler.wrapServiceCall(async () => {
+      // Ellenőrizzük, hogy minden üzenet a felhasználó sajátja-e
+      const { data: messages, error: checkError } = await supabase
+        .from('messages')
+        .select('id, sender_id')
+        .in('id', messageIds);
+
+      if (checkError) throw checkError;
+
+      const invalidMessages = messages.filter(msg => msg.sender_id !== userId);
+      if (invalidMessages.length > 0) {
+        throw ErrorHandler.createError(
+          ErrorCodes.PERMISSION_ERROR,
+          'Cannot delete other users messages',
+          { invalidMessages: invalidMessages.length }
+        );
+      }
+
       const { error } = await supabase
         .from('messages')
         .delete()
@@ -500,14 +588,31 @@ class MessageService {
 
       Logger.success('Messages deleted', { count: messageIds.length });
       return true;
-    }, { operation: 'deleteMessages', count: messageIds.length });
+    }, { operation: 'deleteMessages', count: messageIds.length, userId });
   }
 
   /**
    * Message search - üzenetek keresése
    */
-  async searchMessages(matchId, query) {
+  async searchMessages(matchId, query, userId) {
     return ErrorHandler.wrapServiceCall(async () => {
+      // Ellenőrizzük, hogy a felhasználó hozzáférhet-e ehhez a match-hez
+      const { data: match, error: matchError } = await supabase
+        .from('matches')
+        .select('user_id, matched_user_id')
+        .eq('id', matchId)
+        .single();
+
+      if (matchError) throw matchError;
+
+      if (match.user_id !== userId && match.matched_user_id !== userId) {
+        throw ErrorHandler.createError(
+          ErrorCodes.PERMISSION_ERROR,
+          'Access denied to this conversation',
+          { matchId, userId }
+        );
+      }
+
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -520,7 +625,7 @@ class MessageService {
 
       Logger.debug('Messages searched', { matchId, query, count: data.length });
       return data;
-    }, { operation: 'searchMessages', matchId, query });
+    }, { operation: 'searchMessages', matchId, query, userId });
   }
 }
 
