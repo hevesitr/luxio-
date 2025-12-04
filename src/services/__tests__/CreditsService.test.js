@@ -75,10 +75,20 @@ describe('CreditsService', () => {
     });
 
     it('should add to history', async () => {
+      const addToHistorySpy = jest.spyOn(CreditsService, 'addToHistory');
+
       await CreditsService.addCredits(25, 'Bonus');
 
-      // Check that addToHistory was called (we'll test addToHistory separately)
-      expect(CreditsService.addToHistory).toHaveBeenCalled();
+      // Check that addToHistory was called with correct object
+      expect(addToHistorySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'add',
+          amount: 25,
+          reason: 'Bonus'
+        })
+      );
+
+      addToHistorySpy.mockRestore();
     });
   });
 
