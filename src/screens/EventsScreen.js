@@ -174,7 +174,7 @@ const EventsScreen = ({ navigation }) => {
               >
                 <Image source={{ uri: event.image }} style={styles.eventImage} />
                 <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.8)']}
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
                   style={styles.eventGradient}
                 >
                   <View style={styles.eventContent}>

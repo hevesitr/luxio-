@@ -434,7 +434,7 @@ const VideoProfile = ({ visible, profile, allProfiles = [], onClose, onLike, onS
               </View>
 
               <LinearGradient
-                colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.8)']}
+                colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
                 style={styles.gradient}
               />
 

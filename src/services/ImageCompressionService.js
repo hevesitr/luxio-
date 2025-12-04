@@ -29,7 +29,18 @@ class ImageCompressionService {
       let quality = options.quality || this.quality;
 
       // Eredeti kép méretének lekérése
-      const fileInfo = await FileSystem.getInfoAsync(uri);
+      let fileInfo;
+      try {
+        fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
+      } catch (error) {
+        Logger.error('Failed to get file info', { uri, error: error.message });
+        throw error;
+      }
+      
+      if (!fileInfo.exists) {
+        throw new Error(`File does not exist: ${uri}`);
+      }
+      
       const originalSizeKB = fileInfo.size / 1024;
 
       Logger.debug('Compressing image', {

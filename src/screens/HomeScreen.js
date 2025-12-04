@@ -44,30 +44,8 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   const { theme } = useTheme();
   const { getDiscoveryFilters, saveDiscoveryFilters } = usePreferences();
   const { user } = useAuth();
-  // TEMPORARY: Create a simple test profile to debug
-  const testProfile = {
-    id: 999,
-    name: 'Test User',
-    age: 25,
-    gender: 'female',
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop',
-    photos: ['https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop'],
-    distance: 5,
-    bio: 'Test profile for debugging',
-    interests: ['Test'],
-    isVerified: true,
-    lastActive: new Date(),
-  };
   
-  const [profiles, setProfiles] = useState([testProfile]);
-  
-  // DEBUG: Log in render (not useEffect)
-  console.log('=== HOMESCREEN RENDER ===');
-  console.log('profiles state:', profiles);
-  console.log('profiles[0]:', profiles[0]);
-  console.log('profiles[0]?.name:', profiles[0]?.name);
-  console.log('profiles[0]?.age:', profiles[0]?.age);
-  console.log('typeof profiles[0]?.age:', typeof profiles[0]?.age);
+  const [profiles, setProfiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -246,8 +224,12 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
           setHistory(savedHistory);
           // Állítsuk be a currentIndex-t az utolsó elem után
           const lastIndex = savedHistory[savedHistory.length - 1]?.index || 0;
-          setCurrentIndex(lastIndex + 1);
+          const newIndex = lastIndex + 1;
+          // IMPORTANT: Reset to 0 if index is beyond available profiles
+          // This happens when profiles are filtered differently or history is stale
+          setCurrentIndex(newIndex);
           console.log('HomeScreen: History loaded from storage:', savedHistory.length);
+          console.log('HomeScreen: Setting currentIndex to:', newIndex);
         }
       } catch (error) {
         console.error('HomeScreen: Error loading history:', error);
@@ -308,37 +290,54 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     }, [route?.params?.showMatchPopup, route?.params?.matchPopupParams])
   );
 
-  // TEMPORARILY DISABLED: Load discovery feed from Supabase
-  // useEffect(() => {
-  //   const loadDiscoveryFeed = async () => {
-  //     try {
-  //       setIsLoading(true);
-  //       
-  //       // Always use local profiles for now (Supabase profiles table is empty)
-  //       Logger.info('Using local profiles');
-  //       console.log('Initial profiles count:', initialProfiles.length);
-  //       console.log('First profile:', initialProfiles[0]);
-  //       
-  //       // TEMPORARY FIX: Skip filtering to debug the issue
-  //       setProfiles(initialProfiles);
-  //       console.log('Profiles set directly from initialProfiles');
-  //     } catch (error) {
-  //       Logger.error('Discovery feed load error', error);
-  //       // Fallback to local profiles
-  //       const filtered = filterProfilesByPriority(initialProfiles);
-  //       setProfiles(filtered);
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
-  //
-  //   loadDiscoveryFeed();
-  // }, []);
-  
-  // Keep loading state false
+  // Load discovery feed
   useEffect(() => {
-    setIsLoading(false);
+    const loadDiscoveryFeed = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Use local profiles (Supabase profiles table is empty)
+        Logger.info('Using local profiles');
+        console.log('=== HOMESCREEN LOAD DISCOVERY FEED ===');
+        console.log('Initial profiles count:', initialProfiles.length);
+        console.log('First profile:', initialProfiles[0]);
+        console.log('currentUser.lookingFor:', currentUser.lookingFor);
+        console.log('showOnlyVerified:', showOnlyVerified);
+        console.log('searchFilters:', searchFilters);
+        
+        // Apply filters
+        const filtered = filterProfilesByPriority(initialProfiles);
+        console.log('Filtered profiles count:', filtered.length);
+        console.log('First filtered profile:', filtered[0]);
+        console.log('First 3 filtered profiles:', filtered.slice(0, 3));
+        
+        if (filtered.length === 0) {
+          console.error('NO PROFILES AFTER FILTERING!');
+          console.log('Using all profiles as fallback');
+          setProfiles(initialProfiles);
+        } else {
+          setProfiles(filtered);
+        }
+      } catch (error) {
+        Logger.error('Discovery feed load error', error);
+        console.error('Error details:', error);
+        // Fallback to all local profiles
+        setProfiles(initialProfiles);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDiscoveryFeed();
   }, []);
+
+  // Separate useEffect to handle currentIndex reset when profiles change
+  useEffect(() => {
+    if (profiles.length > 0 && currentIndex >= profiles.length) {
+      console.warn(`currentIndex (${currentIndex}) is beyond profiles (${profiles.length}). Resetting to 0.`);
+      setCurrentIndex(0);
+    }
+  }, [profiles, currentIndex]);
 
   // Simulate loading and load stories
   useEffect(() => {
@@ -639,6 +638,20 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   }, [currentIndex]);
 
   const visibleProfiles = profiles.slice(currentIndex, currentIndex + 2);
+  
+  // DEBUG: Log visible profiles
+  useEffect(() => {
+    console.log('=== VISIBLE PROFILES DEBUG ===');
+    console.log('profiles.length:', profiles.length);
+    console.log('currentIndex:', currentIndex);
+    console.log('visibleProfiles.length:', visibleProfiles.length);
+    if (visibleProfiles.length > 0) {
+      console.log('First visible profile:', JSON.stringify(visibleProfiles[0]));
+      console.log('First visible profile name:', visibleProfiles[0]?.name);
+      console.log('First visible profile age:', visibleProfiles[0]?.age);
+      console.log('First visible profile age type:', typeof visibleProfiles[0]?.age);
+    }
+  }, [profiles, currentIndex, visibleProfiles]);
 
   // Create styles with theme - must be before any return statements
   const styles = createStyles(theme);
@@ -922,7 +935,7 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
             .reverse()
             .map((profile, index) => (
               <SwipeCard
-                key={profile.id}
+                key={`${profile.id}-${currentIndex}`}
                 ref={index === visibleProfiles.length - 1 ? cardRef : null}
                 profile={profile}
                 userProfile={currentUser}

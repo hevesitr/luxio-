@@ -74,7 +74,7 @@ const LikesYouScreen = ({ navigation }) => {
       
       {hasAccess && (
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)']}
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
           style={styles.cardGradient}
         >
           <View style={styles.cardInfo}>

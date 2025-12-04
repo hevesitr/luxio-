@@ -204,7 +204,7 @@ const ProfileDetailScreen = ({ route, navigation }) => {
           </View>
 
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
             style={styles.imageGradient}
             pointerEvents="none"
           >

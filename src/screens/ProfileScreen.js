@@ -317,7 +317,7 @@ const ProfileScreen = ({ navigation }) => {
           transition={200}
         />
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)']}
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
           style={styles.gradient}
         >
           <View style={styles.headerInfo}>

@@ -103,7 +103,7 @@ const StoryViewer = ({ visible, stories, initialIndex = 0, onClose, onUserPress 
         <Image source={{ uri: currentStory.image }} style={styles.storyImage} />
         
         <LinearGradient
-          colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.3)']}
+          colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
           style={styles.gradient}
         />
 

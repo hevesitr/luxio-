@@ -1,5 +1,5 @@
 import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, PanResponder, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, PanResponder, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import CompatibilityService from '../services/CompatibilityService';
@@ -43,6 +43,16 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
   const [showSuperLike, setShowSuperLike] = useState(false);
   const lastTap = useRef(null);
   const superLikeTimeoutRef = useRef(null);
+
+  // DEBUG: Log profile data
+  useEffect(() => {
+    console.log('=== SWIPECARD PROFILE DEBUG ===');
+    console.log('profile:', JSON.stringify(profile, null, 2));
+    console.log('profile.name:', profile.name);
+    console.log('profile.age:', profile.age);
+    console.log('profile.age type:', typeof profile.age);
+    console.log('isNaN(profile.age):', isNaN(profile.age));
+  }, [profile]);
 
   const compatibility = userProfile 
     ? CompatibilityService.calculateCompatibility(userProfile, profile)
@@ -95,8 +105,16 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => {
+        console.log('PanResponder START');
+        return true;
+      },
+      onMoveShouldSetPanResponder: () => {
+        console.log('PanResponder MOVE');
+        return true;
+      },
       onPanResponderGrant: () => {
+        console.log('PanResponder GRANTED');
         setIsDragging(true);
       },
       onPanResponderMove: (e, gesture) => {
@@ -184,7 +202,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
   const cardBorderRadius = fullScreen ? 0 : 20;
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.card,
         !isFirst && styles.nextCard,
@@ -192,6 +210,8 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
           width: cardWidth,
           height: cardHeight,
           borderRadius: cardBorderRadius,
+          zIndex: isFirst ? 2 : 1,
+          backgroundColor: 'rgba(255,255,255,0.01)', // KRITIKUS: Android PanResponder fix
           transform: [
             { translateX: position.x },
             { translateY: position.y },
@@ -199,6 +219,8 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
           ]
         }
       ]}
+      pointerEvents={isFirst ? 'auto' : 'none'}
+      collapsable={false}
       {...panResponder.panHandlers}
     >
       <Image source={{ uri: profile.photo }} style={styles.image} />
@@ -243,13 +265,14 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
 
       {!fullScreen && (
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
           style={styles.gradient}
         >
           <View style={styles.info}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>{profile.name}</Text>
-              <Text style={styles.age}>{profile.age != null && !isNaN(profile.age) ? profile.age : 25}</Text>
+              <Text style={styles.name}>
+                {profile.name} <Text style={styles.age}>{Number.isNaN(profile.age) || profile.age === undefined ? '?' : profile.age}</Text>
+              </Text>
               {profile.isVerified && (
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={24} color="#2196F3" />
@@ -306,7 +329,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
           </View>
         </LinearGradient>
       )}
-    </View>
+    </Animated.View>
   );
 });
 

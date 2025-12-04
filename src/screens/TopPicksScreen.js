@@ -70,7 +70,7 @@ const TopPicksScreen = ({ navigation }) => {
       <Image source={{ uri: item.photo }} style={styles.cardImage} />
       
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
         style={styles.cardGradient}
       >
         <View style={styles.compatibilityBadge}>
