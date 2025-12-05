@@ -6,6 +6,47 @@
 import Logger from './Logger';
 import { ServiceError, ErrorFactory } from './ServiceError';
 
+/**
+ * ✅ KONZISZTENS RESPONSE FORMAT STANDARD
+ * Minden szolgáltatás ezt használja
+ */
+export const ResponseFormat = {
+  /**
+   * Sikeres response formátum
+   */
+  success: (data, metadata = {}) => ({
+    success: true,
+    data,
+    ...metadata,
+    timestamp: new Date().toISOString(),
+  }),
+
+  /**
+   * Sikertelen response formátum - konzisztens error handling
+   */
+  error: (error, context = {}) => {
+    let serviceError;
+
+    if (ServiceError.isServiceError(error)) {
+      serviceError = error;
+    } else {
+      serviceError = ErrorFactory.fromError(error, null, context);
+    }
+
+    return {
+      success: false,
+      error: {
+        code: serviceError.code,
+        message: serviceError.userMessage || serviceError.message,
+        category: serviceError.category,
+        severity: serviceError.severity,
+        context: serviceError.context,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  },
+};
+
 export class BaseService {
   constructor(serviceName) {
     this.serviceName = serviceName;
@@ -43,7 +84,7 @@ export class BaseService {
         duration: `${duration}ms`,
       });
       
-      return { success: true, data: result };
+      return ResponseFormat.success(result, { operation: operationName });
     } catch (error) {
       const duration = Date.now() - startTime;
       let serviceError;
@@ -65,6 +106,7 @@ export class BaseService {
         errorCode: serviceError.code,
       });
       
+      // ✅ JAVÍTOTT: ServiceError instance visszaadása konzisztenciáért
       return { success: false, error: serviceError };
     }
   }

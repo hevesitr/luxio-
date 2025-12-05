@@ -2,35 +2,42 @@ import { QueryClient } from '@tanstack/react-query';
 import Logger from '../services/Logger';
 
 /**
- * React Query Client Configuration
- * 
- * Centralized caching and data fetching configuration
- * - 5 minute stale time for most queries
- * - 10 minute cache time
- * - Automatic retry on failure
- * - Background refetch on window focus
+ * ✅ KRITIKUS JAVÍTÁSOK: React Query Client Configuration
+ *
+ * Real-time dating app optimalizálva:
+ * - 30 másodperc stale time (nem 5 perc!)
+ * - 24 óra cache time offline support-hoz
+ * - Okosabb retry logika (nem próbálkozik 4xx hibáknál)
+ * - Real-time frissítések minden interakciónál
+ * - Offline-first megközelítés
  */
+// ✅ KRITIKUS JAVÍTÁS: Real-time app optimalizálás
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Stale time: how long data is considered fresh
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      // ✅ JAVÍTOTT: Real-time apphoz rövidebb stale time
+      staleTime: 30 * 1000, // 30 seconds (nem 5 perc!)
+
+      // ✅ JAVÍTOTT: Offline support-tal
+      cacheTime: 24 * 60 * 60 * 1000, // 24 hours for offline support
       
-      // Cache time: how long inactive data stays in cache
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-      
-      // Retry failed requests
-      retry: 2,
+      // ✅ JAVÍTOTT: Okosabb retry logika
+      retry: (failureCount, error) => {
+        // Ne próbálkozz 4xx hibáknál (client errors)
+        if (error?.status >= 400 && error?.status < 500) {
+          return false;
+        }
+        return failureCount < 3;
+      },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      
-      // Refetch on window focus
-      refetchOnWindowFocus: true,
-      
-      // Refetch on reconnect
-      refetchOnReconnect: true,
-      
-      // Don't refetch on mount if data is fresh
-      refetchOnMount: false,
+
+      // ✅ JAVÍTOTT: Real-time app beállítások
+      refetchOnWindowFocus: 'always', // Mindig frissít focus-ra
+      refetchOnReconnect: 'always', // Mindig frissít reconnectkor
+      refetchOnMount: true, // Frissít mountkor (real-time data)
+
+      // ✅ ÚJ: Network mode - offline support
+      networkMode: 'always', // Mindig próbál fetch-elni
       
       // Error handling
       onError: (error) => {

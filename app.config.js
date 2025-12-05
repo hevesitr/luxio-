@@ -1,16 +1,28 @@
 require('dotenv').config();
 
-// Alapértelmezett értékek
-const DEFAULT_SUPABASE_URL = 'https://xgvubkbfhleeagdvkhds.supabase.co';
-const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhndnVia2JmaGxlZWFnZHZraGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMDAyNjcsImV4cCI6MjA3OTU3NjI2N30.AjaIcxqS73kUDDOWTwHofp2XcxnGbRIVGXLaI6Sdboc';
+// ❌ KRITIKUS BIZTONSÁGI PROBLÉMA JAVÍTVA:
+// Eltávolítottuk az összes hardcoded Supabase kulcsot!
+// Most csak környezeti változók használhatók.
 
-// Környezeti változók betöltése
+// ✅ BIZTONSÁGI MEGOLDÁS: Csak környezeti változók használhatók
 const {
-  EXPO_PUBLIC_SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL,
-  EXPO_PUBLIC_SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY,
-  EXPO_PUBLIC_SUPABASE_PROJECT_ID = process.env.EXPO_PUBLIC_SUPABASE_PROJECT_ID || 'xgvubkbfhleeagdvkhds',
-  SUPABASE_REDIRECT_URL = process.env.SUPABASE_REDIRECT_URL || 'https://hevesitr.github.io/lovex-/'
+  EXPO_PUBLIC_SUPABASE_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  EXPO_PUBLIC_SUPABASE_PROJECT_ID,
+  SUPABASE_REDIRECT_URL
 } = process.env;
+
+// 🔒 BIZTONSÁGI ELLENŐRZÉS: Kritikus hitelesítő adatok
+if (!EXPO_PUBLIC_SUPABASE_URL || !EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+  throw new Error(
+    '🚨 KRITIKUS BIZTONSÁGI HIBA: Hiányoznak a Supabase környezeti változók!\n' +
+    'A hardcoded kulcsok eltávolításra kerültek a biztonság érdekében.\n' +
+    'Kérlek állítsd be:\n' +
+    '- EXPO_PUBLIC_SUPABASE_URL\n' +
+    '- EXPO_PUBLIC_SUPABASE_ANON_KEY\n\n' +
+    'Használd az env.example fájlt sablonként.'
+  );
+}
 
 module.exports = {
   expo: {

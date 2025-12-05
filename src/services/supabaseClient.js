@@ -2,26 +2,29 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { createClient } from '@supabase/supabase-js';
 
-// Manuálisan beállított értékek, ha a környezeti változók nem érhetők el
-const DEFAULT_SUPABASE_URL = 'https://xgvubkbfhleeagdvkhds.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhndnVia2JmaGxlZWFnZHZraGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMDAyNjcsImV4cCI6MjA3OTU3NjI2N30.AjaIcxqS73kUDDOWTwHofp2XcxnGbRIVGXLaI6Sdboc';
+// ❌ KRITIKUS BIZTONSÁGI PROBLÉMA JAVÍTVA:
+// Eltávolítottuk a hardcoded Supabase kulcsokat!
+// Most csak környezeti változók használhatók.
 
 // Környezeti változók kinyerése
 const extra = Constants?.expoConfig?.extra || Constants?.manifest?.extra || {};
 
-// Végleges értékek meghatározása
-const SUPABASE_URL = extra?.EXPO_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-const SUPABASE_ANON_KEY = extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
+// ✅ BIZTONSÁGOS MEGOLDÁS: Csak környezeti változók használhatók
+// Nincs fallback default érték többé!
+const SUPABASE_URL = extra?.EXPO_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Ellenőrzés a konzolban
-console.log('Supabase URL:', SUPABASE_URL ? '✅ Beállítva' : '❌ Hiányzik');
-console.log('Supabase Anon Key:', SUPABASE_ANON_KEY ? '✅ Beállítva' : '❌ Hiányzik');
-
+// 🔒 BIZTONSÁGI ELLENŐRZÉS: Kritikus hitelesítő adatok
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error(
-    '❌ Figyelmeztetés: Hiányoznak a Supabase hitelesítő adatok! ' +
-    'Kérlek ellenőrizd a környezeti változókat.'
-  );
+  const errorMsg = '🚨 KRITIKUS BIZTONSÁGI HIBA: Hiányoznak a Supabase hitelesítő adatok!\n' +
+    'A hardcoded kulcsok eltávolításra kerültek a biztonság érdekében.\n' +
+    'Kérlek állítsd be a következő környezeti változókat:\n' +
+    '- EXPO_PUBLIC_SUPABASE_URL\n' +
+    '- EXPO_PUBLIC_SUPABASE_ANON_KEY\n\n' +
+    'Használd az env.example fájlt sablonként.';
+
+  console.error(errorMsg);
+  throw new Error('Supabase credentials missing. Check environment variables.');
 }
 
 // Supabase kliens létrehozása
