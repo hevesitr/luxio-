@@ -30,7 +30,7 @@ export const useEmailVerification = () => {
     try {
       setVerificationStatus(prev => ({ ...prev, checking: true, error: null }));
 
-      const status = await EmailService.checkEmailVerificationStatus(user.id);
+      const status = await EmailService.checkEmailVerificationStatus();
 
       setVerificationStatus({
         verified: status.verified || false,

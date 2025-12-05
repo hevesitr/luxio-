@@ -21,7 +21,7 @@ const EmailVerificationStatus = () => {
     if (!user?.id) return;
 
     try {
-      const status = await EmailService.checkEmailVerificationStatus(user.id);
+      const status = await EmailService.checkEmailVerificationStatus();
       setVerificationStatus(status);
     } catch (error) {
       Logger.error('Failed to check email verification status', error);

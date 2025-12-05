@@ -5,7 +5,6 @@
 import * as Linking from 'expo-linking';
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
-import ErrorHandler, { ErrorCodes } from './ErrorHandler';
 
 class DeepLinkingService {
   constructor() {
@@ -20,23 +19,8 @@ class DeepLinkingService {
     if (this.isInitialized) return;
 
     try {
-      // Expo linking konfiguráció
-      const linkingConfig = {
-        prefixes: [
-          Linking.createURL('/'),
-          'lovex://', // Custom scheme
-          'https://your-project.supabase.co', // Supabase URL
-        ],
-        config: {
-          screens: {
-            EmailVerificationSuccess: 'verify-email',
-            PasswordReset: 'reset-password',
-          },
-        },
-      };
-
       // Deep link listener beállítása
-      const subscription = Linking.addEventListener('url', this.handleDeepLink.bind(this));
+      Linking.addEventListener('url', this.handleDeepLink.bind(this));
 
       // Kezdeti URL ellenőrzés (app megnyitásakor)
       const initialUrl = await Linking.getInitialURL();

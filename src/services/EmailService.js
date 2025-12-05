@@ -28,7 +28,7 @@ class EmailService {
       // Rate limiting ellenőrzés
       await this.checkRateLimit(email);
 
-      const { data, error } = await supabase.auth.resend({
+      const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
         options: {
@@ -79,7 +79,7 @@ class EmailService {
       // Rate limiting ellenőrzés
       await this.checkRateLimit(email);
 
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${process.env.EXPO_PUBLIC_SUPABASE_URL}/auth/callback`
       });
 
@@ -143,9 +143,8 @@ class EmailService {
 
   /**
    * Email verifikáció státuszának ellenőrzése
-   * @param {string} userId - Felhasználó ID
    */
-  async checkEmailVerificationStatus(userId) {
+  async checkEmailVerificationStatus() {
     try {
       const { data, error } = await supabase.auth.getUser();
 
