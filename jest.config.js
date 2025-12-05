@@ -35,5 +35,6 @@ module.exports = {
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
     '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
     '^expo-device$': '<rootDir>/__mocks__/expo-device.js',
+    '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
   },
 };

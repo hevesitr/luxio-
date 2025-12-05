@@ -114,7 +114,7 @@ const mockProfiles = [
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop'
     ],
     verified: true
-  }
+  },
   {
     id: 4,
     name: 'Dániel',

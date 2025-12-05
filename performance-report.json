@@ -1,10 +1,10 @@
 {
   "bundleAnalysis": {
-    "estimatedSourceSize": "2.01 MB",
-    "nodeModulesSize": "422.01 MB",
-    "totalDependencies": 46,
-    "runtimeDependencies": 31,
-    "devDependencies": 15,
+    "estimatedSourceSize": "2.39 MB",
+    "nodeModulesSize": "570.92 MB",
+    "totalDependencies": 54,
+    "runtimeDependencies": 33,
+    "devDependencies": 21,
     "status": "✅ GOOD",
     "recommendations": []
   },
