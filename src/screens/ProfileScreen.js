@@ -20,6 +20,7 @@ import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import SupabaseStorageService from '../services/SupabaseStorageService';
+import { useNavigation } from '../hooks/useNavigation';
 
 const calculateAge = (dateInput) => {
   if (!dateInput) {
@@ -41,6 +42,7 @@ const calculateAge = (dateInput) => {
 const ProfileScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const { profile, signOut } = useAuth();
+  const navService = useNavigation();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: 'Te',
@@ -606,14 +608,32 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Beállítások</Text>
         {settingsOptions.map((option, index) => (
-          <TouchableOpacity 
-            key={index} 
+          <TouchableOpacity
+            key={index}
             style={styles.settingItem}
             onPress={() => {
-              if (option.screen) {
-                navigation.navigate(option.screen);
-              } else {
-                Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
+              switch (option.screen) {
+                case 'Settings':
+                  navService.goToSettings();
+                  break;
+                case 'Verification':
+                  navService.goToVerification();
+                  break;
+                case 'Premium':
+                  navService.goToPremium();
+                  break;
+                case 'Boost':
+                  navService.goToBoost();
+                  break;
+                case 'EditProfile':
+                  navService.goToEditProfile();
+                  break;
+                default:
+                  if (option.screen) {
+                    navService.navigate(option.screen);
+                  } else {
+                    Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
+                  }
               }
             }}
           >

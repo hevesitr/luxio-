@@ -4,26 +4,35 @@
  */
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
+import BaseService from './BaseService';
+import PasswordService from './PasswordService';
 import * as SecureStore from 'expo-secure-store';
 
-class AuthService {
+class AuthService extends BaseService {
   constructor() {
+    super('AuthService');
     this.currentUser = null;
     this.session = null;
     this.refreshTimer = null;
+    this.passwordService = PasswordService; // PasswordService már instance, nem kell new
   }
 
   /**
    * Felhasználó regisztrációja
-   * @param {string} email 
-   * @param {string} password - Minimum 8 karakter
-   * @param {object} profileData - Profil adatok
+   * @param {object} userData - {email, password, profileData}
    */
-  async signUp(email, password, profileData) {
-    try {
-      // Jelszó erősség ellenőrzése
-      if (password.length < 8) {
-        throw new Error('Password must be at least 8 characters long');
+  async signUp({ email, password, profileData }) {
+    return this.executeOperation(async () => {
+      // Input validáció
+      const emailValidation = this.validate({ email }, { email: { required: true, type: 'email' } });
+      if (!emailValidation.valid) {
+        this.throwValidationError(emailValidation.errors);
+      }
+
+      // Jelszó validáció
+      const passwordValidation = this.passwordService.validatePassword(password);
+      if (!passwordValidation.valid) {
+        this.throwValidationError([{ field: 'password', message: passwordValidation.message }]);
       }
 
       // Supabase regisztráció (automatikusan bcrypt-tel hash-eli)
@@ -64,7 +73,7 @@ class AuthService {
       }
 
       Logger.success('User signed up', { email });
-      
+
       // Session mentése
       if (data.session) {
         await this.saveSession(data.session);
@@ -73,24 +82,65 @@ class AuthService {
         this.startRefreshTimer();
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         user: data.user,
-        session: data.session 
+        session: data.session
       };
+    });
+  }
+
+  /**
+   * AuthService inicializálása - meglévő session visszaállítása
+   */
+  async initialize() {
+    try {
+      Logger.info('AuthService: Initializing...');
+
+      // Meglévő session betöltése
+      const savedSession = await SecureStore.getItemAsync('user_session');
+      if (savedSession) {
+        const sessionData = JSON.parse(savedSession);
+
+        // Ellenőrizzük, hogy a session még érvényes-e
+        if (sessionData.expires_at && new Date(sessionData.expires_at) > new Date()) {
+          this.session = sessionData;
+          this.currentUser = sessionData.user;
+
+          // Supabase session visszaállítása
+          const { data, error } = await supabase.auth.setSession({
+            access_token: sessionData.access_token,
+            refresh_token: sessionData.refresh_token
+          });
+
+          if (!error && data.session) {
+            this.session = data.session;
+            this.currentUser = data.user;
+            this.startRefreshTimer();
+            Logger.success('AuthService: Session restored successfully');
+          } else {
+            // Invalid session, clear it
+            await this.clearSession();
+            Logger.info('AuthService: Invalid session cleared');
+          }
+        } else {
+          // Expired session, clear it
+          await this.clearSession();
+          Logger.info('AuthService: Expired session cleared');
+        }
+      }
+
+      Logger.success('AuthService: Initialization completed');
     } catch (error) {
-      Logger.error('Sign up failed', error);
-      return { 
-        success: false, 
-        error: error.message 
-      };
+      Logger.error('AuthService: Initialization failed', error);
+      // Don't throw error, just log it - app should continue
     }
   }
 
   /**
    * Felhasználó bejelentkezése
-   * @param {string} email 
-   * @param {string} password 
+   * @param {string} email
+   * @param {string} password
    */
   async signIn(email, password) {
     try {

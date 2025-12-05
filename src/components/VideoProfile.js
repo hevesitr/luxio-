@@ -274,7 +274,7 @@ const VideoProfile = ({ visible, profile, allProfiles = [], onClose, onLike, onS
         setShowDemoArrow(false);
       });
     }
-  }, [visible, profile, videoProfiles]);
+  }, [visible]);
 
   useEffect(() => {
     if (visible && videoProfiles.length > 0) {

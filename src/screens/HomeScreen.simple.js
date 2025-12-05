@@ -11,7 +11,6 @@ import {
   TextInput,
   Switch,
   ScrollView,
-  FlatList,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,7 +22,7 @@ import MatchAnimation from '../components/MatchAnimation';
 import ChatScreen from './ChatScreen';
 import StoryCircle from '../components/StoryCircle';
 import StoryViewer from '../components/StoryViewer';
-// import VideoProfile from '../components/VideoProfile'; // Temporarily disabled due to animation issues
+import VideoProfile from '../components/VideoProfile';
 import ProfileDetailScreen from './ProfileDetailScreen';
 import { profiles as initialProfiles } from '../data/profiles';
 import { currentUser } from '../data/userProfile';
@@ -59,7 +58,6 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
   const [videoModalVisible, setVideoModalVisible] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
-  const [dropdownVisible, setDropdownVisible] = useState(false);
   const [aiInputText, setAiInputText] = useState('');
   const [aiDescription, setAiDescription] = useState('');
   const [searchFilters, setSearchFilters] = useState({
@@ -134,13 +132,8 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   };
 
   const handleSwipeLeft = async (profile) => {
-    const userId = user?.id || currentUser.id;
-    if (!userId) {
-      Logger.error('HomeScreen: User not available for swipe');
-      return;
-    }
     try {
-      await MatchService.processSwipe(userId, profile.id, 'pass');
+      await MatchService.processSwipe(profile.id, 'pass');
       setHistory([...history, { profile, action: 'pass' }]);
       setCurrentIndex(currentIndex + 1);
     } catch (error) {
@@ -149,19 +142,12 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   };
 
   const handleSwipeRight = async (profile) => {
-    console.log('HomeScreen: handleSwipeRight called with profile:', profile.name, profile.id, 'currentIndex:', currentIndex);
-    const userId = user?.id || currentUser.id;
-    if (!userId) {
-      Logger.error('HomeScreen: User not available for swipe');
-      return;
-    }
     try {
-      const result = await MatchService.processSwipe(userId, profile.id, 'like');
+      const result = await MatchService.processSwipe(profile.id, 'like');
       setHistory([...history, { profile, action: 'like' }]);
 
       if (result.isMatch) {
         // It's a match!
-        console.log('HomeScreen: Match with profile:', profile.name, profile.id);
         setMatchedProfile(profile);
         setMatchAnimVisible(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -180,13 +166,8 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   };
 
   const handleSuperLike = async (profile) => {
-    const userId = user?.id || currentUser.id;
-    if (!userId) {
-      Logger.error('HomeScreen: User not available for swipe');
-      return;
-    }
     try {
-      const result = await MatchService.processSwipe(userId, profile.id, 'superlike');
+      const result = await MatchService.processSwipe(profile.id, 'superlike');
       setHistory([...history, { profile, action: 'superlike' }]);
 
       if (result.isMatch) {
@@ -221,7 +202,7 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   };
 
   const handleOpenVideoProfile = () => {
-    Alert.alert('Video Profil', 'Video profil funkció hamarosan elérhető!');
+    setVideoModalVisible(true);
   };
 
   const handleToggleVerifiedFilter = () => {
@@ -232,15 +213,15 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   };
 
   const handleBoost = () => {
-    navigation.navigate('Boost');
+    navService.goToBoost();
   };
 
   const handleOpenMap = () => {
-    navigation.navigate('Passport');
+    navService.goToPassport();
   };
 
   const handleOpenSearch = () => {
-    navigation.navigate('Search');
+    navService.goToSearch();
   };
 
   const handleToggleAI = () => {
@@ -270,7 +251,6 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   };
 
   const currentProfile = profiles[currentIndex];
-  console.log('HomeScreen: currentProfile:', currentProfile?.name, currentProfile?.id, 'currentIndex:', currentIndex, 'profiles length:', profiles.length);
 
   if (loading) {
     return (
@@ -312,83 +292,15 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
-        {/* Menu Icon */}
-        <TouchableOpacity
-          style={styles.headerIcon}
-          onPress={() => setDropdownVisible(!dropdownVisible)}
-        >
-          <Ionicons name="menu" size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
-
         <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Felfedezés</Text>
 
         {/* Filter Icon */}
         <TouchableOpacity
-          style={styles.headerIcon}
+          style={styles.filterIcon}
           onPress={() => setAiModalVisible(true)}
         >
           <Ionicons name="filter" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
-
-        {/* Dropdown Menu */}
-        {dropdownVisible && (
-          <View style={[styles.dropdownMenu, { backgroundColor: theme.colors.surface }]}>
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setDropdownVisible(false);
-                navigation.navigate('Matches');
-              }}
-            >
-              <Ionicons name="heart" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Matchek</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setDropdownVisible(false);
-                navigation.navigate('Profile');
-              }}
-            >
-              <Ionicons name="person" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Profil</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setDropdownVisible(false);
-                navigation.navigate('Search');
-              }}
-            >
-              <Ionicons name="search" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Keresés</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setDropdownVisible(false);
-                navigation.navigate('Boost');
-              }}
-            >
-              <Ionicons name="flash" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Boost</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setDropdownVisible(false);
-                navigation.navigate('Passport');
-              }}
-            >
-              <Ionicons name="map" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Helyszínek</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
       {/* Stories Bar */}
@@ -418,11 +330,9 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
       <View style={styles.cardContainer}>
         <SwipeCard
           profile={currentProfile}
-          isFirst={true}
-          onSwipeLeft={handleSwipeLeft}
-          onSwipeRight={handleSwipeRight}
-          onSuperLike={handleSuperLike}
-          onProfilePress={() => navigation.navigate('ProfileDetail', { profile: currentProfile })}
+          onSwipeLeft={() => handleSwipeLeft(currentProfile)}
+          onSwipeRight={() => handleSwipeRight(currentProfile)}
+          onSuperLike={() => handleSuperLike(currentProfile)}
         />
       </View>
 
@@ -509,12 +419,12 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
         onClose={() => setStoriesVisible(false)}
       />
 
-      {/* Video Profile Modal - Temporarily disabled */}
-      {/* <VideoProfile
+      {/* Video Profile Modal */}
+      <VideoProfile
         visible={videoModalVisible}
         profile={currentProfile}
         onClose={() => setVideoModalVisible(false)}
-      /> */}
+      />
 
       {/* AI Filter Modal */}
       <Modal
@@ -580,9 +490,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  headerIcon: {
-    padding: 8,
   },
   screenTitle: {
     fontSize: 28,
@@ -739,32 +646,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    width: 200,
-    borderRadius: 10,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    gap: 12,
-  },
-  dropdownText: {
-    fontSize: 16,
-    fontWeight: '500',
   },
 });
 

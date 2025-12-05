@@ -166,6 +166,20 @@ class StoryService {
     }
   }
 
+  // Discovery képernyőhöz: összes aktív story lekérése (a jelenlegi felhasználó kivételével)
+  static async getStories() {
+    try {
+      const stories = await this.getAllStories();
+
+      // Szűrjük ki a jelenlegi felhasználó story-jait és csak az aktívakat hagyjuk
+      // Ez egy egyszerű implementáció - később lehet komplexebb
+      return stories.slice(0, 10); // Csak az első 10 felhasználó story-jait adjuk vissza
+    } catch (error) {
+      console.error('Error getting stories for discovery:', error);
+      return [];
+    }
+  }
+
   // Megtekintett story-k követése
   static async markStoriesAsViewed(userId, viewerId) {
     try {

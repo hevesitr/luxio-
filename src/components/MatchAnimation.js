@@ -19,6 +19,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 50;
 
 const MatchAnimation = ({ visible, onClose, onSendMessage, profile, allMatches = [], navigation }) => {
+  console.log('MatchAnimation: Received profile:', profile?.name, profile?.id);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const slideX = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;

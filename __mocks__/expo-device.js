@@ -1,0 +1,22 @@
+// Mock for expo-device
+module.exports = {
+  getDeviceTypeAsync: jest.fn().mockResolvedValue('phone'),
+  getPlatformFeaturesAsync: jest.fn().mockResolvedValue(['bluetooth', 'wifi']),
+  isDevice: true,
+  brand: 'MockBrand',
+  manufacturer: 'MockManufacturer',
+  modelName: 'MockModel',
+  modelId: 'MockModelId',
+  designName: 'MockDesign',
+  productName: 'MockProduct',
+  deviceYearClass: 2023,
+  totalMemory: 8589934592,
+  supportedCpuArchitectures: ['arm64-v8a'],
+  osName: 'Android',
+  osVersion: '13',
+  osBuildId: 'TP1A.220624.014',
+  osInternalBuildId: '8937643',
+  osBuildFingerprint: 'MockBrand/MockModel/MockDevice:13/TP1A.220624.014/8937643:user/release-keys',
+  platformApiLevel: 33,
+  deviceName: 'Mock Device',
+};

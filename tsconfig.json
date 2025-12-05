@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": ["esnext"],
+    "lib": [
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -17,14 +19,29 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/components/*": ["src/components/*"],
-      "@/services/*": ["src/services/*"],
-      "@/utils/*": ["src/utils/*"],
-      "@/contexts/*": ["src/contexts/*"],
-      "@/screens/*": ["src/screens/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@/components/*": [
+        "src/components/*"
+      ],
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@/utils/*": [
+        "src/utils/*"
+      ],
+      "@/contexts/*": [
+        "src/contexts/*"
+      ],
+      "@/screens/*": [
+        "src/screens/*"
+      ]
     },
-    "types": ["jest", "node"]
+    "types": [
+      "jest",
+      "node"
+    ]
   },
   "exclude": [
     "node_modules",
@@ -44,5 +61,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/**/*.js"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect, useMemo } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, PanResponder, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,25 +34,17 @@ const getActivityStyle = (lastActive) => {
   return { backgroundColor: '#999' };
 };
 
-const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, userProfile, onDoubleTap, onProfilePress, fullScreen = false }, ref) => {
+const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike, isFirst, userProfile, onDoubleTap, onProfilePress, fullScreen = false }, ref) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [showLike, setShowLike] = useState(false);
   const [showNope, setShowNope] = useState(false);
   const [swipeStrength, setSwipeStrength] = useState(0);
   const [showSuperLike, setShowSuperLike] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const lastTap = useRef(null);
   const superLikeTimeoutRef = useRef(null);
 
-  // DEBUG: Log profile data
-  useEffect(() => {
-    console.log('=== SWIPECARD PROFILE DEBUG ===');
-    console.log('profile:', JSON.stringify(profile, null, 2));
-    console.log('profile.name:', profile.name);
-    console.log('profile.age:', profile.age);
-    console.log('profile.age type:', typeof profile.age);
-    console.log('isNaN(profile.age):', isNaN(profile.age));
-  }, [profile]);
 
   const compatibility = userProfile 
     ? CompatibilityService.calculateCompatibility(userProfile, profile)
@@ -103,18 +95,11 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
     },
   }));
 
-  const panResponder = useRef(
+  const panResponder = useMemo(() =>
     PanResponder.create({
-      onStartShouldSetPanResponder: () => {
-        console.log('PanResponder START');
-        return true;
-      },
-      onMoveShouldSetPanResponder: () => {
-        console.log('PanResponder MOVE');
-        return true;
-      },
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        console.log('PanResponder GRANTED');
         setIsDragging(true);
       },
       onPanResponderMove: (e, gesture) => {
@@ -140,7 +125,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
         setSwipeStrength(0);
         
         // Ha volt jelentős mozgás, akkor swipe
-        const hasSignificantMovement = Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 10;
+        const hasSignificantMovement = Math.abs(gesture.dx) > SWIPE_THRESHOLD || Math.abs(gesture.dy) > 120;
         
         if (hasSignificantMovement) {
           // Swipe logika
@@ -172,10 +157,12 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
             setShowNope(false);
           }
         } else {
-          // Nincs mozgás, csak tap - dupla tap detektálás
+          // Nincs jelentős mozgás - kép lapozás vagy tap
           const now = Date.now();
           const DOUBLE_TAP_DELAY = 300;
-          
+          const touchX = gesture.x0; // Kezdeti érintési pozíció X
+          const imageWidth = SCREEN_WIDTH * 0.92;
+
           if (lastTap.current && (now - lastTap.current) < DOUBLE_TAP_DELAY) {
             // Double tap detected!
             lastTap.current = null;
@@ -184,7 +171,35 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
               onDoubleTap(profile);
             }
           } else {
-            lastTap.current = now;
+            // Single tap vagy kép lapozás
+            if (profile.photos && profile.photos.length > 1) {
+              // Kép lapozás ha több kép van - egyszerű logika
+              if (touchX < imageWidth / 2) {
+                // Bal oldal - előző kép
+                setCurrentPhotoIndex(prev =>
+                  prev > 0 ? prev - 1 : profile.photos.length - 1
+                );
+                console.log('SwipeCard: Previous photo');
+              } else {
+                // Jobb oldal - következő kép
+                setCurrentPhotoIndex(prev =>
+                  prev < profile.photos.length - 1 ? prev + 1 : 0
+                );
+                console.log('SwipeCard: Next photo');
+              }
+            } else {
+              // Egy kép - single tap profil megnyitáshoz
+              lastTap.current = now;
+              setTimeout(() => {
+                if (lastTap.current === now) {
+                  lastTap.current = null;
+                  if (onProfilePress) {
+                    console.log('SwipeCard: Single tap detected, calling onProfilePress');
+                    onProfilePress(profile);
+                  }
+                }
+              }, DOUBLE_TAP_DELAY + 50);
+            }
           }
           
           // Reset pozíció
@@ -193,8 +208,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
           setShowNope(false);
         }
       },
-    })
-  ).current;
+    }), [profile, onSwipeLeft, onSwipeRight, onSuperLike, onProfilePress]);
 
   const rotation = (position.x / SCREEN_WIDTH) * 10;
   const cardWidth = fullScreen ? SCREEN_WIDTH : SCREEN_WIDTH * 0.94;
@@ -223,7 +237,37 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, isFirst, use
       collapsable={false}
       {...panResponder.panHandlers}
     >
-      <Image source={{ uri: profile.photo }} style={styles.image} />
+      <Image
+        source={{ uri: profile.photos && profile.photos.length > 0 ? profile.photos[currentPhotoIndex] : profile.photo }}
+        style={styles.image}
+      />
+
+      {/* Photo indicators */}
+      {profile.photos && profile.photos.length > 1 && (
+        <View style={styles.photoIndicators}>
+          {profile.photos.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.photoIndicator,
+                { backgroundColor: index === currentPhotoIndex ? '#fff' : 'rgba(255,255,255,0.5)' }
+              ]}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Photo navigation hints */}
+      {profile.photos && profile.photos.length > 1 && (
+        <>
+          <View style={[styles.photoNavHint, styles.leftHint]}>
+            <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
+          </View>
+          <View style={[styles.photoNavHint, styles.rightHint]}>
+            <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.8)" />
+          </View>
+        </>
+      )}
       
       {compatibility && !fullScreen && (
         <View
@@ -575,6 +619,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  photoIndicators: {
+    position: 'absolute',
+    bottom: 120,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  photoIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  photoNavHint: {
+    position: 'absolute',
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    opacity: 0.7,
+  },
+  leftHint: {
+    left: 16,
+  },
+  rightHint: {
+    right: 16,
   },
 });
 

@@ -88,13 +88,8 @@ const SearchScreen = ({ navigation, route }) => {
       onApplyFilters(filters);
     }
     
-    // Navigálunk a főoldalra (Felfedezés tab)
-    const parent = navigation.getParent();
-    if (parent) {
-      parent.navigate('Felfedezés');
-    } else {
-      navigation.goBack();
-    }
+    // Visszatérünk a főoldalra
+    navigation.goBack();
     
     // Kis késleltetés után mutatjuk az alert-et
     setTimeout(() => {
@@ -130,14 +125,7 @@ const SearchScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-          const parent = navigation.getParent();
-          if (parent) {
-            parent.navigate('Felfedezés');
-          } else {
-            navigation.goBack();
-          }
-        }} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Keresés & Szűrés</Text>

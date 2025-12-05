@@ -20,6 +20,7 @@ import VideoRecorder from '../components/VideoRecorder';
 import AnalyticsService from '../services/AnalyticsService';
 import GamificationService from '../services/GamificationService';
 import MessageService from '../services/MessageService';
+import MessagingService from '../services/MessagingService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { currentUser } from '../data/userProfile';
@@ -41,6 +42,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
   const [showIceBreakers, setShowIceBreakers] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [typingTimeout, setTypingTimeout] = useState(null);
 
   useEffect(() => {
     // Generálj ice breaker kérdéseket
@@ -58,17 +60,19 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
       return;
     }
 
+    const messagingService = new MessagingService();
+
     // Üzenetek betöltése
     const loadMessages = async () => {
       try {
-        const result = await MessageService.getMessages(match.matchId);
-        if (result.success && result.data) {
-          const formattedMessages = result.data.map(msg => ({
+        const messages = await messagingService.loadMessages(match.matchId);
+        if (messages && messages.length > 0) {
+          const formattedMessages = messages.map(msg => ({
             id: msg.id,
             text: msg.content,
             sender: msg.sender_id === currentUser.id ? 'me' : 'them',
             timestamp: new Date(msg.created_at),
-            readStatus: msg.is_read ? 'read' : 'delivered',
+            readStatus: msg.status === 'read' ? 'read' : msg.status === 'delivered' ? 'delivered' : 'sent',
             type: msg.type || 'text',
           }));
           setMessages(formattedMessages);
@@ -81,7 +85,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     loadMessages();
 
     // Real-time üzenetek figyelése
-    const subscription = MessageService.subscribeToMessages(match.matchId, (newMessage) => {
+    messagingService.subscribeToMessages(match.matchId, (newMessage) => {
       // Csak akkor adjuk hozzá, ha nem mi küldtük
       if (newMessage.sender_id !== currentUser.id) {
         const formattedMessage = {
@@ -89,42 +93,46 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
           text: newMessage.content,
           sender: 'them',
           timestamp: new Date(newMessage.created_at),
-          readStatus: 'delivered',
+          readStatus: newMessage.status === 'read' ? 'read' : 'delivered',
           type: newMessage.type || 'text',
         };
         setMessages(prev => [...prev, formattedMessage]);
       }
     });
 
+    // Typing indikátor figyelése
+    messagingService.subscribeToTyping(match.matchId, (typingUsers) => {
+      setIsTyping(typingUsers.length > 0);
+    });
+
     // Cleanup
     return () => {
-      MessageService.unsubscribeFromMessages(subscription);
+      messagingService.unsubscribeFromMessages(match.matchId);
+      messagingService.unsubscribeFromTyping(match.matchId);
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
     };
   }, [match?.matchId]);
 
   const sendMessage = async (text = null) => {
     const messageText = text || inputText.trim();
     if (messageText && typeof messageText === 'string' && messageText.length > 0) {
-      // Optimista UI frissítés
-      const tempMessage = {
-        id: Date.now() + Math.random(),
-        text: String(messageText),
-        sender: 'me',
-        timestamp: new Date(),
-        readStatus: 'sent',
-      };
-      setMessages((prevMessages) => [...prevMessages, tempMessage]);
       setInputText('');
       setShowIceBreakers(false);
 
-      // Üzenet küldése Supabase-be
+      // Üzenet küldése az új MessagingService-szel
       try {
         if (match?.matchId) {
-          const result = await MessageService.sendMessage(
+          const messagingService = new MessagingService();
+          const result = await messagingService.sendMessage(
             match.matchId,
             currentUser.id,
-            messageText,
-            'text'
+            match.id, // receiverId
+            {
+              content: messageText,
+              type: 'text'
+            }
           );
           
           if (!result.success) {
@@ -209,6 +217,31 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
           );
         }, 1500);
       }, 1000 + Math.random() * 2000);
+    }
+  };
+
+  const handleInputChange = async (text) => {
+    setInputText(text);
+
+    // Typing indikátor kezelése
+    if (match?.matchId) {
+      const messagingService = new MessagingService();
+
+      // Előző timeout törlése
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+
+      // Typing állapot beállítása
+      await messagingService.setTypingStatus(match.matchId, currentUser.id, text.length > 0);
+
+      // Új timeout beállítása - 3 másodperc után állítsa le a typing-et
+      if (text.length > 0) {
+        const timeout = setTimeout(async () => {
+          await messagingService.setTypingStatus(match.matchId, currentUser.id, false);
+        }, 3000);
+        setTypingTimeout(timeout);
+      }
     }
   };
 
@@ -477,7 +510,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
               style={styles.input}
               placeholder="Írj üzenetet..."
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleInputChange}
               multiline
             />
             {inputText.trim() ? (

@@ -20,11 +20,13 @@ import { currentUser } from '../data/userProfile';
 import MatchService from '../services/MatchService';
 import SupabaseMatchService from '../services/SupabaseMatchService';
 import Logger from '../services/Logger';
+import { useNavigation } from '../hooks/useNavigation';
 
 const SETTINGS_KEY = '@user_settings';
 
 const MatchesScreen = ({ matches, navigation, removeMatch }) => {
   const { theme } = useTheme();
+  const navService = useNavigation();
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [chatVisible, setChatVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,8 +150,7 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
   };
 
   const openChat = (match) => {
-    setSelectedMatch(match);
-    setChatVisible(true);
+    navService.goToChat(match);
   };
 
   const closeChat = () => {

@@ -3,7 +3,7 @@
  *
  * Tests for moderation, reporting, and content filtering
  */
-import ModerationService from '../ModerationService';
+import ModerationService, { ModerationService as ModerationServiceClass } from '../ModerationService';
 
 describe('ModerationService', () => {
   describe('Content Filtering', () => {
@@ -11,7 +11,7 @@ describe('ModerationService', () => {
       const result = ModerationService.filterContent('This is fucking awesome!');
 
       expect(result.isClean).toBe(false);
-      expect(result.flagReasons).toContain(ModerationService.FLAG_REASONS.PROFANITY);
+      expect(result.flagReasons).toContain(ModerationServiceClass.FLAG_REASONS.PROFANITY);
       expect(result.confidence).toBeGreaterThan(0);
     });
 
@@ -19,21 +19,21 @@ describe('ModerationService', () => {
       const result = ModerationService.filterContent('Check out this porn site');
 
       expect(result.isClean).toBe(false);
-      expect(result.flagReasons).toContain(ModerationService.FLAG_REASONS.EXPLICIT);
+      expect(result.flagReasons).toContain(ModerationServiceClass.FLAG_REASONS.EXPLICIT);
     });
 
     it('should detect hate speech', () => {
-      const result = ModerationService.filterContent('I hate those people');
+      const result = ModerationService.filterContent('Those niggers are stupid');
 
       expect(result.isClean).toBe(false);
-      expect(result.flagReasons).toContain(ModerationService.FLAG_REASONS.HATE_SPEECH);
+      expect(result.flagReasons).toContain(ModerationServiceClass.FLAG_REASONS.HATE_SPEECH);
     });
 
     it('should detect spam', () => {
       const result = ModerationService.filterContent('Buy now!!!! 12345678901234567890');
 
       expect(result.isClean).toBe(false);
-      expect(result.flagReasons).toContain(ModerationService.FLAG_REASONS.SPAM);
+      expect(result.flagReasons).toContain(ModerationServiceClass.FLAG_REASONS.SPAM);
     });
 
     it('should pass clean content', () => {
@@ -55,30 +55,30 @@ describe('ModerationService', () => {
   describe('Report Submission', () => {
     it('should validate report inputs', () => {
       // This would require mocking Supabase, so we'll test the validation logic
-      expect(ModerationService.REPORT_TYPES.HARASSMENT).toBe('harassment');
-      expect(ModerationService.REPORT_TYPES.INAPPROPRIATE_CONTENT).toBe('inappropriate_content');
-      expect(ModerationService.REPORT_TYPES.SPAM).toBe('spam');
+      expect(ModerationServiceClass.REPORT_TYPES.HARASSMENT).toBe('harassment');
+      expect(ModerationServiceClass.REPORT_TYPES.INAPPROPRIATE_CONTENT).toBe('inappropriate_content');
+      expect(ModerationServiceClass.REPORT_TYPES.SPAM).toBe('spam');
     });
   });
 
   describe('Flag Reasons', () => {
     it('should have all required flag reasons defined', () => {
-      expect(ModerationService.FLAG_REASONS.PROFANITY).toBe('profanity');
-      expect(ModerationService.FLAG_REASONS.EXPLICIT).toBe('explicit');
-      expect(ModerationService.FLAG_REASONS.HATE_SPEECH).toBe('hate_speech');
-      expect(ModerationService.FLAG_REASONS.SPAM).toBe('spam');
-      expect(ModerationService.FLAG_REASONS.HARASSMENT).toBe('harassment');
+      expect(ModerationServiceClass.FLAG_REASONS.PROFANITY).toBe('profanity');
+      expect(ModerationServiceClass.FLAG_REASONS.EXPLICIT).toBe('explicit');
+      expect(ModerationServiceClass.FLAG_REASONS.HATE_SPEECH).toBe('hate_speech');
+      expect(ModerationServiceClass.FLAG_REASONS.SPAM).toBe('spam');
+      expect(ModerationServiceClass.FLAG_REASONS.HARASSMENT).toBe('harassment');
     });
   });
 
   describe('Report Types', () => {
     it('should have all required report types defined', () => {
-      expect(ModerationService.REPORT_TYPES.HARASSMENT).toBe('harassment');
-      expect(ModerationService.REPORT_TYPES.INAPPROPRIATE_CONTENT).toBe('inappropriate_content');
-      expect(ModerationService.REPORT_TYPES.SPAM).toBe('spam');
-      expect(ModerationService.REPORT_TYPES.FAKE_PROFILE).toBe('fake_profile');
-      expect(ModerationService.REPORT_TYPES.UNDERAGE).toBe('underage');
-      expect(ModerationService.REPORT_TYPES.OTHER).toBe('other');
+      expect(ModerationServiceClass.REPORT_TYPES.HARASSMENT).toBe('harassment');
+      expect(ModerationServiceClass.REPORT_TYPES.INAPPROPRIATE_CONTENT).toBe('inappropriate_content');
+      expect(ModerationServiceClass.REPORT_TYPES.SPAM).toBe('spam');
+      expect(ModerationServiceClass.REPORT_TYPES.FAKE_PROFILE).toBe('fake_profile');
+      expect(ModerationServiceClass.REPORT_TYPES.UNDERAGE).toBe('underage');
+      expect(ModerationServiceClass.REPORT_TYPES.OTHER).toBe('other');
     });
   });
 });

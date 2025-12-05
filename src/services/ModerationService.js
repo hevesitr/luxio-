@@ -220,10 +220,8 @@ class ModerationService {
     ];
 
     profanityWords.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      const matches = lowerContent.match(regex);
-      if (matches) {
-        matchCount += matches.length;
+      if (lowerContent.includes(word)) {
+        matchCount++;
         if (!flagReasons.includes(ModerationService.FLAG_REASONS.PROFANITY)) {
           flagReasons.push(ModerationService.FLAG_REASONS.PROFANITY);
         }
@@ -544,4 +542,5 @@ class ModerationService {
   }
 }
 
+export { ModerationService };
 export default new ModerationService();

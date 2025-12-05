@@ -33,5 +33,7 @@ module.exports = {
   moduleNameMapper: {
     '^expo-location$': '<rootDir>/__mocks__/expo-location.js',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
+    '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
+    '^expo-device$': '<rootDir>/__mocks__/expo-device.js',
   },
 };
