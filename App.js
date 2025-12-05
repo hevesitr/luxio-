@@ -114,7 +114,7 @@ const mockProfiles = [
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop'
     ],
     verified: true
-  }
+  },
   {
     id: 4,
     name: 'Dániel',
@@ -355,7 +355,7 @@ function HomeScreen() {
           >
             <Text style={styles.filterButtonText}>Szűrők módosítása</Text>
           </TouchableOpacity>
-        </View>
+      </View>
       </SafeAreaView>
     );
   }
@@ -458,10 +458,10 @@ function MatchesScreen() {
               <Text style={styles.matchName}>{match.name}, {match.age}</Text>
               <Text style={styles.matchCity}>
                 <Ionicons name="location" size={14} color="#666" /> {match.city}
-              </Text>
+          </Text>
               <Text style={styles.matchDate}>
                 <Ionicons name="calendar" size={14} color="#666" /> Match: {match.matchedAt}
-              </Text>
+          </Text>
             </View>
 
             <View style={styles.matchActions}>
@@ -962,6 +962,6 @@ export default function App() {
         <Tab.Screen name="Matchek" component={MatchesScreen} />
         <Tab.Screen name="Profil" component={ProfileScreen} />
       </Tab.Navigator>
-    </NavigationContainer>
+                        </NavigationContainer>
   );
 }

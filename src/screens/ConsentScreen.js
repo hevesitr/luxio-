@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
+import LegalService from '../services/LegalService';
+import AuthService from '../services/AuthService';
 
 const API_BASE_URL = __DEV__ 
   ? 'http://localhost:3000/api/v1'
@@ -39,18 +41,28 @@ const ConsentScreen = ({ navigation, route }) => {
 
   const loadConsents = async () => {
     try {
-      const StorageService = require('../services/StorageService').default;
-      const token = await StorageService.getToken();
-      
-      if (!token) {
+      const currentUser = AuthService.getCurrentUser();
+      if (!currentUser) {
+        // Regisztráció esetén nincs még user, alapértelmezett consent-ek
+        if (isRegistration) {
+          return;
+        }
         navigation.goBack();
         return;
       }
 
-      // TODO: Backend API hívás a meglévő consent-ek lekéréséhez
-      // Most csak placeholder
+      const result = await LegalService.getUserConsents(currentUser.id);
+      if (result) {
+        setConsents({
+          terms: result.terms_of_service || false,
+          privacy: result.privacy_policy || false,
+          marketing: result.marketing || false,
+          analytics: result.analytics || false,
+        });
+      }
     } catch (error) {
       console.error('Error loading consents:', error);
+      Alert.alert('Hiba', 'Nem sikerült betölteni az adatkezelési beállításokat.');
     }
   };
 
@@ -62,55 +74,41 @@ const ConsentScreen = ({ navigation, route }) => {
   };
 
   const handleSave = async () => {
-    // Regisztráció esetén terms és privacy kötelező
-    if (isRegistration && (!consents.terms || !consents.privacy)) {
-      Alert.alert(
-        'Kötelező mezők',
-        'A Felhasználási Feltételek és az Adatvédelmi Szabályzat elfogadása kötelező a regisztrációhoz.'
-      );
+    // LegalService validáció használata
+    const legalConsents = {
+      terms_of_service: consents.terms,
+      privacy_policy: consents.privacy,
+      marketing: consents.marketing,
+      analytics: consents.analytics,
+    };
+
+    const validation = LegalService.validateRegistrationConsents(legalConsents);
+    if (!validation.success) {
+      Alert.alert('Kötelező mezők', validation.message);
       return;
     }
 
     setLoading(true);
     try {
-      const StorageService = require('../services/StorageService').default;
-      const token = await StorageService.getToken();
+      const currentUser = AuthService.getCurrentUser();
+      const userId = currentUser ? currentUser.id : 'temp_user_' + Date.now();
 
-      if (!token && !isRegistration) {
-        Alert.alert('Hiba', 'Nincs bejelentkezve.');
-        navigation.goBack();
-        return;
-      }
-
-      // Backend API hívás minden consent-hez
-      const consentPromises = Object.entries(consents).map(([type, accepted]) => {
-        if (isRegistration && (type === 'terms' || type === 'privacy')) {
-          // Regisztráció során ezek automatikusan mentésre kerülnek
-          return Promise.resolve();
-        }
-
-        return fetch(`${API_BASE_URL}/gdpr/consent`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            consentType: type,
-            accepted,
-          }),
-        });
+      const result = await LegalService.saveUserConsents(userId, legalConsents, {
+        isRegistration,
+        consentType: 'user_initiated'
       });
 
-      await Promise.all(consentPromises);
+      if (result.success) {
+        Alert.alert('Siker', 'Adatkezelési beállítások mentve.');
 
-      Alert.alert('Siker', 'Consent beállítások mentve.');
-      
-      if (isRegistration) {
-        // Regisztráció folytatása
-        navigation.navigate('Home');
+        if (isRegistration) {
+          // Regisztráció folytatása
+          navigation.navigate('Home');
+        } else {
+          navigation.goBack();
+        }
       } else {
-        navigation.goBack();
+        Alert.alert('Hiba', result.error || 'Hiba történt a mentés során.');
       }
     } catch (error) {
       console.error('Error saving consents:', error);

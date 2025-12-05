@@ -1,0 +1,31 @@
+{
+  "supabaseConnection": {
+    "status": "❌ FAILED",
+    "error": "Stripping types is currently unsupported for files under node_modules, for \"C:\\Users\\heves\\Desktop\\dating-app\\node_modules\\expo-modules-core\\src\\index.ts\""
+  },
+  "aiServices": {
+    "AISparkService": true,
+    "MoodMatchingService": true,
+    "MemoryService": true,
+    "SmartDateService": true,
+    "CompatibilityRainbowService": true,
+    "summary": "5/5 services structurally valid",
+    "overallStatus": "✅ ALL VALID"
+  },
+  "coreServices": {
+    "ProfileService": true,
+    "SupabaseStorageService": true,
+    "ErrorHandler": true,
+    "Logger": true,
+    "summary": "4/4 services structurally valid",
+    "overallStatus": "✅ ALL VALID"
+  },
+  "performance": {
+    "status": "❌ FAILED",
+    "error": "Cannot find module 'C:\\Users\\heves\\Desktop\\dating-app\\src\\services\\ErrorHandler' imported from C:\\Users\\heves\\Desktop\\dating-app\\src\\services\\AISparkService.js"
+  },
+  "overall": {
+    "score": "2/4",
+    "status": "FAIR"
+  }
+}

@@ -3,7 +3,7 @@
  *
  * Orchestrates the 5-step onboarding flow with progress tracking
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import ABTestingService from '../services/ABTestingService';
 import OnboardingStep1 from './onboarding/OnboardingStep1';
 import OnboardingStep2 from './onboarding/OnboardingStep2';
 import OnboardingStep3 from './onboarding/OnboardingStep3';
@@ -29,7 +31,10 @@ const STEPS = [
 
 const OnboardingScreen = ({ navigation, onComplete }) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
+  const [abTestVariants, setAbTestVariants] = useState({});
+  const [variantContent, setVariantContent] = useState({});
   const [formData, setFormData] = useState({
     // Step 1: Basic Info
     name: '',
@@ -53,6 +58,46 @@ const OnboardingScreen = ({ navigation, onComplete }) => {
     locationEnabled: false,
   });
 
+  // Initialize A/B testing
+  useEffect(() => {
+    initializeABTesting();
+  }, []);
+
+  const initializeABTesting = async () => {
+    if (user?.id) {
+      try {
+        // Get user's assigned variants
+        const variants = await ABTestingService.getUserVariants(user.id);
+        setAbTestVariants(variants);
+
+        // Get variant-specific content for onboarding
+        if (variants.onboarding_flow) {
+          const contentResult = await ABTestingService.getVariantContent(
+            'onboarding_flow',
+            variants.onboarding_flow
+          );
+          if (contentResult.success) {
+            setVariantContent(prev => ({
+              ...prev,
+              onboarding: contentResult.content
+            }));
+          }
+        }
+
+        // Track onboarding start
+        await ABTestingService.trackEvent(
+          user.id,
+          'onboarding_flow',
+          variants.onboarding_flow || 'standard',
+          'onboarding_started'
+        );
+
+      } catch (error) {
+        console.error('A/B Testing initialization error:', error);
+      }
+    }
+  };
+
   const handleUpdateFormData = (updates) => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
@@ -74,7 +119,26 @@ const OnboardingScreen = ({ navigation, onComplete }) => {
     handleComplete();
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    // Track onboarding completion for A/B testing
+    if (user?.id && abTestVariants.onboarding_flow) {
+      try {
+        await ABTestingService.trackEvent(
+          user.id,
+          'onboarding_flow',
+          abTestVariants.onboarding_flow,
+          'onboarding_complete',
+          {
+            totalSteps: STEPS.length,
+            timeSpent: Date.now() - (window.onboardingStartTime || Date.now()),
+            completionPercentage: 100
+          }
+        );
+      } catch (error) {
+        console.error('A/B Testing tracking error:', error);
+      }
+    }
+
     // Navigate to main app
     if (onComplete) {
       onComplete();
@@ -126,6 +190,7 @@ const OnboardingScreen = ({ navigation, onComplete }) => {
           onBack={handleBack}
           onSkip={handleSkip}
           onComplete={handleComplete}
+          variantContent={currentStep === 0 ? variantContent.onboarding : null}
         />
       </View>
     </SafeAreaView>

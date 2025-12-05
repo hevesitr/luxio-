@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 
-const OnboardingStep1 = ({ onNext, onSkip }) => {
+const OnboardingStep1 = ({ onNext, onSkip, variantContent }) => {
   const { theme } = useTheme();
 
   const features = [
@@ -64,16 +64,17 @@ const OnboardingStep1 = ({ onNext, onSkip }) => {
             <Ionicons name="heart" size={48} color={theme.colors.cardBackground} />
           </View>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Üdvözöl a LoveX!
+            {variantContent?.title || 'Üdvözöl a LoveX!'}
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Találd meg a tökéletes párt intelligens matching rendszerünkkel
+            {variantContent?.subtitle || 'Találd meg a tökéletes párt intelligens matching rendszerünkkel'}
           </Text>
         </View>
 
         {/* Features Grid */}
-        <View style={styles.featuresContainer}>
-          {features.map((feature, index) => (
+        {(variantContent?.showFeatures !== false) && (
+          <View style={styles.featuresContainer}>
+            {features.map((feature, index) => (
             <View
               key={index}
               style={[styles.featureCard, { backgroundColor: theme.colors.cardBackground }]}
@@ -92,8 +93,9 @@ const OnboardingStep1 = ({ onNext, onSkip }) => {
                 {feature.description}
               </Text>
             </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Stats */}
         <View style={[styles.statsContainer, { backgroundColor: theme.colors.cardBackground }]}>

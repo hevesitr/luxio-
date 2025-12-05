@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import PaymentService from '../services/PaymentService';
+import ABTestingService from '../services/ABTestingService';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -22,10 +23,50 @@ const PremiumScreen = ({ navigation }) => {
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState('premium_gold');
   const [plans, setPlans] = useState([]);
+  const [paywallVariant, setPaywallVariant] = useState(null);
+  const [variantContent, setVariantContent] = useState({});
 
   useEffect(() => {
-    loadSubscriptionData();
+    initializePaywall();
   }, []);
+
+  const initializePaywall = async () => {
+    // Initialize A/B testing for paywall
+    if (user?.id) {
+      try {
+        const variants = await ABTestingService.getUserVariants(user.id);
+        setPaywallVariant(variants.paywall_design || 'minimal');
+
+        // Get variant content
+        const designContent = await ABTestingService.getVariantContent(
+          'paywall_design',
+          variants.paywall_design || 'minimal'
+        );
+        const pricingContent = await ABTestingService.getVariantContent(
+          'paywall_pricing',
+          variants.paywall_pricing || 'quarterly_focus'
+        );
+
+        setVariantContent({
+          design: designContent.success ? designContent.content : {},
+          pricing: pricingContent.success ? pricingContent.content : {}
+        });
+
+        // Track paywall view
+        await ABTestingService.trackEvent(
+          user.id,
+          'paywall_design',
+          variants.paywall_design || 'minimal',
+          'paywall_viewed'
+        );
+
+      } catch (error) {
+        console.error('Paywall A/B testing error:', error);
+      }
+    }
+
+    loadSubscriptionData();
+  };
 
   const loadSubscriptionData = async () => {
     try {
@@ -98,11 +139,31 @@ const PremiumScreen = ({ navigation }) => {
               );
 
               if (subscriptionResult.success) {
+                // Track conversion for A/B testing
+                if (user?.id && paywallVariant) {
+                  try {
+                    await ABTestingService.trackEvent(
+                      user.id,
+                      'paywall_design',
+                      paywallVariant,
+                      'subscription_started',
+                      {
+                        planId: plan.id,
+                        planName: plan.name,
+                        price: plan.price,
+                        duration: plan.duration
+                      }
+                    );
+                  } catch (error) {
+                    console.error('A/B testing tracking error:', error);
+                  }
+                }
+
                 Alert.alert(
                   '🎉 Sikeres vásárlás!',
                   `Aktiváltad a ${plan.name}-t!`,
-                  [{ 
-                    text: 'OK', 
+                  [{
+                    text: 'OK',
                     onPress: () => {
                       loadSubscriptionData();
                       navigation.goBack();

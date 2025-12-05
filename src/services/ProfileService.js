@@ -1,62 +1,62 @@
 /**
- * ProfileService - Profil kezelés Supabase-zel
+ * ProfileService - Profil kezelés Repository pattern-nel
+ *
+ * SOLID Principles:
+ * - Single Responsibility: Only profile operations
+ * - Open/Closed: Extensible via repository pattern
+ * - Liskov Substitution: Repository interface consistency
+ * - Interface Segregation: Focused profile methods
+ * - Dependency Inversion: Repository abstraction
  */
-import { supabase } from './supabaseClient';
 import Logger from './Logger';
 import SupabaseStorageService from './SupabaseStorageService';
-import ErrorHandler, { ErrorCodes } from './ErrorHandler';
+import ErrorHandler from './ErrorHandler';
+import container from '../core/DIContainer';
 
 class ProfileService {
+  constructor(repository = null, storageService = null, logger = null) {
+    this.repository = repository || container.resolve('profileRepository');
+    this.storageService = storageService || SupabaseStorageService;
+    this.logger = logger || container.resolve('logger');
+  }
+
   /**
-   * Profil frissítése
+   * Profil frissítése - Repository pattern használatával
    */
   async updateProfile(userId, updates) {
     return ErrorHandler.wrapServiceCall(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId)
-        .select()
-        .single();
+      const data = await this.repository.update(userId, updates);
 
-      if (error) throw error;
-      
-      Logger.success('Profile updated', { userId });
+      this.logger.success('Profile updated', { userId });
       return data;
     }, { operation: 'updateProfile', userId });
   }
 
   /**
-   * Profil lekérése
+   * Profil lekérése - Repository pattern használatával
    */
   async getProfile(userId) {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const data = await this.repository.findById(userId);
 
-      if (error) throw error;
-      
-      Logger.debug('Profile fetched', { userId });
+      this.logger.debug('Profile fetched', { userId });
       return { success: true, data };
     } catch (error) {
-      Logger.error('Profile fetch failed', error);
+      this.logger.error('Profile fetch failed', error, { userId });
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * Profilkép feltöltése
+   * Profilkép feltöltése - Repository + Storage integration
    */
   async uploadProfilePhoto(userId, photoUri) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       // Feltöltés a Storage-ba
-      const uploadResult = await SupabaseStorageService.uploadImage(
+      const uploadResult = await this.storageService.uploadImage(
+        userId,
         photoUri,
-        'avatars',
-        `${userId}/avatar_${Date.now()}.jpg`
+        'avatars'
       );
 
       if (!uploadResult.success) {
@@ -64,137 +64,99 @@ class ProfileService {
       }
 
       // Profil frissítése az új fotó URL-lel
-      const updateResult = await this.updateProfile(userId, {
+      await this.repository.update(userId, {
         avatar_url: uploadResult.url,
       });
 
-      if (!updateResult.success) {
-        throw new Error(updateResult.error);
-      }
-
-      Logger.success('Profile photo uploaded', { userId });
+      this.logger.success('Profile photo uploaded', { userId });
       return { success: true, url: uploadResult.url };
-    } catch (error) {
-      Logger.error('Profile photo upload failed', error);
-      return { success: false, error: error.message };
-    }
+    }, { operation: 'uploadProfilePhoto', userId });
   }
 
   /**
-   * Profil fotók hozzáadása
+   * Profil fotók hozzáadása - Batch upload optimization
    */
   async addProfilePhotos(userId, photoUris) {
-    try {
-      const uploadedUrls = [];
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Batch feltöltés párhuzamosan
+      const uploadPromises = photoUris.map((photoUri, index) =>
+        this.storageService.uploadImage(userId, photoUri, 'photos')
+          .catch(error => {
+            this.logger.warn('Photo upload failed', { index, error: error.message });
+            return null; // Skip failed uploads
+          })
+      );
 
-      // Feltöltés egyesével
-      for (let i = 0; i < photoUris.length; i++) {
-        const photoUri = photoUris[i];
-        const uploadResult = await SupabaseStorageService.uploadImage(
-          photoUri,
-          'photos',
-          `${userId}/photo_${Date.now()}_${i}.jpg`
-        );
-
-        if (uploadResult.success) {
-          uploadedUrls.push(uploadResult.url);
-        } else {
-          Logger.warn('Photo upload failed', { index: i, error: uploadResult.error });
-        }
-      }
+      const uploadResults = await Promise.all(uploadPromises);
+      const uploadedUrls = uploadResults
+        .filter(result => result && result.success)
+        .map(result => result.url);
 
       // Profil frissítése az új fotókkal
-      const { data: currentProfile } = await this.getProfile(userId);
-      const existingPhotos = currentProfile?.photos || [];
+      const currentProfile = await this.repository.findById(userId);
+      const existingPhotos = currentProfile.photos || [];
       const newPhotos = [...existingPhotos, ...uploadedUrls];
 
-      const updateResult = await this.updateProfile(userId, {
-        photos: newPhotos,
-      });
+      await this.repository.update(userId, { photos: newPhotos });
 
-      if (!updateResult.success) {
-        throw new Error(updateResult.error);
-      }
-
-      Logger.success('Profile photos added', { userId, count: uploadedUrls.length });
+      this.logger.success('Profile photos added', { userId, count: uploadedUrls.length });
       return { success: true, urls: uploadedUrls };
-    } catch (error) {
-      Logger.error('Profile photos add failed', error);
-      return { success: false, error: error.message };
-    }
+    }, { operation: 'addProfilePhotos', userId, photoCount: photoUris.length });
   }
 
   /**
-   * Profil fotó törlése
+   * Profil fotó törlése - Storage + Repository coordination
    */
   async deleteProfilePhoto(userId, photoUrl) {
-    try {
+    return ErrorHandler.wrapServiceCall(async () => {
       // Törlés a Storage-ból
-      const fileName = photoUrl.split('/').pop();
-      const deleteResult = await SupabaseStorageService.deleteFile(
-        'photos',
-        `${userId}/${fileName}`
-      );
+      const deleteResult = await this.storageService.deleteFile(photoUrl, 'photos');
 
       if (!deleteResult.success) {
-        Logger.warn('Storage delete failed', deleteResult.error);
+        this.logger.warn('Storage delete failed', { error: deleteResult.error });
+        // Continue anyway - profile update is more important
       }
 
       // Profil frissítése (fotó eltávolítása a listából)
-      const { data: currentProfile } = await this.getProfile(userId);
-      const photos = (currentProfile?.photos || []).filter(url => url !== photoUrl);
+      const currentProfile = await this.repository.findById(userId);
+      const photos = (currentProfile.photos || []).filter(url => url !== photoUrl);
 
-      const updateResult = await this.updateProfile(userId, { photos });
+      await this.repository.update(userId, { photos });
 
-      if (!updateResult.success) {
-        throw new Error(updateResult.error);
-      }
-
-      Logger.success('Profile photo deleted', { userId });
+      this.logger.success('Profile photo deleted', { userId });
       return { success: true };
-    } catch (error) {
-      Logger.error('Profile photo delete failed', error);
-      return { success: false, error: error.message };
-    }
+    }, { operation: 'deleteProfilePhoto', userId });
   }
 
   /**
-   * Profilok keresése (közeli felhasználók)
+   * Profilok keresése - Repository pattern használatával
    */
   async searchProfiles(filters = {}) {
     try {
-      let query = supabase
-        .from('profiles')
-        .select('*');
+      const data = await this.repository.findByFilters(filters);
 
-      // Szűrők alkalmazása
-      if (filters.minAge) {
-        query = query.gte('age', filters.minAge);
-      }
-      if (filters.maxAge) {
-        query = query.lte('age', filters.maxAge);
-      }
-      if (filters.gender) {
-        query = query.eq('gender', filters.gender);
-      }
-      if (filters.relationshipGoal) {
-        query = query.eq('relationship_goal', filters.relationshipGoal);
-      }
-
-      // Limit
-      query = query.limit(filters.limit || 50);
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      Logger.debug('Profiles searched', { count: data.length });
+      this.logger.debug('Profiles searched', { count: data.length });
       return { success: true, data };
     } catch (error) {
-      Logger.error('Profile search failed', error);
+      this.logger.error('Profile search failed', error, { filters });
       return { success: false, error: error.message };
     }
   }
 }
 
-export default new ProfileService();
+// Export the class for testing
+export { ProfileService };
+
+// Factory function for DI container
+export function createProfileService() {
+  return new ProfileService();
+}
+
+// Default export - singleton instance for backward compatibility
+const profileServiceInstance = new ProfileService();
+export default profileServiceInstance;
+
+// Register with DI container (only if not in test environment)
+if (typeof jest === 'undefined') {
+  container.registerFactory('profileService', () => new ProfileService());
+}

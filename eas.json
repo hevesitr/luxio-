@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.28.0",
-    "appVersionSource": "remote"
+    "version": ">= 7.0.0"
   },
   "build": {
     "development": {
@@ -9,13 +8,49 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "preview"
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "ios": {
+        "bundleIdentifier": "com.lovex.dating.staging"
+      },
+      "android": {
+        "package": "com.lovex.dating.staging"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "channel": "production",
+      "ios": {
+        "bundleIdentifier": "com.lovex.dating"
+      },
+      "android": {
+        "package": "com.lovex.dating"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "staging": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-app-store-connect-app-id"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account-key.json",
+        "track": "beta"
+      }
+    },
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-app-store-connect-app-id"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account-key.json",
+        "track": "production"
+      }
+    }
   }
 }
