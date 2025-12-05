@@ -5,6 +5,7 @@
  */
 import supabase from './supabaseClient';
 import Logger from './Logger';
+import BlockingService from './BlockingService';
 
 class ModerationService {
   /**
@@ -536,6 +537,123 @@ class ModerationService {
       Logger.error('ModerationService: Failed to resolve report', error);
       return {
         success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Block user and submit report in one action
+   * Implements 8.2: Integrate blocking with ModerationService
+   * @param {string} blockerId - User doing the blocking/reporting
+   * @param {string} blockedUserId - User being blocked/reported
+   * @param {string} reportType - Type of report
+   * @param {string} blockReason - Reason for blocking
+   * @param {string} description - Report description
+   * @param {Array} evidence - Evidence URLs
+   */
+  async blockAndReportUser(
+    blockerId,
+    blockedUserId,
+    reportType,
+    blockReason = 'other',
+    description = '',
+    evidence = []
+  ) {
+    try {
+      Logger.info('ModerationService: Block and report user', {
+        blockerId,
+        blockedUserId,
+        reportType,
+        blockReason
+      });
+
+      // Execute both operations in sequence
+      // First block the user
+      const blockResult = await BlockingService.blockUser(
+        blockerId,
+        blockedUserId,
+        blockReason,
+        `Blocked and reported: ${description}`
+      );
+
+      if (!blockResult.success) {
+        throw new Error(`Failed to block user: ${blockResult.error}`);
+      }
+
+      // Then submit the report
+      const reportResult = await this.submitReport(
+        blockerId,
+        blockedUserId,
+        reportType,
+        description,
+        evidence
+      );
+
+      if (!reportResult.success) {
+        // If report fails, we still keep the block
+        Logger.warn('ModerationService: Block succeeded but report failed', {
+          blockerId,
+          blockedUserId,
+          blockResult,
+          reportError: reportResult.error
+        });
+      }
+
+      Logger.success('ModerationService: User blocked and reported', {
+        blockerId,
+        blockedUserId,
+        reportType,
+        blockReason
+      });
+
+      return {
+        success: true,
+        blockResult,
+        reportResult,
+        message: 'User has been blocked and reported'
+      };
+
+    } catch (error) {
+      Logger.error('ModerationService: Failed to block and report user', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Check if user can interact with another user (combines blocking and moderation checks)
+   * @param {string} userId1 - First user ID
+   * @param {string} userId2 - Second user ID
+   */
+  async canUsersInteract(userId1, userId2) {
+    try {
+      // Check blocking status
+      const blockStatus = await BlockingService.getBlockStatus(userId1, userId2);
+      if (blockStatus.isBlocked) {
+        return {
+          canInteract: false,
+          reason: 'blocked',
+          blockInfo: blockStatus
+        };
+      }
+
+      // Check moderation status (suspended users, etc.)
+      // This could be extended with additional moderation checks
+
+      return {
+        canInteract: true,
+        reason: null
+      };
+
+    } catch (error) {
+      Logger.error('ModerationService: Failed to check user interaction', error);
+      // In case of error, err on the side of caution
+      return {
+        canInteract: false,
+        reason: 'error',
         error: error.message
       };
     }

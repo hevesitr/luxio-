@@ -58,7 +58,8 @@ module.exports = {
     },
     plugins: [
       'expo-font',
-      'expo-location'
+      'expo-location',
+      'expo-secure-store'
     ],
     extra: {
       SUPABASE_URL: EXPO_PUBLIC_SUPABASE_URL,

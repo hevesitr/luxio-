@@ -27,15 +27,19 @@ import EditProfileModal from './src/components/EditProfileModal'; // Modal, nem 
 import ProfileDetailScreen from './src/screens/ProfileDetailScreen';
 import GiftsScreen from './src/screens/GiftsScreen';
 import LookalikesScreen from './src/screens/LookalikesScreen';
+import EmailVerificationSuccessScreen from './src/screens/EmailVerificationSuccessScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 
 // Import services
 import AuthService from './src/services/AuthService';
 import Logger from './src/services/Logger';
 import NavigationService from './src/services/NavigationService';
+import DeepLinkingService from './src/services/DeepLinkingService';
 
 // Import contexts
 import { AuthProvider } from './src/contexts/AuthContext';
 import { PreferencesProvider } from './src/contexts/PreferencesContext';
+import { NotificationProvider } from './src/contexts/NotificationContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -46,6 +50,8 @@ function SimpleStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
+      <Stack.Screen name="EmailVerificationSuccess" component={EmailVerificationSuccessScreen} />
+      <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       <Stack.Screen name="Matches" component={MatchesScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Search" component={SearchScreen} />
@@ -85,6 +91,39 @@ export default function App() {
     };
 
     initializeAuth();
+
+    // Initialize DeepLinkingService
+    const initializeDeepLinking = async () => {
+      try {
+        await DeepLinkingService.initialize();
+
+        // Set up deep link event listeners
+        const unsubscribe = DeepLinkingService.addListener((event, data) => {
+          switch (event) {
+            case 'emailVerified':
+              Logger.info('Email verification successful, navigating to success screen');
+              NavigationService.navigate('EmailVerificationSuccess');
+              break;
+            case 'passwordResetReady':
+              Logger.info('Password reset ready, navigating to reset screen');
+              // TODO: Navigate to password reset screen when implemented
+              break;
+            case 'authCallbackError':
+              Logger.error('Auth callback error', data);
+              // TODO: Show error message to user
+              break;
+            default:
+              break;
+          }
+        });
+
+        Logger.success('App.js: DeepLinkingService initialized successfully');
+      } catch (error) {
+        Logger.error('App.js: Failed to initialize DeepLinkingService', error);
+      }
+    };
+
+    initializeDeepLinking();
   }, []);
 
   const onNavigationReady = () => {
@@ -105,9 +144,11 @@ export default function App() {
   return (
     <AuthProvider>
       <PreferencesProvider>
-        <NavigationContainer ref={navigationRef} onReady={onNavigationReady}>
-          <SimpleStack />
-        </NavigationContainer>
+        <NotificationProvider>
+          <NavigationContainer ref={navigationRef} onReady={onNavigationReady}>
+            <SimpleStack />
+          </NavigationContainer>
+        </NotificationProvider>
       </PreferencesProvider>
     </AuthProvider>
   );

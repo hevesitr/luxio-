@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,19 +12,136 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../context/ThemeContext';
-import StorageService from '../services/StorageService';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../contexts/AuthContext';
+import AccountService from '../services/AccountService';
+import DataDeletionService from '../services/DataDeletionService';
+import Logger from '../services/Logger';
 
 const API_BASE_URL = __DEV__ 
   ? 'http://localhost:3000/api/v1'
   : 'https://api.datingapp.com/api/v1';
 
 const DeleteAccountScreen = ({ navigation }) => {
-  const { theme } = useTheme();
+  const { user } = useAuth();
   const [password, setPassword] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [deletionRequest, setDeletionRequest] = useState(null);
+  const [previewData, setPreviewData] = useState(null);
+  const [currentStep, setCurrentStep] = useState('warning'); // warning, confirm, pending, cancelled
+
+  // Check for existing deletion request on mount
+  useEffect(() => {
+    checkExistingDeletionRequest();
+    loadPreviewData();
+  }, []);
+
+  const checkExistingDeletionRequest = async () => {
+    if (!user?.id) return;
+
+    try {
+      const status = await AccountService.getAccountStatus(user.id);
+      if (status.hasPendingDeletion) {
+        setDeletionRequest(status.deletionRequest);
+        setCurrentStep('pending');
+      }
+    } catch (error) {
+      Logger.error('Failed to check existing deletion request', error);
+    }
+  };
+
+  const loadPreviewData = async () => {
+    if (!user?.id) return;
+
+    try {
+      const preview = await DataDeletionService.getDeletionPreview(user.id);
+      setPreviewData(preview);
+    } catch (error) {
+      Logger.error('Failed to load preview data', error);
+    }
+  };
+
+  const handleRequestDeletion = async () => {
+    if (!user?.id) return;
+
+    if (!password.trim()) {
+      Alert.alert('Hiba', 'Kérjük, add meg a jelszavadat a megerősítéshez.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await AccountService.requestAccountDeletion(
+        user.id,
+        password.trim(),
+        reason.trim()
+      );
+
+      if (result.success) {
+        setDeletionRequest({
+          id: 'temp', // Will be set by the service
+          scheduled_deletion_date: result.deletionRequest?.scheduled_deletion_date || result.gracePeriodEnds,
+        });
+        setCurrentStep('pending');
+
+        Alert.alert(
+          'Törlési kérés elküldve',
+          `A fiókod ${result.gracePeriodDays} napon belül törlésre kerül. ` +
+          'Ezen idő alatt bármikor visszavonhatod a kérést.',
+          [{ text: 'Rendben' }]
+        );
+
+        Logger.info('Account deletion requested from UI', { userId: user.id });
+      } else {
+        throw new Error(result.error || 'Ismeretlen hiba');
+      }
+    } catch (error) {
+      Logger.error('Account deletion request failed', error);
+      Alert.alert('Hiba', 'Nem sikerült elküldeni a törlési kérést. Próbáld újra.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelDeletion = async () => {
+    if (!user?.id || !deletionRequest?.id) return;
+
+    Alert.alert(
+      'Kérés visszavonása',
+      'Biztosan visszavonod a fiók törlési kérelmet?',
+      [
+        { text: 'Mégse', style: 'cancel' },
+        {
+          text: 'Visszavonás',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await AccountService.cancelAccountDeletion(user.id, deletionRequest.id);
+
+              if (result.success) {
+                setDeletionRequest(null);
+                setCurrentStep('warning');
+
+                Alert.alert(
+                  'Kérés visszavonva',
+                  'A fiók törlési kérelmet sikeresen visszavontad.'
+                );
+
+                Logger.info('Account deletion cancelled from UI', { userId: user.id });
+              } else {
+                throw new Error(result.error || 'Ismeretlen hiba');
+              }
+            } catch (error) {
+              Logger.error('Account deletion cancellation failed', error);
+              Alert.alert('Hiba', 'Nem sikerült visszavonni a kérést. Próbáld újra.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleDelete = () => {
     if (!password.trim()) {

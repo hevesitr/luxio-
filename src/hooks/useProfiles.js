@@ -3,6 +3,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ProfileService from '../services/ProfileService';
+import BlockingService from '../services/BlockingService';
 import Logger from '../services/Logger';
 
 // Query keys
@@ -40,7 +41,17 @@ export const useDiscoveryProfiles = (userId, filters = {}) => {
     queryFn: async () => {
       const result = await ProfileService.searchProfiles(filters);
       if (!result.success) throw new Error(result.error);
-      return result.data;
+
+      // Blokkolás alapján szűrjük a profilokat - Implements 8.4: Implement profile visibility control
+      const filteredProfiles = await ProfileService.filterVisibleProfiles(userId, result.data);
+
+      Logger.debug('Discovery profiles filtered for blocking', {
+        userId,
+        originalCount: result.data.length,
+        filteredCount: filteredProfiles.length
+      });
+
+      return filteredProfiles;
     },
     enabled: !!userId,
     staleTime: 30 * 1000, // 30 seconds

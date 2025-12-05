@@ -19,11 +19,12 @@ CREATE POLICY "Users can view own profile"
 ON profiles FOR SELECT
 USING (auth.uid() = id);
 
--- Users can view profiles they haven't passed on
+-- Users can view profiles they haven't passed on (only authenticated users)
 CREATE POLICY "Users can view potential matches"
 ON profiles FOR SELECT
 USING (
-  auth.uid() != id
+  auth.uid() IS NOT NULL
+  AND auth.uid() != id
   AND NOT EXISTS (
     SELECT 1 FROM passes
     WHERE passes.user_id = auth.uid()

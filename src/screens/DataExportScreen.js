@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,22 +8,127 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../context/ThemeContext';
-import StorageService from '../services/StorageService';
+import { useAuth } from '../contexts/AuthContext';
+import AccountService from '../services/AccountService';
+import Logger from '../services/Logger';
 
 const API_BASE_URL = __DEV__ 
   ? 'http://localhost:3000/api/v1'
   : 'https://api.datingapp.com/api/v1';
 
 const DataExportScreen = ({ navigation }) => {
-  const { theme } = useTheme();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [exportedData, setExportedData] = useState(null);
-  const [exportDate, setExportDate] = useState(null);
+  const [exportRequest, setExportRequest] = useState(null);
+  const [recentExports, setRecentExports] = useState([]);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+
+  // Load existing export requests on mount
+  useEffect(() => {
+    loadExistingExports();
+  }, []);
+
+  const loadExistingExports = async () => {
+    if (!user?.id) return;
+
+    try {
+      const status = await AccountService.getAccountStatus(user.id);
+      setRecentExports(status.recentExports || []);
+
+      // Check if there's an active export request
+      const activeExport = status.recentExports?.find(exp =>
+        exp.status === 'processing' || exp.status === 'pending'
+      );
+      if (activeExport) {
+        setExportRequest(activeExport);
+        // Start polling for status updates
+        startStatusPolling(activeExport.id);
+      }
+    } catch (error) {
+      Logger.error('Failed to load existing exports', error);
+    }
+  };
+
+  const startStatusPolling = (exportId) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await AccountService.getAccountStatus(user.id);
+        const currentExport = status.recentExports?.find(exp => exp.id === exportId);
+
+        if (currentExport && (currentExport.status === 'completed' || currentExport.status === 'failed')) {
+          setExportRequest(currentExport);
+          setRecentExports(status.recentExports || []);
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        Logger.error('Failed to poll export status', error);
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Check every 5 seconds
+
+    // Stop polling after 10 minutes
+    setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
+  };
+
+  const handleRequestExport = async () => {
+    if (!user?.id) return;
+
+    setLoading(true);
+    try {
+      const result = await AccountService.requestDataExport(user.id);
+
+      if (result.success) {
+        setExportRequest(result.exportRequest);
+        startStatusPolling(result.exportRequest.id);
+
+        Alert.alert(
+          'Export kérés elküldve',
+          'Az adat export folyamatban van. Értesítést kapsz, amikor elkészül.',
+          [{ text: 'Rendben' }]
+        );
+
+        Logger.info('Data export requested from UI', { userId: user.id });
+      } else {
+        throw new Error(result.error || 'Ismeretlen hiba');
+      }
+    } catch (error) {
+      Logger.error('Data export request failed', error);
+      Alert.alert('Hiba', 'Nem sikerült elküldeni az export kérést. Próbáld újra.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadExport = async (exportData) => {
+    if (!exportData.download_url) return;
+
+    try {
+      await Linking.openURL(exportData.download_url);
+      Logger.info('Export download opened', { exportId: exportData.id });
+    } catch (error) {
+      Logger.error('Failed to open export download', error);
+      Alert.alert('Hiba', 'Nem sikerült megnyitni a letöltési linket.');
+    }
+  };
+
+  const handleShareExport = async (exportData) => {
+    if (!exportData.download_url) return;
+
+    try {
+      await Share.share({
+        message: `LoveX adat export - Letöltési link: ${exportData.download_url}`,
+        url: exportData.download_url,
+      });
+      Logger.info('Export shared', { exportId: exportData.id });
+    } catch (error) {
+      Logger.error('Failed to share export', error);
+    }
+  };
 
   const handleExport = async () => {
     setLoading(true);

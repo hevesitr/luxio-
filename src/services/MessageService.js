@@ -4,8 +4,46 @@
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
 import ErrorHandler, { ErrorCodes } from './ErrorHandler';
+import RealtimeConnectionManager from './RealtimeConnectionManager';
+import BlockingService from './BlockingService';
 
 class MessageService {
+  constructor() {
+    this.syncListeners = [];
+    this.lastSyncTimestamp = new Map(); // matchId -> timestamp
+    this.isInitialized = false;
+  }
+
+  /**
+   * Service inicializálása
+   * Implements 4.3: Enhance realtime reconnection logic
+   */
+  async initialize() {
+    if (this.isInitialized) return;
+
+    // Realtime connection manager inicializálása
+    await RealtimeConnectionManager.initialize();
+
+    // Reconnection listener hozzáadása
+    RealtimeConnectionManager.addListener((event, data) => {
+      switch (event) {
+        case 'connected':
+          Logger.info('MessageService: Realtime reconnected, syncing missed messages');
+          this.syncAllMissedMessages();
+          break;
+        case 'disconnected':
+          Logger.warn('MessageService: Realtime disconnected', data);
+          break;
+        case 'error':
+          Logger.error('MessageService: Realtime connection error', data);
+          break;
+      }
+    });
+
+    this.isInitialized = true;
+    Logger.info('MessageService initialized with realtime connection management');
+  }
+
   /**
    * Üzenet küldése
    * Implements Requirement 4.5 - Delivery receipt generation
@@ -26,6 +64,18 @@ class MessageService {
           ErrorCodes.BUSINESS_USER_BLOCKED,
           'Match is not active',
           { matchId, status: match.status }
+        );
+      }
+
+      // Blokkolás ellenőrzés - Implements 8.4: Implement profile visibility control
+      const receiverId = match.user_id === senderId ? match.matched_user_id : match.user_id;
+      const canSend = await BlockingService.canSendMessage(senderId, receiverId);
+
+      if (!canSend) {
+        throw ErrorHandler.createError(
+          ErrorCodes.BUSINESS_USER_BLOCKED,
+          'Cannot send message to blocked user',
+          { senderId, receiverId, matchId }
         );
       }
 
@@ -626,6 +676,165 @@ class MessageService {
       Logger.debug('Messages searched', { matchId, query, count: data.length });
       return data;
     }, { operation: 'searchMessages', matchId, query, userId });
+  }
+
+  /**
+   * Add sync event listener
+   * Implements 4.4: Implement missed message sync
+   * @param {Function} callback - Callback function for sync events
+   */
+  addSyncListener(callback) {
+    this.syncListeners.push(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const index = this.syncListeners.indexOf(callback);
+      if (index > -1) {
+        this.syncListeners.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Notify sync listeners
+   * @param {string} event - Event type
+   * @param {Object} data - Event data
+   */
+  notifySyncListeners(event, data = {}) {
+    this.syncListeners.forEach(callback => {
+      try {
+        callback(event, data);
+      } catch (error) {
+        Logger.error('Sync listener error', error);
+      }
+    });
+  }
+
+  /**
+   * Sync missed messages for a specific match
+   * Implements 4.4: Implement missed message sync
+   * @param {string} matchId - Match ID
+   * @param {string} userId - User ID
+   */
+  async syncMissedMessages(matchId, userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const lastSync = this.lastSyncTimestamp.get(matchId) || new Date(0).toISOString();
+
+      Logger.info('Syncing missed messages', { matchId, lastSync });
+
+      this.notifySyncListeners('syncStarted', { matchId });
+
+      try {
+        // Lekérdezzük az új üzeneteket
+        const { data: missedMessages, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('match_id', matchId)
+          .gt('created_at', lastSync)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        const syncedCount = missedMessages.length;
+
+        if (syncedCount > 0) {
+          Logger.success('Missed messages synced', { matchId, syncedCount });
+
+          // Frissítjük az utolsó sync időpontot
+          this.lastSyncTimestamp.set(matchId, new Date().toISOString());
+
+          // Üzeneteket olvasottnak jelöljük (opcionális)
+          // await this.markMessagesAsRead(matchId, userId, missedMessages.map(m => m.id));
+
+          this.notifySyncListeners('syncCompleted', {
+            matchId,
+            totalSynced: syncedCount,
+            messages: missedMessages
+          });
+        } else {
+          Logger.debug('No missed messages to sync', { matchId });
+          this.notifySyncListeners('syncCompleted', { matchId, totalSynced: 0 });
+        }
+
+        return {
+          success: true,
+          syncedCount,
+          messages: missedMessages
+        };
+
+      } catch (error) {
+        Logger.error('Failed to sync missed messages', error);
+        this.notifySyncListeners('syncError', { matchId, error: error.message });
+        throw error;
+      }
+    }, { operation: 'syncMissedMessages', matchId, userId });
+  }
+
+  /**
+   * Sync missed messages for all active matches
+   * Implements 4.4: Implement missed message sync
+   * @param {string} userId - User ID
+   */
+  async syncAllMissedMessages(userId) {
+    try {
+      Logger.info('Syncing missed messages for all matches', { userId });
+
+      // Lekérdezzük az aktív match-eket
+      const { data: matches, error } = await supabase
+        .from('matches')
+        .select('id')
+        .or(`user_id.eq.${userId},matched_user_id.eq.${userId}`)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      const syncPromises = matches.map(match =>
+        this.syncMissedMessages(match.id, userId).catch(error => {
+          Logger.warn('Failed to sync match', { matchId: match.id, error: error.message });
+          return { success: false, error: error.message };
+        })
+      );
+
+      const results = await Promise.allSettled(syncPromises);
+
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+      const failed = results.filter(r => r.status === 'rejected' || !r.value.success).length;
+
+      Logger.info('Bulk message sync completed', { total: matches.length, successful, failed });
+
+      return {
+        success: true,
+        total: matches.length,
+        successful,
+        failed
+      };
+
+    } catch (error) {
+      Logger.error('Failed to sync all missed messages', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get realtime connection status
+   * Implements 4.3: Enhance realtime reconnection logic
+   */
+  getRealtimeConnectionStatus() {
+    return {
+      isConnected: RealtimeConnectionManager.isConnected,
+      isConnecting: RealtimeConnectionManager.isConnecting,
+      hasError: RealtimeConnectionManager.hasError,
+      metrics: RealtimeConnectionManager.getConnectionMetrics(),
+    };
+  }
+
+  /**
+   * Manually trigger reconnection
+   * Implements 4.3: Enhance realtime reconnection logic
+   */
+  async reconnectRealtime() {
+    Logger.info('Manually triggering realtime reconnection');
+    await RealtimeConnectionManager.reconnectNow();
   }
 }
 

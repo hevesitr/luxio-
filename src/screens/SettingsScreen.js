@@ -649,7 +649,7 @@ const SettingsScreen = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.linkRow}
             onPress={() => navigation.navigate('DataExport')}
           >
@@ -659,6 +659,22 @@ const SettingsScreen = ({ navigation }) => {
                 <Text style={styles.settingLabel}>Adataim Exportálása</Text>
                 <Text style={styles.settingDescription}>
                   GDPR - Right to Access
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => navigation.navigate('BlockedUsers')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="shield-outline" size={24} color="#FF6B6B" />
+              <View>
+                <Text style={styles.settingLabel}>Blokkolt felhasználók</Text>
+                <Text style={styles.settingDescription}>
+                  Blokkolás kezelése és feloldása
                 </Text>
               </View>
             </View>

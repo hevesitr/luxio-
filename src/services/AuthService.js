@@ -6,6 +6,7 @@ import { supabase } from './supabaseClient';
 import Logger from './Logger';
 import BaseService from './BaseService';
 import PasswordService from './PasswordService';
+import SessionService from './SessionService';
 import * as SecureStore from 'expo-secure-store';
 
 class AuthService extends BaseService {
@@ -15,6 +16,13 @@ class AuthService extends BaseService {
     this.session = null;
     this.refreshTimer = null;
     this.passwordService = PasswordService; // PasswordService már instance, nem kell new
+
+    // Token management enhancements (4.1 - 4.5)
+    this.tokenRefreshQueue = new Map(); // Refresh queue for concurrent requests
+    this.heartbeatTimer = null; // Silent failure detection
+    this.heartbeatInterval = 60 * 1000; // 60 seconds
+    this.lastHeartbeatSuccess = null;
+    this.authFailureListeners = [];
   }
 
   /**
@@ -130,6 +138,11 @@ class AuthService extends BaseService {
         }
       }
 
+      // Start heartbeat for silent failure detection
+      if (this.currentUser) {
+        this.startHeartbeat();
+      }
+
       Logger.success('AuthService: Initialization completed');
     } catch (error) {
       Logger.error('AuthService: Initialization failed', error);
@@ -152,13 +165,21 @@ class AuthService extends BaseService {
       if (error) throw error;
 
       Logger.success('User signed in', { email });
-      
+
       // Session mentése
       if (data.session) {
         await this.saveSession(data.session);
         this.session = data.session;
         this.currentUser = data.user;
         this.startRefreshTimer();
+
+        // Session létrehozása adatbázisban
+        try {
+          await SessionService.createSession(data.user.id);
+        } catch (sessionError) {
+          Logger.warn('Failed to create session in database', sessionError);
+          // Nem kritikus hiba, nem szakítjuk meg a bejelentkezést
+        }
       }
 
       return { 
@@ -293,35 +314,145 @@ class AuthService extends BaseService {
   /**
    * Session frissítése
    */
+  /**
+   * Enhanced automatic session refresh with proactive timing and queue management
+   * Implements 4.1: Improve automatic token refresh
+   */
   async refreshSession() {
-    try {
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) throw error;
+    if (!this.session) return { success: false, error: 'No session to refresh' };
 
-      if (data.session) {
-        await this.saveSession(data.session);
-        this.session = data.session;
-        this.currentUser = data.user;
-        
-        Logger.debug('Session refreshed');
-        return { 
-          success: true, 
-          session: data.session 
-        };
+    // Check if refresh is already in progress
+    if (this.tokenRefreshQueue.has('refresh')) {
+      Logger.debug('Session refresh already in progress, queuing request');
+      return this.tokenRefreshQueue.get('refresh');
+    }
+
+    const refreshPromise = this.performTokenRefresh();
+    this.tokenRefreshQueue.set('refresh', refreshPromise);
+
+    try {
+      return await refreshPromise;
+    } finally {
+      this.tokenRefreshQueue.delete('refresh');
+    }
+  }
+
+  /**
+   * Perform the actual token refresh with enhanced error handling
+   */
+  async performTokenRefresh() {
+    try {
+      Logger.debug('Attempting enhanced session refresh');
+
+      const { data, error } = await supabase.auth.refreshSession();
+
+      if (error) {
+        Logger.warn('Session refresh failed', error);
+        await this.handleTokenRefreshFailure(error);
+        return { success: false, error: error.message };
       }
 
-      return { 
-        success: false, 
-        error: 'No session to refresh' 
-      };
+      if (data.session) {
+        this.session = data.session;
+        this.currentUser = data.session.user;
+        await this.saveSession(data.session);
+        this.startRefreshTimer();
+
+        Logger.success('Session refreshed successfully');
+        this.notifyAuthFailureListeners('refreshSuccess');
+        return { success: true, session: data.session };
+      }
+
+      return { success: false, error: 'No session returned from refresh' };
     } catch (error) {
-      Logger.error('Session refresh failed', error);
-      return { 
-        success: false, 
-        error: error.message 
-      };
+      Logger.error('Session refresh error', error);
+      await this.handleTokenRefreshFailure(error);
+      return { success: false, error: error.message };
     }
+  }
+
+  /**
+   * Handle token refresh failures with user-friendly recovery
+   * Implements 4.2: Implement token refresh failure handling
+   */
+  async handleTokenRefreshFailure(error) {
+    Logger.warn('Handling token refresh failure', error);
+
+    // Notify listeners
+    this.notifyAuthFailureListeners('tokenRefreshFailed', { error: error.message });
+
+    // Attempt graceful degradation - read-only mode
+    this.enterReadOnlyMode();
+
+    // Try to re-authenticate user
+    const reauthSuccess = await this.attemptSilentReauth();
+
+    if (!reauthSuccess) {
+      // If silent reauth fails, prompt user for manual reauth
+      this.promptUserReauth();
+    }
+  }
+
+  /**
+   * Enter read-only mode when authentication fails
+   */
+  enterReadOnlyMode() {
+    Logger.info('Entering read-only mode due to auth failure');
+
+    // Stop automatic operations that require auth
+    this.stopRefreshTimer();
+    this.stopHeartbeat();
+
+    // Notify app components
+    this.notifyAuthFailureListeners('readOnlyModeEntered');
+  }
+
+  /**
+   * Attempt silent re-authentication
+   */
+  async attemptSilentReauth() {
+    try {
+      Logger.info('Attempting silent re-authentication');
+
+      // Try to refresh session one more time
+      const refreshResult = await this.performTokenRefresh();
+
+      if (refreshResult.success) {
+        Logger.success('Silent re-authentication successful');
+        this.exitReadOnlyMode();
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      Logger.error('Silent re-authentication failed', error);
+      return false;
+    }
+  }
+
+  /**
+   * Prompt user for manual re-authentication
+   */
+  promptUserReauth() {
+    Logger.info('Prompting user for manual re-authentication');
+
+    this.notifyAuthFailureListeners('manualReauthRequired', {
+      reason: 'Session expired or invalid',
+      action: 'Please sign in again'
+    });
+  }
+
+  /**
+   * Exit read-only mode
+   */
+  exitReadOnlyMode() {
+    Logger.info('Exiting read-only mode');
+
+    // Restart automatic operations
+    this.startRefreshTimer();
+    this.startHeartbeat();
+
+    this.notifyAuthFailureListeners('readOnlyModeExited');
   }
 
   /**
@@ -505,6 +636,78 @@ class AuthService extends BaseService {
   }
 
   /**
+   * Jelszó megváltoztatása - teljes folyamat session invalidációval
+   * @param {string} currentPassword - Jelenlegi jelszó
+   * @param {string} newPassword - Új jelszó
+   */
+  async changePassword(currentPassword, newPassword) {
+    return this.executeOperation(async () => {
+      if (!this.currentUser?.id) {
+        throw new Error('Nincs bejelentkezett felhasználó');
+      }
+
+      // Jelszó validáció
+      const passwordValidation = this.passwordService.validatePassword(newPassword);
+      if (!passwordValidation.valid) {
+        this.throwValidationError([{ field: 'newPassword', message: passwordValidation.message }]);
+      }
+
+      // Jelenlegi jelszó ellenőrzés (újra bejelentkezés)
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: this.currentUser.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        Logger.warn('Current password verification failed', { userId: this.currentUser.id });
+        throw new Error('A jelenlegi jelszó helytelen');
+      }
+
+      // Jelszó frissítés Supabase-ben
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        Logger.error('Password update failed', error);
+        throw error;
+      }
+
+      Logger.info('Password updated for user', { userId: this.currentUser.id });
+
+      // Összes többi session invalidálása (kivéve az aktuális)
+      try {
+        const invalidateResult = await SessionService.invalidateOtherSessions(
+          this.currentUser.id,
+          'Password changed'
+        );
+
+        Logger.success('Other sessions invalidated after password change', {
+          userId: this.currentUser.id,
+          invalidatedCount: invalidateResult.invalidatedCount
+        });
+      } catch (sessionError) {
+        // Session invalidáció nem kritikus hiba, csak logoljuk
+        Logger.warn('Failed to invalidate other sessions', sessionError);
+      }
+
+      // Session frissítés az új adatokkal
+      if (data.user) {
+        this.currentUser = data.user;
+        await this.saveSession({
+          ...this.session,
+          user: data.user
+        });
+      }
+
+      return {
+        success: true,
+        message: 'Jelszó sikeresen megváltoztatva. Minden más eszközön ki lett léptetve.'
+      };
+    });
+  }
+
+  /**
    * Automatikus session frissítés leállítása
    */
   stopRefreshTimer() {
@@ -513,6 +716,120 @@ class AuthService extends BaseService {
       this.refreshTimer = null;
       Logger.debug('Refresh timer stopped');
     }
+  }
+
+  /**
+   * Start silent failure detection heartbeat
+   * Implements 4.5: Add silent failure detection
+   */
+  startHeartbeat() {
+    if (this.heartbeatTimer) return;
+
+    Logger.debug('Starting auth heartbeat');
+
+    this.heartbeatTimer = setInterval(async () => {
+      await this.performHeartbeatCheck();
+    }, this.heartbeatInterval);
+  }
+
+  /**
+   * Stop heartbeat
+   */
+  stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      Logger.debug('Heartbeat stopped');
+    }
+  }
+
+  /**
+   * Perform heartbeat authentication check
+   */
+  async performHeartbeatCheck() {
+    try {
+      // Simple auth state validation
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error || !data.session) {
+        Logger.warn('Heartbeat check failed - no valid session');
+        this.lastHeartbeatSuccess = false;
+        this.notifyAuthFailureListeners('heartbeatFailed', {
+          reason: 'Invalid or missing session',
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      // Check if session is close to expiry (within 5 minutes)
+      const expiresAt = data.session.expires_at * 1000;
+      const now = Date.now();
+      const timeToExpiry = expiresAt - now;
+
+      if (timeToExpiry < 5 * 60 * 1000) { // 5 minutes
+        Logger.info('Session expiring soon, triggering refresh', {
+          timeToExpiry: Math.round(timeToExpiry / 1000) + 's'
+        });
+        await this.refreshSession();
+      }
+
+      this.lastHeartbeatSuccess = true;
+      Logger.debug('Heartbeat check successful');
+
+    } catch (error) {
+      Logger.error('Heartbeat check error', error);
+      this.lastHeartbeatSuccess = false;
+      this.notifyAuthFailureListeners('heartbeatError', {
+        error: error.message,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  /**
+   * Add auth failure listener
+   * @param {Function} callback - Callback function for auth failure events
+   */
+  addAuthFailureListener(callback) {
+    this.authFailureListeners.push(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const index = this.authFailureListeners.indexOf(callback);
+      if (index > -1) {
+        this.authFailureListeners.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Notify auth failure listeners
+   * @param {string} event - Event type
+   * @param {Object} data - Event data
+   */
+  notifyAuthFailureListeners(event, data = {}) {
+    this.authFailureListeners.forEach(callback => {
+      try {
+        callback(event, data);
+      } catch (error) {
+        Logger.error('Auth failure listener error', error);
+      }
+    });
+  }
+
+  /**
+   * Get authentication health status
+   */
+  getAuthHealthStatus() {
+    return {
+      isAuthenticated: !!this.currentUser,
+      sessionValid: !!this.session,
+      lastHeartbeatSuccess: this.lastHeartbeatSuccess,
+      sessionExpiry: this.session?.expires_at,
+      timeToExpiry: this.session?.expires_at
+        ? Math.max(0, this.session.expires_at * 1000 - Date.now())
+        : 0,
+    };
   }
 
   /**

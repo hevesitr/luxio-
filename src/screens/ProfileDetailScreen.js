@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,20 @@ import {
   FlatList,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../contexts/AuthContext';
+import BlockingService from '../services/BlockingService';
+import ModerationService from '../services/ModerationService';
+import Logger from '../services/Logger';
 
 const { width, height } = Dimensions.get('window');
 
 const ProfileDetailScreen = ({ route, navigation }) => {
+  const { user } = useAuth();
   const profile = route?.params?.profile;
   const onLike = route?.params?.onLike;
   const onSuperLike = route?.params?.onSuperLike;
@@ -26,7 +32,25 @@ const ProfileDetailScreen = ({ route, navigation }) => {
   const hideActionButtons = route?.params?.hideActionButtons || false;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fullScreenImage, setFullScreenImage] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const flatListRef = useRef(null);
+
+  // Check if user is blocked when component mounts
+  useEffect(() => {
+    checkBlockStatus();
+  }, [profile?.id, user?.id]);
+
+  const checkBlockStatus = async () => {
+    if (!profile?.id || !user?.id) return;
+
+    try {
+      const blockStatus = await BlockingService.getBlockStatus(user.id, profile.id);
+      setIsBlocked(blockStatus.isBlocked);
+    } catch (error) {
+      Logger.error('Failed to check block status in ProfileDetailScreen', error);
+    }
+  };
 
   if (!profile) {
     return (
@@ -51,6 +75,195 @@ const ProfileDetailScreen = ({ route, navigation }) => {
     profile.photo,
   ];
 
+  // Blocking functions
+  const showBlockOptions = () => {
+    Alert.alert(
+      'Felhasználó blokkolása',
+      `Biztosan blokkolni szeretnéd ${profile.name} felhasználót? Ez azt jelenti, hogy nem fogjátok látni egymás profilját és nem tudtok üzenetet küldeni egymásnak.`,
+      [
+        { text: 'Mégse', style: 'cancel' },
+        {
+          text: 'Csak blokkolás',
+          style: 'destructive',
+          onPress: () => handleBlockUser('other'),
+        },
+        {
+          text: 'Blokkolás és jelentés',
+          style: 'destructive',
+          onPress: () => showReportOptions(true), // true = block and report
+        },
+      ]
+    );
+  };
+
+  const showReportOptions = (blockAndReport = false) => {
+    const title = blockAndReport ? 'Blokkolás és jelentés' : 'Profil jelentése';
+    const message = blockAndReport
+      ? 'Válaszd ki a blokkolás és jelentés okát:'
+      : 'Válaszd ki a jelentés okát:';
+
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'Mégse', style: 'cancel' },
+        {
+          text: 'Zaklatás',
+          onPress: () => handleBlockAndReport('harassment', blockAndReport),
+        },
+        {
+          text: 'Nem megfelelő tartalom',
+          onPress: () => handleBlockAndReport('inappropriate_content', blockAndReport),
+        },
+        {
+          text: 'Spam',
+          onPress: () => handleBlockAndReport('spam', blockAndReport),
+        },
+        {
+          text: 'Hamis profil',
+          onPress: () => handleBlockAndReport('fake_profile', blockAndReport),
+        },
+        {
+          text: 'Egyéb',
+          onPress: () => handleBlockAndReport('other', blockAndReport),
+        },
+      ]
+    );
+  };
+
+  const handleBlockUser = async (reason) => {
+    if (!user?.id || !profile?.id) return;
+
+    setBlockLoading(true);
+    try {
+      const result = await BlockingService.blockUser(user.id, profile.id, reason);
+
+      if (result.success) {
+        setIsBlocked(true);
+        Alert.alert(
+          'Blokkolva',
+          `${profile.name} sikeresen blokkolva. Nem fogjátok látni egymás profilját.`,
+          [
+            { text: 'Rendben' },
+            {
+              text: 'Blokkoltak megtekintése',
+              onPress: () => navigation.navigate('BlockedUsers'),
+            },
+          ]
+        );
+
+        Logger.info('User blocked from profile detail', {
+          blockerId: user.id,
+          blockedId: profile.id,
+          reason
+        });
+      } else {
+        throw new Error(result.error || 'Ismeretlen hiba');
+      }
+    } catch (error) {
+      Logger.error('Failed to block user from profile detail', error);
+      Alert.alert('Hiba', 'Nem sikerült blokkolni a felhasználót. Próbáld újra.');
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  const handleBlockAndReport = async (reason, blockAndReport = false) => {
+    if (!user?.id || !profile?.id) return;
+
+    setBlockLoading(true);
+    try {
+      if (blockAndReport) {
+        // Block and report together
+        const result = await ModerationService.blockAndReportUser(
+          user.id,
+          profile.id,
+          reason,
+          reason, // Same reason for both
+          `Blocked and reported from profile: ${reason}`,
+          [] // No evidence for now
+        );
+
+        if (result.success) {
+          setIsBlocked(true);
+          Alert.alert(
+            'Blokkolva és jelentve',
+            `${profile.name} sikeresen blokkolva és jelentve. A moderátorok vizsgálni fogják az esetet.`,
+            [
+              { text: 'Rendben' },
+              {
+                text: 'Blokkoltak megtekintése',
+                onPress: () => navigation.navigate('BlockedUsers'),
+              },
+            ]
+          );
+        } else {
+          throw new Error(result.error || 'Ismeretlen hiba');
+        }
+      } else {
+        // Just report
+        const result = await ModerationService.submitReport(
+          user.id,
+          profile.id,
+          reason,
+          `Reported from profile: ${reason}`,
+          []
+        );
+
+        if (result.success) {
+          Alert.alert(
+            'Jelentve',
+            'Köszönjük a jelentést. A moderátorok vizsgálni fogják az esetet.'
+          );
+        } else {
+          throw new Error(result.error || 'Ismeretlen hiba');
+        }
+      }
+
+      Logger.info('User reported from profile detail', {
+        reporterId: user.id,
+        reportedId: profile.id,
+        reason,
+        blockAndReport
+      });
+
+    } catch (error) {
+      Logger.error('Failed to report user from profile detail', error);
+      Alert.alert('Hiba', 'Nem sikerült elküldeni a jelentést. Próbáld újra.');
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    if (!user?.id || !profile?.id) return;
+
+    setBlockLoading(true);
+    try {
+      const result = await BlockingService.unblockUser(user.id, profile.id);
+
+      if (result.success) {
+        setIsBlocked(false);
+        Alert.alert(
+          'Blokkolás feloldva',
+          `${profile.name} blokkolása fel lett oldva.`
+        );
+
+        Logger.info('User unblocked from profile detail', {
+          blockerId: user.id,
+          blockedId: profile.id
+        });
+      } else {
+        throw new Error(result.error || 'Ismeretlen hiba');
+      }
+    } catch (error) {
+      Logger.error('Failed to unblock user from profile detail', error);
+      Alert.alert('Hiba', 'Nem sikerült feloldani a blokkolást. Próbáld újra.');
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
   const DetailSection = ({ icon, title, value }) => (
     <View style={styles.detailSection}>
       <Ionicons name={icon} size={24} color="#FF3B75" />
@@ -74,15 +287,36 @@ const ProfileDetailScreen = ({ route, navigation }) => {
         >
           <Ionicons name="arrow-back" size={28} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.moreButton}
           onPress={() => {
             const options = [
               { text: 'Mégse', style: 'cancel' },
-              { text: 'Jelentés', style: 'destructive', onPress: () => {
-                Alert.alert('Jelentés', 'Profil jelentve. Köszönjük a visszajelzést!');
-              }},
             ];
+
+            // Add block/unblock options
+            if (isBlocked) {
+              options.push({
+                text: 'Blokkolás feloldása',
+                style: 'default',
+                onPress: handleUnblockUser,
+              });
+            } else {
+              options.push({
+                text: 'Blokkolás',
+                style: 'destructive',
+                onPress: () => showBlockOptions(),
+              });
+            }
+
+            // Add report option (only if not blocked)
+            if (!isBlocked) {
+              options.push({
+                text: 'Jelentés',
+                style: 'destructive',
+                onPress: () => showReportOptions(),
+              });
+            }
 
             // Add unmatch option if onUnmatch callback is available
             if (onUnmatch) {

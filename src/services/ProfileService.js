@@ -11,6 +11,7 @@
 import Logger from './Logger';
 import SupabaseStorageService from './SupabaseStorageService';
 import ErrorHandler from './ErrorHandler';
+import BlockingService from './BlockingService';
 import container from '../core/DIContainer';
 
 class ProfileService {
@@ -140,6 +141,80 @@ class ProfileService {
     } catch (error) {
       this.logger.error('Profile search failed', error, { filters });
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Profil láthatóságának ellenőrzése blokkolás alapján
+   * Implements 8.4: Implement profile visibility control
+   * @param {string} viewerId - Megtekintő felhasználó ID
+   * @param {string} profileOwnerId - Profil tulajdonos ID
+   */
+  async getProfileWithVisibilityCheck(viewerId, profileOwnerId) {
+    try {
+      // Ellenőrizzük, hogy a viewer láthatja-e a profil tulajdonosát
+      const canView = await BlockingService.canViewProfile(viewerId, profileOwnerId);
+
+      if (!canView) {
+        // Ha blokkolva van, akkor általános hibaüzenetet adunk vissza
+        this.logger.info('Profile access blocked', {
+          viewerId,
+          profileOwnerId,
+          reason: 'blocked'
+        });
+
+        return {
+          success: false,
+          error: 'A felhasználó nem található vagy letiltotta a profil megtekintését.',
+          code: 'PROFILE_NOT_FOUND'
+        };
+      }
+
+      // Ha látható, akkor lekérdezzük a profilt
+      const profileResult = await this.getProfile(profileOwnerId);
+
+      if (profileResult.success) {
+        this.logger.debug('Profile accessed with visibility check', {
+          viewerId,
+          profileOwnerId
+        });
+      }
+
+      return profileResult;
+    } catch (error) {
+      this.logger.error('Profile visibility check failed', error, {
+        viewerId,
+        profileOwnerId
+      });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Profil lista szűrése blokkolt felhasználók alapján
+   * Implements 8.4: Implement profile visibility control
+   * @param {string} userId - Szűrő felhasználó ID
+   * @param {Array} profiles - Profil lista
+   */
+  async filterVisibleProfiles(userId, profiles) {
+    if (!profiles || !Array.isArray(profiles)) {
+      return [];
+    }
+
+    try {
+      const filteredProfiles = await BlockingService.filterBlockedUsersFromFeed(userId, profiles);
+
+      this.logger.debug('Profiles filtered for visibility', {
+        userId,
+        originalCount: profiles.length,
+        filteredCount: filteredProfiles.length
+      });
+
+      return filteredProfiles;
+    } catch (error) {
+      this.logger.error('Profile filtering failed', error, { userId });
+      // Hiba esetén az eredeti listát adjuk vissza (fail-safe)
+      return profiles;
     }
   }
 }
