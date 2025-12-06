@@ -123,20 +123,34 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
           savedFilters,
           sugarMode,
           introShown,
-          profiles,
           stories
         ] = await Promise.all([
           AsyncStorage.getItem('discoveryFilters').then(JSON.parse).catch(() => null),
           AsyncStorage.getItem('sugarDatingMode'),
           AsyncStorage.getItem('sugarDatingIntroShown'),
-          DiscoveryService.getDiscoveryProfiles(filterState.searchFilters).catch(() => initialProfiles),
           StoryService.getStories().catch(() => [])
         ]);
 
         if (!isMounted) return;
 
+        // ✅ FIX: Use default filters if none saved
+        const filtersToUse = savedFilters || {
+          ageMin: 18,
+          ageMax: 35,
+          distance: 50,
+          verifiedOnly: false,
+          searchQuery: '',
+        };
+
+        // ✅ FIX: Load profiles and exclude already liked/passed ones
+        const history = await MatchService.loadHistory().catch(() => []);
+        const excludeIds = history.map(h => h.id);
+        const profiles = await DiscoveryService.getDiscoveryProfiles(filtersToUse, excludeIds).catch(() => initialProfiles);
+
         if (savedFilters) {
           updateFilterState({ searchFilters: savedFilters });
+        } else {
+          updateFilterState({ searchFilters: filtersToUse });
         }
 
         updateFilterState({
@@ -169,6 +183,26 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
     };
   }, []); // Empty dependency array - only run once
 
+  // ✅ PERFORMANCE: Separate loadProfiles function for filter changes
+  const loadProfiles = useCallback(async () => {
+    try {
+      updateUiState({ loading: true });
+
+      const profiles = await DiscoveryService.getDiscoveryProfiles(filterState.searchFilters).catch(() => initialProfiles);
+
+      updateDataState({
+        profiles,
+        currentIndex: 0 // Reset to first profile when filters change
+      });
+
+      updateUiState({ loading: false });
+      Logger.debug('HomeScreen: Profiles reloaded', { count: profiles.length });
+    } catch (error) {
+      Logger.error('HomeScreen: Error loading profiles', error);
+      updateUiState({ loading: false });
+    }
+  }, [filterState.searchFilters]);
+
   // ✅ PERFORMANCE: Removed separate load functions - now handled in useEffect
   // Profiles and stories are loaded in parallel during initialization
 
@@ -189,6 +223,7 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   }, [user?.id]);
 
   const handleSwipeRight = useCallback(async (profile) => {
+    console.log('HomeScreen: handleSwipeRight called with profile:', profile?.name, 'currentIndex before:', dataState.currentIndex);
     const userId = user?.id || currentUser.id;
     if (!userId) {
       Logger.error('HomeScreen: User not available for swipe');
@@ -212,6 +247,7 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
         }, 3000);
       }
 
+      console.log('HomeScreen: Incrementing currentIndex from', dataState.currentIndex, 'to', dataState.currentIndex + 1);
       updateDataState(prev => ({ currentIndex: prev.currentIndex + 1 }));
     } catch (error) {
       Logger.error('HomeScreen: Error processing like', error);
@@ -591,8 +627,16 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
         transparent={true}
         onRequestClose={() => updateUiState({ aiModalVisible: false })}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => updateUiState({ aiModalVisible: false })}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
+          >
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               AI Szűrő
             </Text>
@@ -625,8 +669,8 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
                 <Text style={styles.modalButtonText}>Alkalmaz</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );

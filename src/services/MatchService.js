@@ -4,14 +4,12 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BaseService from './BaseService';
-import SupabaseMatchService from './SupabaseMatchService';
 import PushNotificationService from './PushNotificationService';
 import Logger from './Logger';
 
 class MatchService extends BaseService {
   constructor() {
     super('MatchService');
-    this.supabaseService = SupabaseMatchService;
     this.pushService = new PushNotificationService();
 
     // Lokális cache kulcsok

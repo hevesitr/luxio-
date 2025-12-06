@@ -6,6 +6,30 @@
 
 ---
 
+## 🟢 REQUIRE CYCLE FIX (BONUS)
+
+### Status: ✅ JAVÍTOTT
+
+**Probléma:** Circular dependency között MatchService és SupabaseMatchService
+
+**Hiba:**
+```
+Require cycle: SupabaseMatchService.js -> MatchService.js
+```
+
+**Javítás:**
+- Eltávolítottuk az unused import-ot `MatchService.js`-ből
+- Eltávolítottuk az unused `this.supabaseService` assignmentet
+- Szétválasztottuk a modulok közötti függőséget
+
+**Fájlok módosítva:**
+- `src/services/MatchService.js` - Removed circular dependency
+- `.env` - Updated to use `EXPO_PUBLIC_` prefix
+
+**Status:** ✅ KÉSZ - App now starts without require cycle errors
+
+---
+
 ## 🔴 P0.1: OFFLINE QUEUE ADATVESZTÉS
 
 ### Status: ❌ NEM JAVÍTOTT
