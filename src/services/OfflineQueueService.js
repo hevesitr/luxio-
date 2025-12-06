@@ -403,6 +403,125 @@ class OfflineQueueService {
   }
 
   /**
+   * Feldolgozza a függőben lévő offline műveleteket
+   */
+  async processPendingOperations() {
+    return new Promise((resolve, reject) => {
+      this.db.transaction(tx => {
+        // Lekérdezzük az összes függőben lévő műveletet
+        tx.executeSql(
+          `SELECT * FROM ${this.TABLE_NAME} WHERE status = 'queued' ORDER BY priority DESC, created_at ASC`,
+          [],
+          (tx, results) => {
+            const operations = [];
+            for (let i = 0; i < results.rows.length; i++) {
+              operations.push(results.rows.item(i));
+            }
+
+            Logger.info('Processing pending offline operations', { count: operations.length });
+
+            // Feldolgozzuk az egyes műveleteket
+            const processNext = async (index) => {
+              if (index >= operations.length) {
+                Logger.success('All offline operations processed successfully');
+                resolve();
+                return;
+              }
+
+              const operation = operations[index];
+              try {
+                await this.processSingleOperation(operation);
+
+                // Sikeres feldolgozás után töröljük a queue-ból
+                tx.executeSql(
+                  `DELETE FROM ${this.TABLE_NAME} WHERE id = ?`,
+                  [operation.id],
+                  () => {
+                    Logger.debug('Operation processed and removed from queue', { operationId: operation.id });
+                    processNext(index + 1);
+                  },
+                  (tx, error) => {
+                    Logger.error('Failed to remove processed operation from queue', error);
+                    processNext(index + 1);
+                  }
+                );
+              } catch (error) {
+                Logger.error('Failed to process operation, marking as failed', {
+                  operationId: operation.id,
+                  error: error.message
+                });
+
+                // Sikertelen műveletet failed állapotúra állítjuk
+                tx.executeSql(
+                  `UPDATE ${this.TABLE_NAME} SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?`,
+                  [error.message, new Date().toISOString(), operation.id],
+                  () => processNext(index + 1),
+                  (tx, error) => {
+                    Logger.error('Failed to update failed operation status', error);
+                    processNext(index + 1);
+                  }
+                );
+              }
+            };
+
+            processNext(0);
+          },
+          (tx, error) => {
+            Logger.error('Failed to retrieve pending operations', error);
+            reject(error);
+          }
+        );
+      });
+    });
+  }
+
+  /**
+   * Feldolgoz egyetlen offline műveletet
+   */
+  async processSingleOperation(operation) {
+    const { message_data, message_type } = operation;
+    const data = JSON.parse(message_data);
+
+    Logger.debug('Processing single offline operation', { type: message_type, data });
+
+    // Itt implementáljuk a különböző művelettípusok feldolgozását
+    switch (message_type) {
+      case 'swipe':
+        // Swipe művelet feldolgozása
+        await this.processSwipeOperation(data);
+        break;
+      case 'message':
+        // Üzenet küldés feldolgozása
+        await this.processMessageOperation(data);
+        break;
+      case 'like':
+        // Like művelet feldolgozása
+        await this.processLikeOperation(data);
+        break;
+      default:
+        throw new Error(`Unknown operation type: ${message_type}`);
+    }
+  }
+
+  async processSwipeOperation(data) {
+    // Placeholder - valódi implementációban a MatchService-t kellene használni
+    Logger.info('Processing swipe operation', data);
+    // await MatchService.processSwipe(data.userId, data.targetUserId, data.action);
+  }
+
+  async processMessageOperation(data) {
+    // Placeholder - valódi implementációban a MessageService-t kellene használni
+    Logger.info('Processing message operation', data);
+    // await MessageService.sendMessage(data.matchId, data.senderId, data.content, data.type);
+  }
+
+  async processLikeOperation(data) {
+    // Placeholder - valódi implementációban a LikeService-t kellene használni
+    Logger.info('Processing like operation', data);
+    // await LikeService.sendLike(data.userId, data.targetUserId);
+  }
+
+  /**
    * Close database connection
    */
   async close() {

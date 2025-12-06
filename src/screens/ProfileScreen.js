@@ -306,7 +306,7 @@ const ProfileScreen = ({ navigation }) => {
     { icon: 'trophy-outline', title: 'Gamifikáció', color: '#FFC107', screen: 'Gamification' },
     { icon: 'checkmark-circle-outline', title: 'Profil Verifikáció', color: '#2196F3', screen: 'Verification' },
     { icon: 'shield-checkmark-outline', title: 'Biztonság', color: '#4CAF50', screen: 'Safety' },
-    { icon: 'help-circle-outline', title: 'Súgó', color: '#FF9800', screen: null },
+    { icon: 'help-circle-outline', title: 'Súgó', color: '#FF9800', screen: 'Help' },
   ];
 
   const styles = createStyles(theme);

@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import ABTestingService from '../services/ABTestingService';
 import OnboardingStep1 from './onboarding/OnboardingStep1';
 import OnboardingStep2 from './onboarding/OnboardingStep2';

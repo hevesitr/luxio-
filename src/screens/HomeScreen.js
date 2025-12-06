@@ -36,7 +36,7 @@ import DiscoveryService from '../services/DiscoveryService';
 import PaymentService from '../services/PaymentService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
-import { usePreferences } from '../contexts/PreferencesContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../hooks/useNavigation';
 

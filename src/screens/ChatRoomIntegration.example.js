@@ -13,7 +13,7 @@ import {
   Platform,
   ActivityIndicator 
 } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import MessageService from '../services/MessageService';
 import AnalyticsService from '../services/AnalyticsService';
 import Logger from '../services/Logger';

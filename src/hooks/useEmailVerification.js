@@ -2,7 +2,7 @@
  * useEmailVerification - Custom hook email verifikáció kezeléséhez
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import EmailService from '../services/EmailService';
 import Logger from '../services/Logger';
 

@@ -4,9 +4,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, Alert } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
-import { usePreferences } from '../contexts/PreferencesContext';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
+import { useNotifications } from '../context/NotificationContext';
 import SupabaseMatchService from '../services/SupabaseMatchService';
 import LocationService from '../services/LocationService';
 import AnalyticsService from '../services/AnalyticsService';

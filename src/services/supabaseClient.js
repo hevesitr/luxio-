@@ -37,10 +37,39 @@ try {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      flowType: 'pkce',
+    },
+    global: {
+      headers: {
+        'x-application-name': 'lovex-dating-app',
+        'x-client-version': '1.0.0',
+      },
+    },
+    db: {
+      schema: 'public',
+    },
+    // Connection pool és networking optimalizációk
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+    // HTTP kliens konfiguráció
+    fetch: (url, options = {}) => {
+      // Timeout beállítása (30 másodperc)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeoutId);
+      });
     },
   });
-  
-  console.log('✅ Supabase kliens sikeresen létrehozva');
+
+  console.log('✅ Supabase kliens sikeresen létrehozva optimalizált konfigurációval');
 } catch (error) {
   console.error('❌ Hiba a Supabase kliens létrehozásakor:', error.message);
   // Hibás állapotú kliens létrehozása, hogy ne álljon le az alkalmazás

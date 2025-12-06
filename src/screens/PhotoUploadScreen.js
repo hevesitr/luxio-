@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import MediaUploadService from '../services/MediaUploadService';
+import ImageCompressionService from '../services/ImageCompressionService';
 import { supabase } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
 
@@ -105,8 +106,24 @@ const PhotoUploadScreen = ({ navigation, route }) => {
   const uploadPhoto = async (uri) => {
     try {
       setIsUploading(true);
+
+      // ✅ IMAGE VALIDATION: Ellenőrizzük a kép tulajdonságait
+      const validation = await ImageCompressionService.validateImage(uri);
+      if (!validation.isValid) {
+        Alert.alert('Hiba', validation.error || 'Érvénytelen képfájl.');
+        return;
+      }
+
+      // ✅ IMAGE COMPRESSION: Tömörítjük a képet a jobb teljesítmény érdekében
+      const compressed = await ImageCompressionService.compressImage(uri, {
+        maxSizeKB: 200, // 200KB maximum
+        maxWidth: 1080,
+        maxHeight: 1920,
+        quality: 0.8,
+      });
+
       const fileName = `photo_${Date.now()}.jpg`;
-      const upload = await MediaUploadService.uploadImage(uri, userId, fileName);
+      const upload = await MediaUploadService.uploadImage(compressed.uri, userId, fileName);
 
       const newPhotos = [...photos, upload.url];
       setPhotos(newPhotos);
@@ -119,7 +136,7 @@ const PhotoUploadScreen = ({ navigation, route }) => {
       if (error) throw error;
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Siker', 'Kép feltöltve!');
+      Alert.alert('Siker', 'Kép feltöltve és optimalizálva!');
     } catch (error) {
       console.error('Upload error:', error);
       Alert.alert('Hiba', 'Kép feltöltése sikertelen.');

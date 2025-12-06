@@ -55,6 +55,7 @@ import IncomingCallScreen from './src/screens/IncomingCallScreen';
 import ChatRoomScreen from './src/screens/ChatRoomScreen';
 import ChatRoomsScreen from './src/screens/ChatRoomsScreen';
 import PhotoUploadScreen from './src/screens/PhotoUploadScreen';
+import HelpScreen from './src/screens/HelpScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -138,6 +139,7 @@ function ProfileStack({ addMatch, matches, removeMatch, navigation: tabNavigatio
       <Stack.Screen name="ChatRooms" component={ChatRoomsScreen} />
       <Stack.Screen name="PhotoUpload" component={PhotoUploadScreen} />
       <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+      <Stack.Screen name="Help" component={HelpScreen} />
     </Stack.Navigator>
   );
 }
