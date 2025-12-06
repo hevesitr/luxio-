@@ -703,7 +703,7 @@ class AccountService {
       // Csak alapvető, nem érzékeny adatok
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, age, bio, interests, created_at, updated_at')
+        .select('id, full_name, age, bio, interests, created_at, updated_at')
         .eq('id', userId)
         .single();
 

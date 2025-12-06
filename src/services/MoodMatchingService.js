@@ -111,12 +111,15 @@ class MoodMatchingService {
 
       // Get potential matches (simplified - in real app would use complex filtering)
       const filters = {
-        limit: limit * 2, // Get more to filter by mood
         minAge: 18,
         maxAge: 99
       };
 
-      const profiles = await this.profileRepository.findByFilters(filters);
+      const options = {
+        limit: limit * 2 // Get more to filter by mood
+      };
+
+      const profiles = await this.profileRepository.findByFilters(filters, options);
 
       // Filter by mood compatibility and exclude already matched users
       const moodCompatibleProfiles = [];

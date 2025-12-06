@@ -1,5 +1,15 @@
 // Jest setup file for global test configuration
 
+// Mock React Native
+jest.mock('react-native', () => {
+  const RN = jest.requireActual('react-native');
+  RN.NativeModules = {
+    ...RN.NativeModules,
+    RNGestureHandlerModule: {},
+  };
+  return RN;
+});
+
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
@@ -15,6 +25,8 @@ jest.mock('expo-location', () => ({
     coords: { latitude: 47.4979, longitude: 19.0402 }
   })),
 }));
+
+// Note: expo-network is not used anymore, using browser navigator.onLine instead
 
 // Mock Supabase
 jest.mock('./src/services/supabaseClient', () => ({

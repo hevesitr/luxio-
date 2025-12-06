@@ -161,8 +161,8 @@ class MessagingService extends BaseService {
         .from('messages')
         .select(`
           *,
-          sender:profiles!sender_id(id, name, avatar_url),
-          receiver:profiles!receiver_id(id, name, avatar_url)
+          sender:profiles!sender_id(id, full_name, avatar_url),
+          receiver:profiles!receiver_id(id, full_name, avatar_url)
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: false })
@@ -334,7 +334,7 @@ class MessagingService extends BaseService {
         .from('typing_indicators')
         .select(`
           user_id,
-          profiles!user_id(id, name)
+          profiles!user_id(id, full_name)
         `)
         .eq('conversation_id', conversationId)
         .gt('last_typed', fiveSecondsAgo);

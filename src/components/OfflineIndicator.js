@@ -17,31 +17,33 @@ const OfflineIndicator = ({ style }) => {
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, completed, error
 
   useEffect(() => {
-    // Simple online/offline detection using browser/React Native events
-    const handleOnline = () => {
-      const wasConnected = isConnected;
-      setIsConnected(true);
+    // Network állapot ellenőrzése egyszerű megoldással
+    const checkNetworkStatus = () => {
+      const nowConnected = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
-      // Kapcsolódás visszaállítása esetén szinkronizálás indítása
-      if (!wasConnected && pendingOperations > 0) {
-        startSync();
+      if (isConnected !== nowConnected) {
+        const wasConnected = isConnected;
+        setIsConnected(nowConnected);
+
+        // Kapcsolódás visszaállítása esetén szinkronizálás indítása
+        if (!wasConnected && nowConnected && pendingOperations > 0) {
+          startSync();
+        }
       }
     };
 
-    const handleOffline = () => {
-      setIsConnected(false);
-    };
+    // Kezdeti ellenőrzés
+    checkNetworkStatus();
 
-    // Listen for online/offline events
+    // Esemény figyelők hozzáadása
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', checkNetworkStatus);
+      window.addEventListener('offline', checkNetworkStatus);
     }
 
     // Offline queue állapotának figyelése
     const checkQueueStatus = async () => {
       try {
-        // Ez csak példa - a valódi implementációban az OfflineQueueService-ből kellene lekérni
         const queueLength = await getPendingOperationsCount();
         setPendingOperations(queueLength);
       } catch (error) {
@@ -52,10 +54,7 @@ const OfflineIndicator = ({ style }) => {
     checkQueueStatus();
 
     return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      }
+      clearInterval(interval);
     };
   }, [isConnected, pendingOperations]);
 

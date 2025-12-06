@@ -1,9 +1,9 @@
 /**
  * useNetwork - Network connectivity hook
  * Követelmény: Offline mode implementation
- * 
- * NOTE: Simplified implementation without external dependencies
- * For production, consider using expo-network or @react-native-community/netinfo
+ *
+ * NOTE: Simplified implementation using browser APIs for web compatibility
+ * For native apps, consider using expo-network or @react-native-community/netinfo
  */
 import { useState, useEffect, useCallback } from 'react';
 import Logger from '../services/Logger';
@@ -18,73 +18,55 @@ const useNetwork = () => {
 
   const [isOnline, setIsOnline] = useState(true);
 
+  const updateNetworkState = useCallback(() => {
+    // Simple network detection using navigator.onLine
+    const nowOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const wasOnline = isOnline;
+
+    setNetworkState({
+      isConnected: nowOnline,
+      isInternetReachable: nowOnline,
+      type: 'unknown',
+      details: null,
+    });
+
+    setIsOnline(nowOnline);
+
+    // Log változás
+    if (wasOnline !== nowOnline) {
+      Logger.info('Network connectivity changed', {
+        wasOnline,
+        nowOnline,
+      });
+    }
+  }, [isOnline]);
+
   useEffect(() => {
-    // Simple online/offline detection using browser/React Native events
-    const handleOnline = () => {
-      setNetworkState(prev => ({
-        ...prev,
-        isConnected: true,
-        isInternetReachable: true,
-      }));
-      setIsOnline(true);
-      Logger.info('Network connectivity: ONLINE');
-    };
+    // Kezdeti állapot lekérése
+    updateNetworkState();
 
-    const handleOffline = () => {
-      setNetworkState(prev => ({
-        ...prev,
-        isConnected: false,
-        isInternetReachable: false,
-      }));
-      setIsOnline(false);
-      Logger.info('Network connectivity: OFFLINE');
-    };
-
-    // Listen for online/offline events
+    // Listen for online/offline events if available
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', updateNetworkState);
+      window.addEventListener('offline', updateNetworkState);
 
       return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('online', updateNetworkState);
+        window.removeEventListener('offline', updateNetworkState);
       };
     }
-  }, []);
+  }, [updateNetworkState]);
 
   const retryConnection = useCallback(async () => {
     try {
-      // Simple connectivity check by attempting a fetch
-      const response = await fetch('https://www.google.com', { 
-        method: 'HEAD',
-        mode: 'no-cors',
-      });
-      
-      const newState = {
-        isConnected: true,
-        isInternetReachable: true,
-        type: 'unknown',
-      };
-      
-      setNetworkState(newState);
-      setIsOnline(true);
-      
-      Logger.info('Network refresh attempted', { newState });
-      return newState;
+      updateNetworkState();
+      Logger.info('Network refresh attempted');
+      return networkState;
     } catch (error) {
-      const newState = {
-        isConnected: false,
-        isInternetReachable: false,
-        type: 'unknown',
-      };
-      
-      setNetworkState(newState);
-      setIsOnline(false);
-      
       Logger.error('Network refresh failed', error);
       throw error;
     }
-  }, []);
+  }, [updateNetworkState, networkState]);
 
   return {
     ...networkState,

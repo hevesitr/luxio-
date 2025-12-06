@@ -12,6 +12,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   getAllKeys: jest.fn(),
 }));
 
+// Mock supabase before importing PremiumService
 jest.mock('../supabaseClient', () => ({
   supabase: {
     from: jest.fn(() => ({
@@ -31,10 +32,10 @@ jest.mock('../supabaseClient', () => ({
           })),
         })),
       })),
-      rpc: jest.fn(() => ({
-        data: { allowed: true },
-        error: null,
-      })),
+    })),
+    rpc: jest.fn(() => ({
+      data: { allowed: true },
+      error: null,
     })),
   },
 }));
@@ -121,18 +122,23 @@ describe('PremiumService', () => {
   describe('Server-side Validation', () => {
     it('should check server limits', async () => {
       const result = await PremiumService.checkServerLimit('user123', 'swipe', 50);
-      expect(result).toBe(true); // Server allows
+      expect(result).toBe(true); // Server allows (from mock)
     });
 
     it('should fallback to local validation on server error', async () => {
+      // Temporarily modify the mock to return error
       const mockSupabase = require('../supabaseClient').supabase;
-      mockSupabase.rpc.mockReturnValueOnce({
+      const originalRpc = mockSupabase.rpc;
+      mockSupabase.rpc = jest.fn(() => Promise.resolve({
         data: null,
         error: { message: 'Server error' },
-      });
+      }));
 
       const result = await PremiumService.checkServerLimit('user123', 'swipe', 50);
       expect(result).toBe(null); // Fallback to local
+
+      // Restore original mock
+      mockSupabase.rpc = originalRpc;
     });
   });
 

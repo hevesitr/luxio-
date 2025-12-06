@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import LiveMapView from '../components/LiveMapView';
+// Temporarily disabled for web compatibility
+// import LiveMapView from '../components/LiveMapView';
 import LocationService from '../services/LocationService';
 import MatchService from '../services/MatchService';
 import { profiles } from '../data/profiles';
@@ -502,17 +503,16 @@ const MapScreen = ({ navigation, route, onMatch: onMatchProp, matches: matchesPr
       </View>
 
       <View style={styles.mapContainer}>
-        <LiveMapView
-          ref={mapRef}
-          key={`map-${matchedProfiles.size}-${likedProfiles.size}-${nearbyProfiles.length}`}
-          profiles={nearbyProfiles}
-          onProfilePress={handleProfilePress}
-          currentUserLocation={userLocation}
-          matchedProfiles={matchedProfiles}
-          likedProfiles={likedProfiles}
-          showProfileImages={true}
-        />
-        {console.log('MapScreen: Passing to LiveMapView - matchedProfiles:', Array.from(matchedProfiles), 'likedProfiles:', Array.from(likedProfiles), 'nearbyProfiles count:', nearbyProfiles.length)}
+        {/* Temporarily disabled LiveMapView for web compatibility */}
+        <View style={styles.mapPlaceholder}>
+          <Ionicons name="map" size={64} color="#666" />
+          <Text style={styles.mapPlaceholderText}>
+            Térkép funkció fejlesztés alatt
+          </Text>
+          <Text style={styles.mapPlaceholderSubtext}>
+            Ez a funkció csak mobil alkalmazásokban érhető el.
+          </Text>
+        </View>
         {(locationError || isRequestingLocation) && (
           <View style={styles.locationOverlay}>
             <Ionicons name="navigate" size={22} color="#000" />
@@ -1030,6 +1030,26 @@ const styles = StyleSheet.create({
   profileModalContent: {
     flex: 1,
     overflow: 'hidden',
+  },
+  mapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  mapPlaceholderText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  mapPlaceholderSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });
 

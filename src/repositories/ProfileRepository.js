@@ -18,12 +18,7 @@ class ProfileRepository {
   async findById(id) {
     const { data, error } = await this.dataSource
       .from('profiles')
-      .select(`
-        *,
-        interests,
-        prompts,
-        photos
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -47,14 +42,12 @@ class ProfileRepository {
       .from('profiles')
       .select(`
         id,
-        name,
+        full_name,
         age,
-        city,
         bio,
-        interests,
-        photos,
-        is_verified,
-        last_active
+        avatar_url,
+        updated_at,
+        gender
       `)
       .range(offset, offset + limit - 1);
 
@@ -67,8 +60,8 @@ class ProfileRepository {
       query = query.lte('age', filters.maxAge);
     }
 
-    if (filters.city) {
-      query = query.ilike('city', `%${filters.city}%`);
+    if (filters.gender) {
+      query = query.eq('gender', filters.gender);
     }
 
     if (filters.interests && filters.interests.length > 0) {
@@ -83,10 +76,11 @@ class ProfileRepository {
     const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Profile search failed: ${error.message}`);
+      console.error('Supabase error details:', error);
+      throw new Error(`Profile search failed: ${error.message} (Code: ${error.code})`);
     }
 
-    return data.map(profile => this.transformProfile(profile));
+    return data ? data.map(profile => this.transformProfile(profile)) : [];
   }
 
   /**
@@ -162,42 +156,33 @@ class ProfileRepository {
     const { data, error } = await this.dataSource
       .from('profiles')
       .select(`
-        *,
+        id,
+        full_name,
+        age,
+        bio,
         interests,
-        photos
-      `)
-      .not('location', 'is', null);
+        avatar_url,
+        is_verified
+      `);
 
     if (error) {
       throw new Error(`Nearby search failed: ${error.message}`);
     }
 
-    // Filter by distance (simplified calculation)
-    const nearbyProfiles = data.filter(profile => {
-      if (!profile.location) return false;
-
-      const distance = this.calculateDistance(
-        latitude,
-        longitude,
-        profile.location.latitude,
-        profile.location.longitude
-      );
-
-      return distance <= radiusKm;
-    });
-
-    // Apply additional filters
-    let filtered = nearbyProfiles;
+    // Apply filters (location-based filtering not available without latitude/longitude)
+    let filtered = data;
     if (filters.minAge) {
       filtered = filtered.filter(p => p.age >= filters.minAge);
     }
     if (filters.maxAge) {
       filtered = filtered.filter(p => p.age <= filters.maxAge);
     }
+    if (filters.gender) {
+      filtered = filtered.filter(p => p.gender === filters.gender);
+    }
 
     return filtered
-      .map(profile => this.transformProfile(profile))
-      .sort((a, b) => a.distance - b.distance); // Sort by distance
+      .map(profile => this.transformProfile(profile));
   }
 
   /**
@@ -208,19 +193,18 @@ class ProfileRepository {
   transformProfile(rawProfile) {
     return {
       id: rawProfile.id,
-      name: rawProfile.name,
+      name: rawProfile.full_name,
       age: rawProfile.age,
-      city: rawProfile.city,
       bio: rawProfile.bio,
+      gender: rawProfile.gender,
       interests: Array.isArray(rawProfile.interests) ? rawProfile.interests : [],
       prompts: Array.isArray(rawProfile.prompts) ? rawProfile.prompts : [],
       photos: Array.isArray(rawProfile.photos) ? rawProfile.photos : [],
-      isVerified: rawProfile.is_verified || false,
-      lastActive: rawProfile.last_active,
-      location: rawProfile.location,
+      avatarUrl: rawProfile.avatar_url,
+      isVerified: rawProfile.is_verified !== undefined ? rawProfile.is_verified : false,
+      updatedAt: rawProfile.updated_at,
       // Additional computed fields
-      profileCompleteness: this.calculateProfileCompleteness(rawProfile),
-      distance: rawProfile.distance || 0
+      profileCompleteness: this.calculateProfileCompleteness(rawProfile)
     };
   }
 
@@ -231,14 +215,12 @@ class ProfileRepository {
    */
   calculateProfileCompleteness(profile) {
     const fields = [
-      { field: 'name', weight: 10 },
-      { field: 'age', weight: 10 },
-      { field: 'city', weight: 10 },
-      { field: 'bio', weight: 15 },
-      { field: 'interests', weight: 15, check: arr => arr && arr.length > 0 },
-      { field: 'photos', weight: 15, check: arr => arr && arr.length > 0 },
-      { field: 'prompts', weight: 15, check: arr => arr && arr.length >= 3 },
-      { field: 'location', weight: 10 }
+      { field: 'full_name', weight: 10 },
+      { field: 'age', weight: 25 },
+      { field: 'bio', weight: 25 },
+      { field: 'avatar_url', weight: 25 },
+      { field: 'gender', weight: 15 },
+      { field: 'full_name', weight: 10 }
     ];
 
     let totalScore = 0;

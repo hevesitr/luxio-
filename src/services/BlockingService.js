@@ -151,6 +151,17 @@ class BlockingService {
         .or(`and(blocker_id.eq.${userId1},blocked_id.eq.${userId2}),and(blocker_id.eq.${userId2},blocked_id.eq.${userId1})`)
         .eq('is_active', true);
 
+      // Ha a tábla nem létezik, akkor nincs blokkolás
+      if (error && error.code === '42P01') {
+        return {
+          isBlocked: false,
+          blockerId: null,
+          blockedId: null,
+          blockDirection: null,
+          blockInfo: null,
+        };
+      }
+
       if (error) throw error;
 
       const isBlocked = data && data.length > 0;
