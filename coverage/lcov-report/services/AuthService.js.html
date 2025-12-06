@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">5.4% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/370</span>
+                <span class='fraction'>20/370</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">4.61% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/130</span>
+                <span class='fraction'>6/130</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">11.11% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/45</span>
+                <span class='fraction'>5/45</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">5.33% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/356</span>
+                <span class='fraction'>19/356</span>
             </div>
         
             
@@ -1110,18 +1110,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1129,11 +1129,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">156x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">156x</span>
+<span class="cline-any cline-yes">156x</span>
+<span class="cline-any cline-yes">156x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2112,19 +2112,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">700x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">680x</span>
+<span class="cline-any cline-yes">680x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">680x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">400x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2142,31 +2142,31 @@ import RateLimitService from './RateLimitService';
 import * as SecureStore from 'expo-secure-store';
 &nbsp;
 class AuthService extends BaseService {
-<span class="fstat-no" title="function not covered" >  co</span>nstructor() {
-<span class="cstat-no" title="statement not covered" >    super('AuthService');</span>
-<span class="cstat-no" title="statement not covered" >    this.currentUser = null;</span>
-<span class="cstat-no" title="statement not covered" >    this.session = null;</span>
-<span class="cstat-no" title="statement not covered" >    this.refreshTimer = null;</span>
-<span class="cstat-no" title="statement not covered" >    this.passwordService = PasswordService; </span>// PasswordService már instance, nem kell new
+  constructor() {
+    super('AuthService');
+    this.currentUser = null;
+    this.session = null;
+    this.refreshTimer = null;
+    this.passwordService = PasswordService; // PasswordService már instance, nem kell new
 &nbsp;
     // Token management enhancements (4.1 - 4.5)
-<span class="cstat-no" title="statement not covered" >    this.tokenRefreshQueue = new Map(); </span>// Refresh queue for concurrent requests
-<span class="cstat-no" title="statement not covered" >    this.heartbeatTimer = null; </span>// Silent failure detection
-<span class="cstat-no" title="statement not covered" >    this.heartbeatInterval = 60 * 1000; </span>// 60 seconds
-<span class="cstat-no" title="statement not covered" >    this.lastHeartbeatSuccess = null;</span>
-<span class="cstat-no" title="statement not covered" >    this.authFailureListeners = [];</span>
+    this.tokenRefreshQueue = new Map(); // Refresh queue for concurrent requests
+    this.heartbeatTimer = null; // Silent failure detection
+    this.heartbeatInterval = 60 * 1000; // 60 seconds
+    this.lastHeartbeatSuccess = null;
+    this.authFailureListeners = [];
   }
 &nbsp;
   /**
    * Felhasználó regisztrációja
    * @param {object} userData - {email, password, profileData}
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync signUp({ email, password, profileData }) {
-<span class="cstat-no" title="statement not covered" >    return this.executeOperation(<span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
+  async signUp({ email, password, profileData }) {
+    return this.executeOperation(async () =&gt; {
       // Input validáció
-      const emailValidation = <span class="cstat-no" title="statement not covered" >this.validate({ email }, { email: { required: true, type: 'email' } });</span>
-<span class="cstat-no" title="statement not covered" >      if (!emailValidation.valid) {</span>
-<span class="cstat-no" title="statement not covered" >        this.throwValidationError(emailValidation.errors);</span>
+      const emailValidation = this.validate({ email }, { email: { required: true, type: 'email' } });
+      <span class="missing-if-branch" title="else path not taken" >E</span>if (!emailValidation.valid) {
+        this.throwValidationError(emailValidation.errors);
       }
 &nbsp;
       // Jelszó validáció
@@ -3144,20 +3144,20 @@ class AuthService extends BaseService {
   /**
    * Session lejárt-e
    */
-<span class="fstat-no" title="function not covered" >  is</span>SessionExpired() {
-<span class="cstat-no" title="statement not covered" >    if (!this.session?.expires_at) <span class="cstat-no" title="statement not covered" >return true;</span></span>
+  isSessionExpired() {
+    if (!this.session?.expires_at) return true;
     
-    const expiresAt = <span class="cstat-no" title="statement not covered" >this.session.expires_at * 1000;</span>
-    const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
+    const expiresAt = this.session.expires_at * 1000;
+    const now = Date.now();
     
-<span class="cstat-no" title="statement not covered" >    return now &gt;= expiresAt;</span>
+    return now &gt;= expiresAt;
   }
 &nbsp;
   /**
    * Felhasználó be van-e jelentkezve
    */
-<span class="fstat-no" title="function not covered" >  is</span>Authenticated() {
-<span class="cstat-no" title="statement not covered" >    return !!this.currentUser &amp;&amp; !!this.session &amp;&amp; !this.isSessionExpired();</span>
+  isAuthenticated() {
+    return !!this.currentUser &amp;&amp; !!this.session &amp;&amp; !this.isSessionExpired();
   }
 }
 &nbsp;
@@ -3169,7 +3169,7 @@ export default new AuthService();
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T13:50:09.842Z
+                at 2025-12-06T14:24:53.503Z
             </div>
         <script src="../prettify.js"></script>
         <script>

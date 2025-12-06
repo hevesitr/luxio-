@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">11.7% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/94</span>
+                <span class='fraction'>11/94</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">28.57% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>4/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.22% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/90</span>
+                <span class='fraction'>11/90</span>
             </div>
         
             
@@ -453,12 +453,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -588,9 +588,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">51x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">51x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -629,8 +629,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-yes">51x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -700,9 +700,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-yes">51x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -716,7 +716,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">51x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -821,7 +821,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * BlockingService - Felhasználók blokkolása és tiltása
@@ -832,13 +832,13 @@ import Logger from './Logger';
 import ErrorHandler, { ErrorCodes } from './ErrorHandler';
 &nbsp;
 class BlockingService {
-<span class="fstat-no" title="function not covered" >  co</span>nstructor() {
-<span class="cstat-no" title="statement not covered" >    this.BLOCK_TYPES = {</span>
+  constructor() {
+    this.BLOCK_TYPES = {
       USER_BLOCK: 'user_block',
       MUTUAL_BLOCK: 'mutual_block',
     };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.BLOCK_REASONS = {</span>
+    this.BLOCK_REASONS = {
       HARASSMENT: 'harassment',
       INAPPROPRIATE_CONTENT: 'inappropriate_content',
       SPAM: 'spam',
@@ -967,10 +967,10 @@ class BlockingService {
    * @param {string} userId1 - Első felhasználó ID
    * @param {string} userId2 - Második felhasználó ID
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getBlockStatus(userId1, userId2) {
-<span class="cstat-no" title="statement not covered" >    try {</span>
+  async getBlockStatus(userId1, userId2) {
+    try {
       // Ellenőrizzük mindkét irányban
-      const { data, error } = <span class="cstat-no" title="statement not covered" >await supabase</span>
+      const { data, error } = await supabase
         .from('blocked_users')
         .select('*')
         .or(`and(blocker_id.eq.${userId1},blocked_id.eq.${userId2}),and(blocker_id.eq.${userId2},blocked_id.eq.${userId1})`)
@@ -1009,8 +1009,8 @@ class BlockingService {
         blockedAt: blockInfo?.created_at,
       };
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      Logger.error('Failed to get block status', error);</span>
-<span class="cstat-no" title="statement not covered" >      return { isBlocked: false, error: error.message };</span>
+      Logger.error('Failed to get block status', error);
+      return { isBlocked: false, error: error.message };
     }
   }
 &nbsp;
@@ -1079,10 +1079,10 @@ class BlockingService {
    * @param {string} viewerId - Megtekintő felhasználó ID
    * @param {string} profileOwnerId - Profil tulajdonos ID
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync canViewProfile(viewerId, profileOwnerId) {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const blockStatus = <span class="cstat-no" title="statement not covered" >await this.getBlockStatus(viewerId, profileOwnerId);</span>
-<span class="cstat-no" title="statement not covered" >      return !blockStatus.isBlocked;</span>
+  async canViewProfile(viewerId, profileOwnerId) {
+    try {
+      const blockStatus = await this.getBlockStatus(viewerId, profileOwnerId);
+      return !blockStatus.isBlocked;
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      Logger.error('Failed to check profile visibility', error);</span>
       // Biztonságból false-t adunk vissza (nem látható)
@@ -1095,8 +1095,8 @@ class BlockingService {
    * @param {string} senderId - Küldő felhasználó ID
    * @param {string} receiverId - Fogadó felhasználó ID
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync canSendMessage(senderId, receiverId) {
-<span class="cstat-no" title="statement not covered" >    return this.canViewProfile(senderId, receiverId);</span>
+  async canSendMessage(senderId, receiverId) {
+    return this.canViewProfile(senderId, receiverId);
   }
 &nbsp;
   /**
@@ -1201,7 +1201,7 @@ class BlockingService {
 }
 &nbsp;
 // Singleton instance
-const blockingService = <span class="cstat-no" title="statement not covered" >new BlockingService();</span>
+const blockingService = new BlockingService();
 export default blockingService;
 &nbsp;</pre></td></tr></table></pre>
 
@@ -1210,7 +1210,7 @@ export default blockingService;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T13:50:09.842Z
+                at 2025-12-06T14:24:53.503Z
             </div>
         <script src="../prettify.js"></script>
         <script>

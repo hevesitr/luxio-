@@ -3,7 +3,7 @@
  * Testing duplicate payment prevention and idempotency
  */
 import fc from 'fast-check';
-import AsyncStorage from '@react-native-async-storage-async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock Supabase
 jest.mock('../../supabaseClient', () => ({

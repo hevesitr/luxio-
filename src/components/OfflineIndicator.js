@@ -1,11 +1,12 @@
 /**
  * OfflineIndicator - Offline/online állapot és szinkronizálási státusz megjelenítése
  * Követelmény: Offline mode implementation
+ * 
+ * NOTE: Simplified implementation without external dependencies
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import NetInfo from '@react-native-community/netinfo';
 import OfflineQueueService from '../services/OfflineQueueService';
 import Logger from '../services/Logger';
 
@@ -16,18 +17,26 @@ const OfflineIndicator = ({ style }) => {
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, completed, error
 
   useEffect(() => {
-    // Network állapot figyelése
-    const unsubscribe = NetInfo.addEventListener(state => {
+    // Simple online/offline detection using browser/React Native events
+    const handleOnline = () => {
       const wasConnected = isConnected;
-      const nowConnected = state.isConnected && state.isInternetReachable;
-
-      setIsConnected(nowConnected);
+      setIsConnected(true);
 
       // Kapcsolódás visszaállítása esetén szinkronizálás indítása
-      if (!wasConnected && nowConnected && pendingOperations > 0) {
+      if (!wasConnected && pendingOperations > 0) {
         startSync();
       }
-    });
+    };
+
+    const handleOffline = () => {
+      setIsConnected(false);
+    };
+
+    // Listen for online/offline events
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+    }
 
     // Offline queue állapotának figyelése
     const checkQueueStatus = async () => {
@@ -43,7 +52,10 @@ const OfflineIndicator = ({ style }) => {
     checkQueueStatus();
 
     return () => {
-      unsubscribe();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      }
     };
   }, [isConnected, pendingOperations]);
 
