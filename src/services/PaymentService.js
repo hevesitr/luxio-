@@ -8,6 +8,11 @@ import ErrorHandler, { ErrorCodes } from './ErrorHandler';
 
 class PaymentService {
   constructor() {
+    // ✅ PAYMENT: Idempotency tracking for duplicate prevention
+    this.pendingPayments = new Map(); // paymentId -> { status, timestamp, retryCount }
+    this.completedPayments = new Set(); // Set of completed payment IDs
+    this.IDEMPOTENCY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
     this.subscriptionPlans = {
       MONTHLY: {
         id: 'premium_monthly',
@@ -174,16 +179,55 @@ class PaymentService {
   }
 
   /**
-   * Fizetés feldolgozása (mock - valós implementációhoz Stripe/PayPal kell)
+   * ✅ PAYMENT: Idempotent fizetés feldolgozása duplicate prevention-nel
    */
-  async processPayment(userId, amount, method = 'card') {
+  async processPayment(userId, amount, method = 'card', idempotencyKey = null) {
     return ErrorHandler.wrapServiceCall(async () => {
-      // MOCK IMPLEMENTATION
-      // Valós implementációhoz integrálni kell Stripe-ot vagy más payment gateway-t
-      
+      // ✅ IDEMPOTENCY: Generate or validate idempotency key
+      const paymentIdempotencyKey = idempotencyKey || this.generateIdempotencyKey(userId, amount, method);
+
+      // ✅ DUPLICATE PREVENTION: Check database for existing payment
+      const { data: existingPayment, error: checkError } = await supabase
+        .from('payments')
+        .select('id, status')
+        .eq('user_id', userId)
+        .eq('amount', amount)
+        .eq('method', method)
+        .eq('idempotency_key', paymentIdempotencyKey)
+        .single();
+
+      if (!checkError && existingPayment) {
+        Logger.info('Payment already exists', {
+          paymentIdempotencyKey,
+          userId,
+          existingPaymentId: existingPayment.id,
+          status: existingPayment.status
+        });
+
+        return {
+          success: true,
+          paymentId: existingPayment.id,
+          amount: amount,
+          status: existingPayment.status,
+          idempotencyKey: paymentIdempotencyKey,
+          wasDuplicate: true
+        };
+      }
+
+      Logger.info('Processing payment', { userId, amount, method, paymentIdempotencyKey });
+
+      // MOCK PAYMENT PROCESSING - In production integrate with Stripe/PayPal
       Logger.warn('Mock payment processing', { userId, amount, method });
 
-      // Fizetés mentése
+      // Simulate network delay and potential failure
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+
+      // Simulate occasional failures (10%)
+      if (Math.random() < 0.1) {
+        throw new Error('Payment gateway timeout');
+      }
+
+      // ✅ ATOMIC: Insert payment with idempotency key
       const { data, error } = await supabase
         .from('payments')
         .insert({
@@ -192,22 +236,96 @@ class PaymentService {
           currency: 'USD',
           method: method,
           status: 'completed',
+          idempotency_key: paymentIdempotencyKey,
           created_at: new Date().toISOString(),
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Handle unique constraint violation (duplicate idempotency key)
+        if (error.code === '23505') { // PostgreSQL unique violation
+          Logger.info('Concurrent payment detected, fetching existing', { paymentIdempotencyKey });
 
-      Logger.success('Payment processed', { userId, amount });
+          // Re-check for the payment that was inserted concurrently
+          const { data: concurrentPayment } = await supabase
+            .from('payments')
+            .select('id, status')
+            .eq('idempotency_key', paymentIdempotencyKey)
+            .single();
+
+          if (concurrentPayment) {
+            return {
+              success: true,
+              paymentId: concurrentPayment.id,
+              amount: amount,
+              status: concurrentPayment.status,
+              idempotencyKey: paymentIdempotencyKey,
+              wasDuplicate: true
+            };
+          }
+        }
+        throw error;
+      }
+
+      Logger.success('Payment processed successfully', {
+        paymentId: data.id,
+        userId,
+        amount,
+        idempotencyKey: paymentIdempotencyKey
+      });
 
       return {
         success: true,
         paymentId: data.id,
         amount: data.amount,
         status: 'completed',
+        idempotencyKey: paymentIdempotencyKey,
+        wasDuplicate: false
       };
-    }, { operation: 'processPayment', userId, amount });
+    }, { operation: 'processPayment', userId, amount, idempotencyKey });
+  }
+
+  /**
+   * ✅ PAYMENT: Generate idempotency key for duplicate prevention
+   */
+  generateIdempotencyKey(userId, amount, method) {
+    const timestamp = Math.floor(Date.now() / (5 * 60 * 1000)); // 5-minute window
+    const components = [userId, amount.toString(), method, timestamp.toString()];
+    return components.join('_');
+  }
+
+  /**
+   * ✅ PAYMENT: Check payment status by idempotency key
+   */
+  async getPaymentStatus(idempotencyKey) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('id, status, amount, created_at')
+        .eq('idempotency_key', idempotencyKey)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // Not found error
+        throw error;
+      }
+
+      if (data) {
+        return {
+          found: true,
+          paymentId: data.id,
+          status: data.status,
+          amount: data.amount,
+          createdAt: data.created_at,
+          idempotencyKey
+        };
+      }
+
+      return {
+        found: false,
+        idempotencyKey
+      };
+    }, { operation: 'getPaymentStatus', idempotencyKey });
   }
 
   /**

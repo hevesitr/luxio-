@@ -79,6 +79,7 @@ function SimpleStack() {
       <Stack.Screen name="Lookalikes" component={LookalikesScreen} />
       <Stack.Screen name="LikesYou" component={LikesYouScreen} />
     </Stack.Navigator>
+    </Suspense>
   );
 }
 

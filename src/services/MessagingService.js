@@ -4,30 +4,33 @@
  */
 import BaseService from './BaseService';
 import { supabase } from './supabaseClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from './Logger';
 import PushNotificationService from './PushNotificationService';
+import OfflineQueueService from './OfflineQueueService';
 
 class MessagingService extends BaseService {
   constructor() {
     super('MessagingService');
     this.messageSubscriptions = new Map();
     this.typingSubscriptions = new Map();
-    this.messageQueue = [];
     this.isOnline = true;
     this.pushService = new PushNotificationService();
+    this.offlineQueue = OfflineQueueService;
   }
 
   async initialize() {
     await super.initialize();
 
+    // Initialize offline queue service
+    await this.offlineQueue.initialize();
+
     // Offline állapot figyelése
     this.setupNetworkMonitoring();
 
-    // Offline üzenetek feldolgozása
+    // Start processing offline queue
     this.processOfflineQueue();
 
-    this.log.success('MessagingService initialized');
+    this.log.success('MessagingService initialized with SQLite offline queue');
   }
 
   /**
@@ -490,45 +493,82 @@ class MessagingService extends BaseService {
 
   async addToOfflineQueue(message) {
     try {
-      this.messageQueue.push({
-        ...message,
-        queuedAt: new Date().toISOString()
+      const result = await this.offlineQueue.addMessage(message, {
+        messageType: 'chat_message',
+        priority: message.priority || 1
       });
 
-      await AsyncStorage.setItem('offline_messages', JSON.stringify(this.messageQueue));
-      this.log.info('Message added to offline queue', { messageId: message.id });
+      if (!result.success) {
+        this.log.warn('Message not added to offline queue', { reason: result.reason, messageId: message.id });
+        return result;
+      }
+
+      this.log.info('Message added to SQLite offline queue', { messageId: result.messageId });
+      return result;
     } catch (error) {
       this.log.error('Failed to add message to offline queue', error);
+      throw error;
     }
   }
 
+
   async processOfflineQueue() {
-    if (!this.isOnline || this.messageQueue.length === 0) return;
+    if (!this.isOnline) return;
 
-    this.log.info('Processing offline message queue', { count: this.messageQueue.length });
+    try {
+      const batch = await this.offlineQueue.getNextBatch(5); // Process in small batches
 
-    const successful = [];
-    const failed = [];
+      if (batch.length === 0) return;
 
-    for (const queuedMessage of this.messageQueue) {
-      try {
-        const result = await this.sendMessageOnline(queuedMessage);
-        if (result.success) {
-          successful.push(queuedMessage.id);
-        } else {
-          failed.push(queuedMessage.id);
+      this.log.info('Processing offline message batch', { count: batch.length });
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const queuedMessage of batch) {
+        try {
+          // Mark as processing
+          await this.offlineQueue.markAsProcessing(queuedMessage.dbId);
+
+          // Send message online
+          const result = await this.sendMessageOnline(queuedMessage);
+
+          if (result.success) {
+            await this.offlineQueue.markAsCompleted(queuedMessage.dbId);
+            successCount++;
+            this.log.success('Offline message processed successfully', { messageId: queuedMessage.id });
+          } else {
+            await this.offlineQueue.markAsFailed(queuedMessage.dbId, result.error);
+            failCount++;
+            this.log.warn('Offline message processing failed', {
+              messageId: queuedMessage.id,
+              error: result.error
+            });
+          }
+        } catch (error) {
+          await this.offlineQueue.markAsFailed(queuedMessage.dbId, error.message);
+          failCount++;
+          this.log.error('Failed to process offline message', {
+            messageId: queuedMessage.id,
+            error: error.message
+          });
         }
-      } catch (error) {
-        failed.push(queuedMessage.id);
-        this.log.error('Failed to process offline message', { messageId: queuedMessage.id, error });
       }
+
+      this.log.success('Offline queue batch processing completed', {
+        processed: batch.length,
+        successful: successCount,
+        failed: failCount
+      });
+
+      // Schedule next batch processing
+      if (successCount + failCount > 0) {
+        setTimeout(() => this.processOfflineQueue(), 1000);
+      }
+
+    } catch (error) {
+      this.log.error('Failed to process offline queue batch', error);
     }
-
-    // Sikeres üzenetek eltávolítása a queue-ból
-    this.messageQueue = this.messageQueue.filter(msg => !successful.includes(msg.id));
-    await AsyncStorage.setItem('offline_messages', JSON.stringify(this.messageQueue));
-
-    this.log.success('Offline queue processed', { successful: successful.length, failed: failed.length });
   }
 
   setupNetworkMonitoring() {

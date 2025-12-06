@@ -268,11 +268,11 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
 
   // ✅ PERFORMANCE: useCallback for verified filter toggle
   const handleToggleVerifiedFilter = useCallback(() => {
-    const newFilters = { ...searchFilters, verifiedOnly: !searchFilters.verifiedOnly };
+    const newFilters = { ...filterState.searchFilters, verifiedOnly: !filterState.searchFilters.verifiedOnly };
     updateFilterState({ searchFilters: newFilters });
     saveDiscoveryFilters(newFilters);
     loadProfiles();
-  }, [searchFilters, saveDiscoveryFilters]);
+  }, [filterState.searchFilters, saveDiscoveryFilters]);
 
   const handleBoost = () => {
     navigation.navigate('Boost');
@@ -289,6 +289,16 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
   const handleToggleAI = () => {
     // AI mode toggle logic
   };
+
+  // ✅ FUNCTION: Save discovery filters to AsyncStorage
+  const saveDiscoveryFilters = useCallback(async (filters) => {
+    try {
+      await AsyncStorage.setItem('discoveryFilters', JSON.stringify(filters));
+      Logger.debug('Discovery filters saved', { filters });
+    } catch (error) {
+      Logger.error('Failed to save discovery filters', error);
+    }
+  }, []);
 
   const handleToggleSugarDating = () => {
     updateFilterState(prev => ({ sugarDatingMode: !prev.sugarDatingMode }));

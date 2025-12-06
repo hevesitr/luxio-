@@ -95,12 +95,16 @@ WITH CHECK (
 -- MESSAGES TABLE POLICIES - JAVÍTOTT
 -- ============================================
 
--- ✅ JAVÍTOTT: Users can view messages in their conversations
+-- ✅ KRITIKUS JAVÍTÁS: Users can view messages in conversations (BLOCKED USERS EXCLUDED)
 CREATE POLICY "Users can view messages in conversations"
 ON messages FOR SELECT
 USING (
-  auth.uid() = sender_id
-  OR auth.uid() = receiver_id
+  (auth.uid() = sender_id OR auth.uid() = receiver_id)
+  AND NOT EXISTS (
+    SELECT 1 FROM blocked_users
+    WHERE (blocker_id = auth.uid() AND blocked_id = CASE WHEN auth.uid() = sender_id THEN receiver_id ELSE sender_id END)
+       OR (blocker_id = CASE WHEN auth.uid() = sender_id THEN receiver_id ELSE sender_id END AND blocked_id = auth.uid())
+  )
 );
 
 -- ✅ JAVÍTOTT: Users can send messages to matches only
@@ -168,6 +172,11 @@ WITH CHECK (
     SELECT 1 FROM passes
     WHERE user_id = auth.uid() AND passed_user_id = liked_user_id
   )
+  AND NOT EXISTS (
+    SELECT 1 FROM blocked_users
+    WHERE (blocker_id = auth.uid() AND blocked_id = liked_user_id)
+       OR (blocker_id = liked_user_id AND blocked_id = auth.uid())
+  )
 );
 
 -- ============================================
@@ -179,7 +188,7 @@ CREATE POLICY "Users can view own passes"
 ON passes FOR SELECT
 USING (auth.uid() = user_id);
 
--- ✅ JAVÍTOTT: Users can create passes
+-- ✅ KRITIKUS JAVÍTÁS: Users can create passes (blokkoltra nem)
 CREATE POLICY "Users can create passes"
 ON passes FOR INSERT
 WITH CHECK (
@@ -189,6 +198,11 @@ WITH CHECK (
   AND NOT EXISTS (
     SELECT 1 FROM passes
     WHERE user_id = auth.uid() AND passed_user_id = passes.passed_user_id
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM blocked_users
+    WHERE (blocker_id = auth.uid() AND blocked_id = passed_user_id)
+       OR (blocker_id = passed_user_id AND blocked_id = auth.uid())
   )
 );
 

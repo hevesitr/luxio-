@@ -201,8 +201,18 @@ const createStyles = (theme) => StyleSheet.create({
     },
     settingSubtitle: {
       fontSize: 13,
-
-
-});
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    footer: {
+      padding: 20,
+      alignItems: 'center',
+    },
+    footerText: {
+      fontSize: 12,
+      color: theme.colors.textTertiary,
+    },
+  });
+};
 
 export { createStyles };

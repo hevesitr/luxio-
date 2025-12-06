@@ -43,37 +43,45 @@ class Logger {
   }
 
   /**
-   * Debug szintű log (csak development-ben)
+   * Debug szintű log (csak development-ben) - PII védelemmel
    */
   debug(message, context = {}) {
     if (IS_DEV) {
-      console.log(`[DEBUG] ${message}`, context);
+      const sanitizedMessage = this.redactPIIFromString(message);
+      const sanitizedContext = this.sanitizeLogData(context);
+      console.log(`[DEBUG] ${sanitizedMessage}`, sanitizedContext);
     }
   }
 
   /**
-   * Info szintű log
+   * Info szintű log - PII védelemmel
    */
   info(message, context = {}) {
     if (IS_DEV) {
-      console.info(`[INFO] ${message}`, context);
+      const sanitizedMessage = this.redactPIIFromString(message);
+      const sanitizedContext = this.sanitizeLogData(context);
+      console.info(`[INFO] ${sanitizedMessage}`, sanitizedContext);
     }
   }
 
   /**
-   * Success szintű log (zöld színnel development-ben)
+   * Success szintű log (zöld színnel development-ben) - PII védelemmel
    */
   success(message, context = {}) {
     if (IS_DEV) {
-      console.log(`✅ [SUCCESS] ${message}`, context);
+      const sanitizedMessage = this.redactPIIFromString(message);
+      const sanitizedContext = this.sanitizeLogData(context);
+      console.log(`✅ [SUCCESS] ${sanitizedMessage}`, sanitizedContext);
     }
   }
 
   /**
-   * Warning szintű log
+   * Warning szintű log - PII védelemmel
    */
   warn(message, context = {}) {
-    console.warn(`⚠️ [WARN] ${message}`, context);
+    const sanitizedMessage = this.redactPIIFromString(message);
+    const sanitizedContext = this.sanitizeLogData(context);
+    console.warn(`⚠️ [WARN] ${sanitizedMessage}`, sanitizedContext);
   }
 
   /**
@@ -164,13 +172,82 @@ class Logger {
   }
 
   /**
-   * Network request log
+   * Production-ready log minden szinten PII védelemmel
+   */
+  log(level, message, context = {}) {
+    const sanitizedMessage = this.redactPIIFromString(message);
+    const sanitizedContext = this.sanitizeLogData(context);
+    const timestamp = new Date().toISOString();
+
+    const logEntry = {
+      timestamp,
+      level: level.toUpperCase(),
+      message: sanitizedMessage,
+      context: sanitizedContext
+    };
+
+    // Always log errors and warnings
+    if (level === 'error' || level === 'warn') {
+      console.error(`[${level.toUpperCase()}] ${timestamp} ${sanitizedMessage}`, sanitizedContext);
+    } else if (IS_DEV) {
+      console.log(`[${level.toUpperCase()}] ${sanitizedMessage}`, sanitizedContext);
+    }
+
+    // In production, you would send to logging service here
+    // this.sendToLoggingService(logEntry);
+  }
+
+  /**
+   * Network request log - PII védelemmel
    */
   network(method, url, status, duration) {
+    // Sanitize URL to remove potential PII
+    const sanitizedUrl = this.redactPIIFromString(url);
+    const statusEmoji = status >= 200 && status < 300 ? '✅' : '❌';
+
     if (IS_DEV) {
-      const statusEmoji = status >= 200 && status < 300 ? '✅' : '❌';
-      console.log(`${statusEmoji} [NETWORK] ${method} ${url} - ${status} (${duration}ms)`);
+      console.log(`${statusEmoji} [NETWORK] ${method} ${sanitizedUrl} - ${status} (${duration}ms)`);
     }
+  }
+
+  /**
+   * Security event log - mindig logol, extra PII védelem
+   */
+  security(event, details = {}) {
+    const sanitizedDetails = this.sanitizeLogData(details);
+    const timestamp = new Date().toISOString();
+
+    console.warn(`🔒 [SECURITY] ${timestamp} ${event}`, {
+      ...sanitizedDetails,
+      security: true,
+      timestamp
+    });
+
+    // In production, send to security monitoring
+    // this.sendToSecurityService(event, sanitizedDetails);
+  }
+
+  /**
+   * GDPR compliance audit log
+   */
+  audit(action, subject, details = {}) {
+    const sanitizedDetails = this.sanitizeLogData(details);
+    const timestamp = new Date().toISOString();
+
+    const auditEntry = {
+      timestamp,
+      action,
+      subject,
+      details: sanitizedDetails,
+      compliance: 'GDPR'
+    };
+
+    if (IS_DEV) {
+      console.log(`📋 [AUDIT] ${action} on ${subject}`, sanitizedDetails);
+    }
+
+    // Store audit trail (in production, send to secure audit service)
+    // this.storeAuditEntry(auditEntry);
   }
 }
 
