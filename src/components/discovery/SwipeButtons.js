@@ -11,15 +11,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const SwipeButtons = ({ onPass, onLike, onSuperLike, disabled = false }) => {
+const SwipeButtons = ({ onPass, onLike, onSuperLike, onRewind, disabled = false, canRewind = false }) => {
   return (
     <View style={styles.container}>
       {/* Rewind Button (Premium) */}
       <TouchableOpacity
-        style={[styles.button, styles.buttonSmall, disabled && styles.buttonDisabled]}
-        disabled={disabled}
+        style={[styles.button, styles.buttonSmall, (disabled || !canRewind) && styles.buttonDisabled]}
+        disabled={disabled || !canRewind}
+        onPress={onRewind}
       >
-        <Ionicons name="arrow-undo" size={24} color="#FFC107" />
+        <Ionicons name="arrow-undo" size={24} color={canRewind ? "#FFC107" : "#999"} />
       </TouchableOpacity>
       
       {/* Pass Button */}

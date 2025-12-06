@@ -46,7 +46,18 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
   const superLikeTimeoutRef = useRef(null);
 
 
-  const compatibility = userProfile 
+  // Képek kezelése - használjuk a photos tömböt vagy az avatarUrl-t
+  const allPhotos = useMemo(() => {
+    if (profile.photos && profile.photos.length > 0) {
+      return profile.photos;
+    }
+    if (profile.avatarUrl || profile.photo_url) {
+      return [profile.avatarUrl || profile.photo_url];
+    }
+    return [];
+  }, [profile.photos, profile.avatarUrl, profile.photo_url]);
+
+  const compatibility = userProfile
     ? CompatibilityService.calculateCompatibility(userProfile, profile)
     : null;
 
@@ -172,18 +183,20 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
             }
           } else {
             // Single tap vagy kép lapozás
-            if (profile.photos && profile.photos.length > 1) {
+            const allPhotos = profile.photos && profile.photos.length > 0 ? profile.photos :
+                             (profile.avatarUrl || profile.photo_url) ? [profile.avatarUrl || profile.photo_url] : [];
+            if (allPhotos.length > 1) {
               // Kép lapozás ha több kép van - egyszerű logika
               if (touchX < imageWidth / 2) {
                 // Bal oldal - előző kép
                 setCurrentPhotoIndex(prev =>
-                  prev > 0 ? prev - 1 : profile.photos.length - 1
+                  prev > 0 ? prev - 1 : allPhotos.length - 1
                 );
                 console.log('SwipeCard: Previous photo');
               } else {
                 // Jobb oldal - következő kép
                 setCurrentPhotoIndex(prev =>
-                  prev < profile.photos.length - 1 ? prev + 1 : 0
+                  prev < allPhotos.length - 1 ? prev + 1 : 0
                 );
                 console.log('SwipeCard: Next photo');
               }
@@ -238,14 +251,14 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
       {...panResponder.panHandlers}
     >
       <Image
-        source={{ uri: profile.photos && profile.photos.length > 0 ? profile.photos[currentPhotoIndex] : profile.photo }}
+        source={{ uri: allPhotos[currentPhotoIndex] || 'https://via.placeholder.com/400x600?text=No+Image' }}
         style={styles.image}
       />
 
       {/* Photo indicators */}
-      {profile.photos && profile.photos.length > 1 && (
+      {allPhotos.length > 1 && (
         <View style={styles.photoIndicators}>
-          {profile.photos.map((_, index) => (
+          {allPhotos.map((_, index) => (
             <View
               key={index}
               style={[
@@ -258,7 +271,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
       )}
 
       {/* Photo navigation hints */}
-      {profile.photos && profile.photos.length > 1 && (
+      {allPhotos.length > 1 && (
         <>
           <View style={[styles.photoNavHint, styles.leftHint]}>
             <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />

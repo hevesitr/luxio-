@@ -2,13 +2,16 @@
  * Optimized HomeScreen with React Query
  * Discovery feed with caching and optimistic updates
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Hooks
 import { useDiscoveryProfiles, useSwipe, useSuperLike } from '../hooks';
 import { useAuth } from '../context/AuthContext';
+
+// Services
+import RewindService from '../services/RewindService';
 
 // Components
 import ProfileCard from '../components/discovery/ProfileCard';
@@ -24,11 +27,20 @@ const HomeScreen = ({ navigation }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [showMatchModal, setShowMatchModal] = useState(false);
+  const [canRewind, setCanRewind] = useState(false);
+  const [swipeHistory, setSwipeHistory] = useState([]);
   
   // React Query hooks
   const { data: profiles, isLoading, isError, refetch } = useDiscoveryProfiles(user?.id);
   const swipeMutation = useSwipe();
   const superLikeMutation = useSuperLike();
+  
+  // Check rewind permission on mount
+  React.useEffect(() => {
+    if (user?.id) {
+      RewindService.canRewind(user.id).then(setCanRewind);
+    }
+  }, [user?.id]);
 
   // Fallback mock profilok ha nincs bejelentkezett felhasználó vagy nincs adat
   const mockProfiles = [
@@ -89,6 +101,9 @@ const HomeScreen = ({ navigation }) => {
   const handleSwipe = useCallback(async (action) => {
     if (!currentProfile) return;
 
+    // Swipe history-ba mentjük az előző profilt
+    setSwipeHistory(prev => [...prev, { profile: currentProfile, action, index: currentIndex }]);
+
     // Egyszerűen csak léptetjük az indexet (mock mód)
     setCurrentIndex(prev => (prev + 1) % displayProfiles.length);
 
@@ -110,11 +125,14 @@ const HomeScreen = ({ navigation }) => {
         console.log('Swipe saved locally:', action, currentProfile.name);
       }
     }
-  }, [currentProfile, user?.id, swipeMutation, profiles, displayProfiles.length]);
+  }, [currentProfile, user?.id, swipeMutation, profiles, displayProfiles.length, currentIndex]);
   
   // Handle super like - egyszerűsített verzió, mindig léptetjük az indexet
   const handleSuperLike = useCallback(async () => {
     if (!currentProfile) return;
+
+    // Swipe history-ba mentjük az előző profilt
+    setSwipeHistory(prev => [...prev, { profile: currentProfile, action: 'super_like', index: currentIndex }]);
 
     // Egyszerűen csak léptetjük az indexet (mock mód)
     setCurrentIndex(prev => (prev + 1) % displayProfiles.length);
@@ -136,7 +154,20 @@ const HomeScreen = ({ navigation }) => {
         console.log('Super like saved locally:', currentProfile.name);
       }
     }
-  }, [currentProfile, user?.id, superLikeMutation, profiles, displayProfiles.length]);
+  }, [currentProfile, user?.id, superLikeMutation, profiles, displayProfiles.length, currentIndex]);
+  
+  // Handle rewind
+  const handleRewind = useCallback(() => {
+    if (!canRewind || swipeHistory.length === 0) {
+      Alert.alert('Rewind nem elérhető', 'Prémium előfizetés szükséges vagy nincs előző swipe.');
+      return;
+    }
+
+    // Utolsó swipe-ot visszavonunk
+    const lastSwipe = swipeHistory[swipeHistory.length - 1];
+    setSwipeHistory(prev => prev.slice(0, -1));
+    setCurrentIndex(lastSwipe.index);
+  }, [canRewind, swipeHistory]);
   
   if (isLoading) {
     return (
@@ -181,6 +212,8 @@ const HomeScreen = ({ navigation }) => {
         onPass={() => handleSwipe('pass')}
         onLike={() => handleSwipe('like')}
         onSuperLike={handleSuperLike}
+        onRewind={handleRewind}
+        canRewind={canRewind && swipeHistory.length > 0}
         disabled={false}
       />
       
