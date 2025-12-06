@@ -22,12 +22,33 @@ jest.mock('./src/services/supabaseClient', () => ({
     from: jest.fn(() => ({
       select: jest.fn(() => ({
         eq: jest.fn(() => ({
-          single: jest.fn(() => ({
-            data: null,
-            error: null,
+          eq: jest.fn(() => ({
+            gt: jest.fn(() => ({
+              order: jest.fn(() => ({
+                limit: jest.fn(() => ({
+                  single: jest.fn(() => ({
+                    data: { tier: 'gold', expiry_date: new Date(Date.now() + 86400000).toISOString() },
+                    error: null
+                  })),
+                })),
+              })),
+            })),
+            single: jest.fn(() => ({
+              data: {
+                id: 'user123',
+                name: 'Test User',
+                email: 'test@example.com',
+                created_at: '2023-01-01T00:00:00Z'
+              },
+              error: null,
+            })),
           })),
         })),
         limit: jest.fn(() => ({
+          data: [],
+          error: null,
+        })),
+        order: jest.fn(() => ({
           data: [],
           error: null,
         })),
@@ -50,11 +71,18 @@ jest.mock('./src/services/supabaseClient', () => ({
           })),
         })),
       })),
+      upsert: jest.fn(() => ({
+        error: null,
+      })),
       delete: jest.fn(() => ({
         eq: jest.fn(() => ({
           data: null,
           error: null,
         })),
+      })),
+      rpc: jest.fn(() => ({
+        data: { allowed: true },
+        error: null,
       })),
     })),
     auth: {
@@ -62,6 +90,7 @@ jest.mock('./src/services/supabaseClient', () => ({
       signInWithPassword: jest.fn(() => Promise.resolve({ data: { user: { id: 'test-user' } }, error: null })),
       signOut: jest.fn(() => Promise.resolve({ error: null })),
       onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+      getUser: jest.fn(() => ({ data: { user: { id: 'user123' } }, error: null })),
     },
     channel: jest.fn(() => ({
       on: jest.fn(() => ({

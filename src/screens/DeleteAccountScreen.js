@@ -14,8 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import AccountService from '../services/AccountService';
 import DataDeletionService from '../services/DataDeletionService';
+import StorageService from '../services/StorageService';
 import Logger from '../services/Logger';
 
 const API_BASE_URL = __DEV__ 
@@ -24,6 +26,7 @@ const API_BASE_URL = __DEV__
 
 const DeleteAccountScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const theme = useTheme();
   const [password, setPassword] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);

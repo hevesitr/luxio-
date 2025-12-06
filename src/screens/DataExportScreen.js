@@ -14,7 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import AccountService from '../services/AccountService';
+import StorageService from '../services/StorageService';
 import Logger from '../services/Logger';
 
 const API_BASE_URL = __DEV__ 
@@ -23,10 +25,13 @@ const API_BASE_URL = __DEV__
 
 const DataExportScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [exportRequest, setExportRequest] = useState(null);
   const [recentExports, setRecentExports] = useState([]);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [exportedData, setExportedData] = useState(null);
+  const [exportDate, setExportDate] = useState(null);
 
   // Load existing export requests on mount
   useEffect(() => {

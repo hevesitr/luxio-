@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabaseClient';
+import Logger from './Logger';
 
 class PremiumService {
   constructor() {
@@ -76,8 +78,27 @@ class PremiumService {
     },
   };
 
-  async getUserTier() {
+  async getUserTier(userId = null) {
     try {
+      // ✅ P1-5: Server-side validáció - Supabase-ből kérdezzük le
+      if (userId) {
+        const { data, error } = await supabase
+          .from('premium_subscriptions')
+          .select('tier, expiry_date, is_active')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .gt('expiry_date', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!error && data) {
+          Logger.debug('Premium tier loaded from server', { userId, tier: data.tier });
+          return data.tier;
+        }
+      }
+
+      // Fallback to local storage
       const data = await AsyncStorage.getItem(this.STORAGE_KEY);
       if (data) {
         const { tier } = JSON.parse(data);
@@ -85,7 +106,7 @@ class PremiumService {
       }
       return this.TIERS.FREE;
     } catch (error) {
-      console.error('Error getting user tier:', error);
+      Logger.error('Error getting user tier:', error);
       return this.TIERS.FREE;
     }
   }
@@ -105,29 +126,88 @@ class PremiumService {
     }
   }
 
-  async getFeatures() {
-    const tier = await this.getUserTier();
+  async getFeatures(userId = null) {
+    const tier = await this.getUserTier(userId);
     return this.FEATURES[tier];
   }
 
-  async hasFeature(featureName) {
-    const features = await this.getFeatures();
+  async hasFeature(featureName, userId = null) {
+    const features = await this.getFeatures(userId);
     return features[featureName];
   }
 
-  async canSwipe(todaySwipes) {
-    const features = await this.getFeatures();
-    return todaySwipes < features.dailySwipes;
+  async canSwipe(userId, todaySwipes) {
+    try {
+      // ✅ P1-5: Server-side validáció
+      const serverCheck = await this.checkServerLimit(userId, 'swipe', todaySwipes);
+      if (serverCheck !== null) {
+        return serverCheck;
+      }
+
+      // Fallback to local validation
+      const features = await this.getFeatures(userId);
+      return todaySwipes < features.dailySwipes;
+    } catch (error) {
+      Logger.error('Error checking swipe limit:', error);
+      return false;
+    }
   }
 
-  async canSuperLike(todaySuperLikes) {
-    const features = await this.getFeatures();
-    return todaySuperLikes < features.superLikesPerDay;
+  async canSuperLike(userId, todaySuperLikes) {
+    try {
+      // ✅ P1-5: Server-side validáció
+      const serverCheck = await this.checkServerLimit(userId, 'superlike', todaySuperLikes);
+      if (serverCheck !== null) {
+        return serverCheck;
+      }
+
+      // Fallback to local validation
+      const features = await this.getFeatures(userId);
+      return todaySuperLikes < features.superLikesPerDay;
+    } catch (error) {
+      Logger.error('Error checking superlike limit:', error);
+      return false;
+    }
   }
 
-  async canBoost(thisMonthBoosts) {
-    const features = await this.getFeatures();
-    return thisMonthBoosts < features.boostsPerMonth;
+  async canBoost(userId, thisMonthBoosts) {
+    try {
+      // ✅ P1-5: Server-side validáció
+      const serverCheck = await this.checkServerLimit(userId, 'boost', thisMonthBoosts);
+      if (serverCheck !== null) {
+        return serverCheck;
+      }
+
+      // Fallback to local validation
+      const features = await this.getFeatures(userId);
+      return thisMonthBoosts < features.boostsPerMonth;
+    } catch (error) {
+      Logger.error('Error checking boost limit:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Server-side limit ellenőrzés
+   */
+  async checkServerLimit(userId, actionType, currentCount) {
+    try {
+      const { data, error } = await supabase.rpc('check_premium_limit', {
+        p_user_id: userId,
+        p_action_type: actionType,
+        p_current_count: currentCount
+      });
+
+      if (error) {
+        Logger.warn('Server limit check failed, using local validation', { error });
+        return null; // Fallback to local validation
+      }
+
+      return data.allowed;
+    } catch (error) {
+      Logger.warn('Server limit check exception, using local validation', error);
+      return null; // Fallback to local validation
+    }
   }
 
   // Get daily swipe count

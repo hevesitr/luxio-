@@ -7,6 +7,7 @@ import Logger from './Logger';
 import BaseService from './BaseService';
 import PasswordService from './PasswordService';
 import SessionService from './SessionService';
+import RateLimitService from './RateLimitService';
 import * as SecureStore from 'expo-secure-store';
 
 class AuthService extends BaseService {
@@ -157,12 +158,34 @@ class AuthService extends BaseService {
    */
   async signIn(email, password) {
     try {
+      // ✅ P1-1: Rate limiting ellenőrzés - Brute force védelem
+      const rateLimitCheck = await RateLimitService.checkLoginAttempts(email);
+      if (!rateLimitCheck.allowed) {
+        Logger.warn('Login blocked by rate limiting', {
+          email,
+          reason: rateLimitCheck.reason,
+          blockDuration: rateLimitCheck.blockDuration
+        });
+        return {
+          success: false,
+          error: `Túl sok sikertelen bejelentkezési kísérlet. Próbálja újra ${rateLimitCheck.remainingTime} perc múlva.`,
+          code: 'RATE_LIMIT_EXCEEDED'
+        };
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // ✅ P1-1: Sikertelen kísérlet rögzítése
+        await RateLimitService.recordFailedLogin(email);
+        throw error;
+      }
+
+      // ✅ P1-1: Sikeres bejelentkezés - számláló visszaállítása
+      await RateLimitService.recordSuccessfulLogin(email);
 
       Logger.success('User signed in', { email });
 

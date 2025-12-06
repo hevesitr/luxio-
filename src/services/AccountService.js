@@ -523,6 +523,224 @@ class AccountService {
    * Fiók statisztikák lekérése
    * @param {string} userId - Felhasználó ID
    */
+  /**
+   * GDPR: Adatok exportálása géppel olvasható formátumban
+   * @param {string} userId - Felhasználó ID
+   */
+  async exportUserData(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      Logger.info('Exporting user data for GDPR compliance', { userId });
+
+      const allData = await this.gatherAllUserData(userId);
+
+      // GDPR kötelező mezők hozzáadása
+      const gdprExport = {
+        ...allData,
+        gdpr: {
+          exportDate: new Date().toISOString(),
+          controller: 'LoveX Dating App',
+          processingPurpose: 'Dating service and user matching',
+          legalBasis: 'Consent and legitimate interest',
+          retentionPeriod: 'Account active + 30 days after deletion',
+          recipientCategories: ['Supabase hosting provider', 'User requested third parties'],
+          dataSubjectRights: {
+            access: true,
+            rectification: true,
+            erasure: true,
+            restriction: true,
+            portability: true,
+            objection: true,
+          },
+        },
+      };
+
+      Logger.success('User data exported successfully', { userId, dataPoints: Object.keys(allData).length });
+      return gdprExport;
+    }, { operation: 'exportUserData', userId });
+  }
+
+  /**
+   * GDPR: Adatvédelmi beállítások frissítése
+   * @param {string} userId - Felhasználó ID
+   * @param {object} settings - Adatvédelmi beállítások
+   */
+  async updatePrivacySettings(userId, settings) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('privacy_settings')
+        .upsert({
+          user_id: userId,
+          analytics_consent: settings.analytics ?? false,
+          marketing_consent: settings.marketing ?? false,
+          necessary_cookies: settings.necessary ?? true,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      Logger.success('Privacy settings updated', { userId, settings });
+      return { success: true };
+    }, { operation: 'updatePrivacySettings', userId });
+  }
+
+  /**
+   * GDPR: Adatvédelmi beállítások lekérése
+   * @param {string} userId - Felhasználó ID
+   */
+  async getPrivacySettings(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { data, error } = await supabase
+        .from('privacy_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      const settings = data || {
+        analytics_consent: false,
+        marketing_consent: false,
+        necessary_cookies: true,
+      };
+
+      return settings;
+    }, { operation: 'getPrivacySettings', userId });
+  }
+
+  /**
+   * GDPR: Hozzájárulás visszavonása
+   * @param {string} userId - Felhasználó ID
+   * @param {array} consentTypes - Visszavonandó hozzájárulások típusai
+   */
+  async withdrawConsent(userId, consentTypes) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const updates = {};
+      consentTypes.forEach(type => {
+        if (type === 'marketing') updates.marketing_consent = false;
+        if (type === 'analytics') updates.analytics_consent = false;
+      });
+
+      const { error } = await supabase
+        .from('privacy_settings')
+        .update({
+          ...updates,
+          consent_withdrawn_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      Logger.success('Consent withdrawn', { userId, consentTypes });
+      return { success: true };
+    }, { operation: 'withdrawConsent', userId });
+  }
+
+  /**
+   * GDPR: Azonnali adattörlési jog gyakorlása
+   * @param {string} userId - Felhasználó ID
+   */
+  async requestRightToErasure(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      Logger.info('Right to erasure requested', { userId });
+
+      // Azonnali törlés ütemezése (nem grace period)
+      const deletionDate = new Date();
+      deletionDate.setMinutes(deletionDate.getMinutes() + 5); // 5 perc teszteléshez
+
+      const { data, error } = await supabase
+        .from('account_deletion_requests')
+        .insert({
+          user_id: userId,
+          reason: 'GDPR Right to Erasure - Immediate deletion',
+          scheduled_deletion_date: deletionDate.toISOString(),
+          status: 'pending',
+          is_gdpr_erasure: true,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      Logger.success('Right to erasure request created', { userId, requestId: data.id });
+      return {
+        success: true,
+        requestId: data.id,
+        scheduledDeletionDate: deletionDate.toISOString(),
+        gracePeriodDays: 0, // Azonnali törlés
+      };
+    }, { operation: 'requestRightToErasure', userId });
+  }
+
+  /**
+   * GDPR: Adattörlés visszavonása
+   * @param {string} userId - Felhasználó ID
+   */
+  async cancelDataDeletion(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      const { error } = await supabase
+        .from('account_deletion_requests')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      Logger.success('Data deletion cancelled', { userId });
+      return { success: true };
+    }, { operation: 'cancelDataDeletion', userId });
+  }
+
+  /**
+   * GDPR: Felhasználói adatok lekérése (nem export)
+   * @param {string} userId - Felhasználó ID
+   */
+  async getUserData(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Csak alapvető, nem érzékeny adatok
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, age, bio, interests, created_at, updated_at')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      return data;
+    }, { operation: 'getUserData', userId });
+  }
+
+  /**
+   * GDPR: Anonimizált analytics adatok
+   * @param {string} userId - Felhasználó ID
+   */
+  async getAnalyticsData(userId) {
+    return ErrorHandler.wrapServiceCall(async () => {
+      // Anonimizált adatok csak aggregált statisztikákkal
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .select('event_type, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Anonimizálás
+      const anonymizedData = {
+        anonymizedId: btoa(userId).substring(0, 8), // Csak első 8 karakter
+        eventCount: data?.length || 0,
+        lastActivity: data?.[0]?.created_at || null,
+        eventTypes: [...new Set(data?.map(e => e.event_type) || [])],
+      };
+
+      return anonymizedData;
+    }, { operation: 'getAnalyticsData', userId });
+  }
+
   async getAccountStatistics(userId) {
     try {
       const [

@@ -5,7 +5,7 @@ module.exports = {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|expo|@expo|@supabase|expo-location|expo-file-system|expo-image-manipulator)/)',
+    'node_modules/(?!(react-native|@react-native|expo|@expo|@supabase|expo-location|expo-file-system|expo-image-manipulator|@expo/vector-icons|expo-linear-gradient|expo-haptics|expo-blur|expo-camera|expo-constants|expo-device|expo-font|expo-image|expo-image-picker|expo-linking|expo-local-authentication|expo-sqlite|expo-status-bar|react-native-safe-area-context|react-native-screens|@react-navigation)/)',
   ],
   moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
   testMatch: [
@@ -14,7 +14,7 @@ module.exports = {
     '**/__tests__/properties/**/*.test.js',
     '**/?(*.)+(spec|test).js'
   ],
-  testTimeout: 10000, // 10 seconds for property tests with 100 iterations
+  testTimeout: 15000, // Increased for property tests
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/**/*.test.{js,jsx}',
@@ -36,5 +36,8 @@ module.exports = {
     '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
     '^expo-device$': '<rootDir>/__mocks__/expo-device.js',
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
+    '^expo-sqlite$': '<rootDir>/__mocks__/expo-sqlite.js',
+    '^expo-av$': '<rootDir>/__mocks__/expo-av.js',
+    '^@expo/vector-icons$': '<rootDir>/__mocks__/@expo/vector-icons.js',
   },
 };

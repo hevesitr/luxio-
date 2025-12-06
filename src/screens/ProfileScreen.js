@@ -321,7 +321,7 @@ const ProfileScreen = ({ navigation }) => {
           transition={200}
           // ✅ PERFORMANCE: Image optimalizálás
           priority="high" // Fő profil kép - magas prioritás
-          placeholder={Image.resolveAssetSource(require('../assets/icon.png')).uri} // App icon placeholder
+          placeholder="Loading..." // Text placeholder
           placeholderContentFit="cover"
           cachePolicy="memory-disk" // Cache stratégia
           recyclingKey={`profile-main-${userProfile.id}`} // Recycling optimalizálás
@@ -400,7 +400,7 @@ const ProfileScreen = ({ navigation }) => {
                     transition={200}
                     // ✅ PERFORMANCE: Gallery képek optimalizálása
                     priority="normal" // Gallery képek - normál prioritás
-                    placeholder={Image.resolveAssetSource(require('../assets/icon.png')).uri}
+                    placeholder="Loading..."
                     placeholderContentFit="cover"
                     cachePolicy="memory-disk"
                     recyclingKey={`profile-gallery-${photoKey}-${index}`}

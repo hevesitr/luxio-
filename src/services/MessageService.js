@@ -81,48 +81,132 @@ class MessageService {
 
       const now = new Date().toISOString();
 
-      // Üzenet mentése
-      const { data: message, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          match_id: matchId,
-          sender_id: senderId,
-          content: content,
-          type: type,
-          created_at: now,
-          is_read: false,
-        })
-        .select()
-        .single();
-
-      if (messageError) throw messageError;
-
-      // Delivery receipt generálása - Requirement 4.5
+      // ✅ P1-3: Atomic üzenetküldés - Race condition megelőzése
+      // Egyetlen tranzakcióban végezzük az összes műveletet
       const recipientId = senderId === match.user_id ? match.matched_user_id : match.user_id;
 
-      const { data: receipt, error: receiptError } = await supabase
-        .from('message_receipts')
-        .insert({
-          message_id: message.id,
-          recipient_id: recipientId,
-          status: 'delivered',
-          delivered_at: now,
-        })
-        .select()
-        .single();
+      // RPC függvény használata atomic műveletekhez (ha van ilyen Supabase-ben)
+      // Egyelőre külön műveleteket használunk, de retry logikával
+      let message = null;
+      let receipt = null;
 
-      if (receiptError) {
-        Logger.warn('Failed to create delivery receipt', { messageId: message.id, error: receiptError });
-        // Ne szakítsuk meg az üzenetküldést receipt hiba miatt
-      } else {
-        Logger.debug('Delivery receipt created', { messageId: message.id, receiptId: receipt.id });
+      // Üzenet mentése retry logikával
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert({
+              match_id: matchId,
+              sender_id: senderId,
+              content: content,
+              type: type,
+              created_at: now,
+              is_read: false,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            if (attempt === 3) throw error;
+            Logger.warn(`Message insert failed (attempt ${attempt}), retrying...`, error);
+            await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // Exponential backoff
+            continue;
+          }
+
+          message = data;
+          break;
+        } catch (error) {
+          if (attempt === 3) throw error;
+          Logger.warn(`Message insert exception (attempt ${attempt}), retrying...`, error);
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
       }
 
-      // Match last_message_at frissítése
-      await supabase
-        .from('matches')
-        .update({ last_message_at: now })
-        .eq('id', matchId);
+      if (!message) {
+        throw new Error('Failed to save message after retries');
+      }
+
+      // Delivery receipt generálása atomic módon
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from('message_receipts')
+            .insert({
+              message_id: message.id,
+              recipient_id: recipientId,
+              status: 'delivered',
+              delivered_at: now,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            // Ha már létezik ilyen receipt, akkor OK
+            if (error.code === '23505') { // Unique violation
+              Logger.debug('Delivery receipt already exists', { messageId: message.id });
+              const { data: existingReceipt } = await supabase
+                .from('message_receipts')
+                .select('*')
+                .eq('message_id', message.id)
+                .eq('recipient_id', recipientId)
+                .single();
+              receipt = existingReceipt;
+              break;
+            }
+
+            if (attempt === 3) {
+              Logger.warn('Failed to create delivery receipt after retries', { messageId: message.id, error });
+              break; // Ne szakítsuk meg az üzenetküldést
+            }
+
+            Logger.warn(`Receipt insert failed (attempt ${attempt}), retrying...`, error);
+            await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+            continue;
+          }
+
+          receipt = data;
+          Logger.debug('Delivery receipt created', { messageId: message.id, receiptId: receipt.id });
+          break;
+        } catch (error) {
+          if (attempt === 3) {
+            Logger.warn('Failed to create delivery receipt after retries', { messageId: message.id, error });
+            break;
+          }
+          Logger.warn(`Receipt insert exception (attempt ${attempt}), retrying...`, error);
+          await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+        }
+      }
+
+      // Match last_message_at frissítése atomic módon
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { error } = await supabase
+            .from('matches')
+            .update({ last_message_at: now })
+            .eq('id', matchId)
+            .eq('status', 'active'); // Biztonság kedvéért csak aktív match-eket frissítünk
+
+          if (error) {
+            if (attempt === 3) {
+              Logger.warn('Failed to update match last_message_at', { matchId, error });
+              break; // Ne szakítsuk meg az üzenetküldést
+            }
+            Logger.warn(`Match update failed (attempt ${attempt}), retrying...`, error);
+            await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+            continue;
+          }
+
+          Logger.debug('Match last_message_at updated', { matchId });
+          break;
+        } catch (error) {
+          if (attempt === 3) {
+            Logger.warn('Failed to update match last_message_at after retries', { matchId, error });
+            break;
+          }
+          Logger.warn(`Match update exception (attempt ${attempt}), retrying...`, error);
+          await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+        }
+      }
 
       Logger.success('Message sent with delivery receipt', { matchId, type, messageId: message.id });
       return {

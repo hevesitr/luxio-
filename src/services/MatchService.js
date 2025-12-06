@@ -5,6 +5,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BaseService from './BaseService';
 import PushNotificationService from './PushNotificationService';
+import RateLimitService from './RateLimitService';
 import Logger from './Logger';
 
 class MatchService extends BaseService {
@@ -287,6 +288,21 @@ class MatchService extends BaseService {
    */
   async processSwipe(userId, targetUserId, action, userPreferences = {}) {
     try {
+      // ✅ P1-1: Swipe rate limiting ellenőrzés
+      const rateLimitCheck = await RateLimitService.checkSwipeAction(userId);
+      if (!rateLimitCheck.allowed) {
+        Logger.warn('Swipe blocked by rate limiting', {
+          userId,
+          action,
+          remaining: rateLimitCheck.remaining
+        });
+        return {
+          success: false,
+          error: `Túl sok swipe művelet. Várjon egy kicsit.`,
+          code: 'RATE_LIMIT_EXCEEDED'
+        };
+      }
+
       // Validáció
       this.validateSwipeData({ userId, targetUserId, action });
 
