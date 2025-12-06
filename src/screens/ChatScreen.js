@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,127 @@ import MessagingService from '../services/MessagingService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { currentUser } from '../data/userProfile';
+
+// ✅ PERFORMANCE: Memoizált MessageItem komponens
+const MessageItem = memo(({ item, match, theme, formatTime }) => (
+  <View
+    style={[
+      styles.messageContainer,
+      item.sender === 'me' ? styles.myMessage : styles.theirMessage,
+    ]}
+  >
+    {item.sender === 'them' && (
+      <Image source={{ uri: match.photo }} style={styles.avatar} />
+    )}
+    {item.type === 'voice' ? (
+      <View style={styles.voiceMessageContainer}>
+        <VoiceMessage
+          duration={item.duration}
+          isOwn={item.sender === 'me'}
+        />
+        <View style={styles.messageFooter}>
+          <Text
+            style={[
+              styles.timestamp,
+              item.sender === 'me' ? styles.myTimestamp : styles.theirTimestamp,
+            ]}
+          >
+            {formatTime(item.timestamp)}
+          </Text>
+          {item.sender === 'me' && item.readStatus && (
+            <Ionicons
+              name={
+                item.readStatus === 'read'
+                  ? 'checkmark-done'
+                  : item.readStatus === 'delivered'
+                  ? 'checkmark-done-outline'
+                  : 'checkmark-outline'
+              }
+              size={14}
+              color={
+                item.readStatus === 'read'
+                  ? theme.colors.primary
+                  : theme.colors.textSecondary
+              }
+              style={styles.readIcon}
+            />
+          )}
+        </View>
+      </View>
+    ) : item.type === 'video' ? (
+      <View style={styles.videoMessageContainer}>
+        <VideoMessage
+          videoUri={item.videoUri}
+          thumbnailUri={item.thumbnailUri}
+          duration={item.duration}
+          isOwn={item.sender === 'me'}
+        />
+        <View style={styles.messageFooter}>
+          <Text
+            style={[
+              styles.timestamp,
+              item.sender === 'me' ? styles.myTimestamp : styles.theirTimestamp,
+            ]}
+          >
+            {formatTime(item.timestamp)}
+          </Text>
+          {item.sender === 'me' && item.readStatus && (
+            <Ionicons
+              name={
+                item.readStatus === 'read'
+                  ? 'checkmark-done'
+                  : item.readStatus === 'delivered'
+                  ? 'checkmark-done-outline'
+                  : 'checkmark-outline'
+              }
+              size={14}
+              color={
+                item.readStatus === 'read'
+                  ? theme.colors.primary
+                  : theme.colors.textSecondary
+              }
+              style={styles.readIcon}
+            />
+          )}
+        </View>
+      </View>
+    ) : (
+      <View style={[styles.messageBubble, item.sender === 'me' ? styles.myBubble : styles.theirBubble]}>
+        <Text style={[styles.messageText, item.sender === 'me' ? styles.myMessageText : styles.theirMessageText]}>
+          {item.text}
+        </Text>
+        <View style={styles.messageFooter}>
+          <Text
+            style={[
+              styles.timestamp,
+              item.sender === 'me' ? styles.myTimestamp : styles.theirTimestamp,
+            ]}
+          >
+            {formatTime(item.timestamp)}
+          </Text>
+          {item.sender === 'me' && item.readStatus && (
+            <Ionicons
+              name={
+                item.readStatus === 'read'
+                  ? 'checkmark-done'
+                  : item.readStatus === 'delivered'
+                  ? 'checkmark-done-outline'
+                  : 'checkmark-outline'
+              }
+              size={14}
+              color={
+                item.readStatus === 'read'
+                  ? theme.colors.primary
+                  : theme.colors.textSecondary
+              }
+              style={styles.readIcon}
+            />
+          )}
+        </View>
+      </View>
+    )}
+  </View>
+));
 
 const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
   const { theme } = useTheme();
@@ -312,135 +433,15 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     return `${hours}:${minutes}`;
   };
 
-  const renderMessage = ({ item }) => (
-    <View
-      style={[
-        styles.messageContainer,
-        item.sender === 'me' ? styles.myMessage : styles.theirMessage,
-      ]}
-    >
-      {item.sender === 'them' && (
-        <Image source={{ uri: match.photo }} style={styles.avatar} />
-      )}
-      {item.type === 'voice' ? (
-        <View style={styles.voiceMessageContainer}>
-          <VoiceMessage 
-            duration={item.duration} 
-            isOwn={item.sender === 'me'}
-          />
-          <View style={styles.messageFooter}>
-            <Text
-              style={[
-                styles.timestamp,
-                item.sender === 'me' ? styles.myTimestamp : styles.theirTimestamp,
-              ]}
-            >
-              {formatTime(item.timestamp)}
-            </Text>
-            {item.sender === 'me' && item.readStatus && (
-              <Ionicons
-                name={
-                  item.readStatus === 'read'
-                    ? 'checkmark-done'
-                    : item.readStatus === 'delivered'
-                    ? 'checkmark-done-outline'
-                    : 'checkmark-outline'
-                }
-                size={14}
-                color={
-                  item.readStatus === 'read'
-                    ? theme.colors.primary
-                    : theme.colors.textSecondary
-                }
-                style={styles.readIcon}
-              />
-            )}
-          </View>
-        </View>
-      ) : item.type === 'video' ? (
-        <View style={styles.videoMessageContainer}>
-          <VideoMessage
-            videoUri={item.videoUri}
-            thumbnailUri={item.thumbnailUri}
-            duration={item.duration}
-            isOwn={item.sender === 'me'}
-          />
-          <View style={styles.messageFooter}>
-            <Text
-              style={[
-                styles.timestamp,
-                item.sender === 'me' ? styles.myTimestamp : styles.theirTimestamp,
-              ]}
-            >
-              {formatTime(item.timestamp)}
-            </Text>
-            {item.sender === 'me' && item.readStatus && (
-              <Ionicons
-                name={
-                  item.readStatus === 'read'
-                    ? 'checkmark-done'
-                    : item.readStatus === 'delivered'
-                    ? 'checkmark-done-outline'
-                    : 'checkmark-outline'
-                }
-                size={14}
-                color={
-                  item.readStatus === 'read'
-                    ? theme.colors.primary
-                    : theme.colors.textSecondary
-                }
-                style={styles.readIcon}
-              />
-            )}
-          </View>
-        </View>
-      ) : (
-        <View
-          style={[
-            styles.messageBubble,
-            item.sender === 'me' ? styles.myBubble : styles.theirBubble,
-          ]}
-        >
-          <Text
-            style={[
-              styles.messageText,
-              item.sender === 'me' ? styles.myMessageText : styles.theirMessageText,
-            ]}
-          >
-            {typeof item.text === 'string' ? item.text : String(item.text || '')}
-          </Text>
-          <View style={styles.messageFooter}>
-            <Text
-              style={[
-                styles.timestamp,
-                item.sender === 'me' ? styles.myTimestamp : styles.theirTimestamp,
-              ]}
-            >
-              {formatTime(item.timestamp)}
-            </Text>
-            {item.sender === 'me' && item.readStatus && (
-              <Ionicons
-                name={
-                  item.readStatus === 'read'
-                    ? 'checkmark-done'
-                    : item.readStatus === 'delivered'
-                    ? 'checkmark-done-outline'
-                    : 'checkmark-outline'
-                }
-                size={14}
-                color={
-                  item.readStatus === 'read'
-                    ? theme.colors.primary
-                    : theme.colors.textSecondary
-                }
-                style={styles.readIcon}
-              />
-            )}
-          </View>
-        </View>
-      )}
-    </View>
-  );
+  // ✅ PERFORMANCE: Memoizált renderMessage callback
+  const renderMessage = useCallback(({ item }) => (
+    <MessageItem
+      item={item}
+      match={match}
+      theme={theme}
+      formatTime={formatTime}
+    />
+  ), [match, theme, formatTime]);
 
   const styles = createStyles(theme);
 
@@ -474,9 +475,20 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
       <FlatList
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item, index) => (item && item.id ? String(item.id) : `message-${index}`)}
+        keyExtractor={useCallback((item, index) =>
+          item && item.id ? String(item.id) : `message-${index}`, [])}
         contentContainerStyle={styles.messagesContainer}
         inverted={false}
+        // ✅ PERFORMANCE: Optimalizált FlatList paraméterek
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
+        getItemLayout={useCallback((data, index) => ({
+          length: 80, // Átlagos üzenet magasság
+          offset: 80 * index,
+          index,
+        }), [])}
         ListFooterComponent={
           isTyping ? (
             <View style={[styles.messageContainer, styles.theirMessage]}>

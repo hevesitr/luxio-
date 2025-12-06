@@ -2,7 +2,7 @@
  * NotificationContext - Értesítések state management
  * Implements Requirement 3.4
  */
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import MessageService from '../services/MessageService';
 import { supabase } from '../services/supabaseClient';
@@ -379,17 +379,36 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  // ✅ PERFORMANCE: Memoizált függvények
+  const loadNotificationsMemo = useCallback(loadNotifications, [user?.id]);
+  const markAsReadMemo = useCallback(markAsRead, [user?.id]);
+  const markAllAsReadMemo = useCallback(markAllAsRead, [user?.id]);
+  const deleteNotificationMemo = useCallback(deleteNotification, [user?.id]);
+  const clearAllNotificationsMemo = useCallback(clearAllNotifications, [user?.id]);
+  const sendNotificationMemo = useCallback(sendNotification, [user?.id]);
+
+  // ✅ PERFORMANCE: Memoizált value object
+  const value = useMemo(() => ({
     unreadCount,
     notifications,
     loading,
-    loadNotifications,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    clearAllNotifications,
-    sendNotification,
-  };
+    loadNotifications: loadNotificationsMemo,
+    markAsRead: markAsReadMemo,
+    markAllAsRead: markAllAsReadMemo,
+    deleteNotification: deleteNotificationMemo,
+    clearAllNotifications: clearAllNotificationsMemo,
+    sendNotification: sendNotificationMemo,
+  }), [
+    unreadCount,
+    notifications,
+    loading,
+    loadNotificationsMemo,
+    markAsReadMemo,
+    markAllAsReadMemo,
+    deleteNotificationMemo,
+    clearAllNotificationsMemo,
+    sendNotificationMemo,
+  ]);
 
   return (
     <NotificationContext.Provider value={value}>

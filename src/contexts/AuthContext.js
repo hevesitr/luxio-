@@ -2,7 +2,7 @@
  * AuthContext - Autentikációs state management
  * Implements Requirement 3.4
  */
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import AuthService from '../services/AuthService';
 import AnalyticsService from '../services/AnalyticsService';
 import Logger from '../services/Logger';
@@ -196,18 +196,38 @@ export const AuthProvider = ({ children }) => {
     return result;
   };
 
-  const value = {
+  // ✅ PERFORMANCE: Memoizált függvények - megakadályozzák unnecessary re-render-eket
+  const signInMemo = useCallback(signIn, []);
+  const signUpMemo = useCallback(signUp, []);
+  const signOutMemo = useCallback(signOut, []);
+  const resetPasswordMemo = useCallback(resetPassword, []);
+  const updatePasswordMemo = useCallback(updatePassword, []);
+  const refreshSessionMemo = useCallback(refreshSession, []);
+
+  // ✅ PERFORMANCE: Memoizált value object - csak akkor változik, ha a dependencies változnak
+  const value = useMemo(() => ({
     user,
     session,
     loading,
     isAuthenticated,
-    signIn,
-    signUp,
-    signOut,
-    resetPassword,
-    updatePassword,
-    refreshSession,
-  };
+    signIn: signInMemo,
+    signUp: signUpMemo,
+    signOut: signOutMemo,
+    resetPassword: resetPasswordMemo,
+    updatePassword: updatePasswordMemo,
+    refreshSession: refreshSessionMemo,
+  }), [
+    user,
+    session,
+    loading,
+    isAuthenticated,
+    signInMemo,
+    signUpMemo,
+    signOutMemo,
+    resetPasswordMemo,
+    updatePasswordMemo,
+    refreshSessionMemo,
+  ]);
 
   return (
     <AuthContext.Provider value={value}>

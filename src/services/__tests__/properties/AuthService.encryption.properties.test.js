@@ -112,7 +112,7 @@ describe('Password Encryption Properties', () => {
               }
             });
 
-        const result = await AuthService.signUp({
+        const result2 = await AuthService.signUp({
           email: 'test@example.com',
           password: password,
           profileData: {

@@ -2,7 +2,7 @@
  * PreferencesContext - Felhasználói beállítások state management
  * Implements Requirement 3.4
  */
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import SupabaseMatchService from '../services/SupabaseMatchService';
@@ -217,10 +217,19 @@ export const PreferencesProvider = ({ children }) => {
     }
   };
 
+  // ✅ PERFORMANCE: Memoizált függvények
+  const savePreferencesMemo = useCallback(savePreferences, [user?.id]);
+  const updateDiscoveryFiltersMemo = useCallback(updateDiscoveryFilters, [user?.id]);
+  const updateNotificationSettingsMemo = useCallback(updateNotificationSettings, [user?.id]);
+  const updatePrivacySettingsMemo = useCallback(updatePrivacySettings, [user?.id]);
+  const toggleThemeMemo = useCallback(toggleTheme, [user?.id]);
+  const changeLanguageMemo = useCallback(changeLanguage, [user?.id]);
+  const resetPreferencesMemo = useCallback(resetPreferences, [user?.id]);
+
   /**
    * Discovery filters lekérése
    */
-  const getDiscoveryFilters = () => {
+  const getDiscoveryFilters = useCallback(() => {
     return {
       minAge: preferences.ageMin,
       maxAge: preferences.ageMax,
@@ -228,20 +237,32 @@ export const PreferencesProvider = ({ children }) => {
       gender: preferences.genderPreference,
       relationshipGoal: preferences.relationshipGoal,
     };
-  };
+  }, [preferences.ageMin, preferences.ageMax, preferences.distanceMax, preferences.genderPreference, preferences.relationshipGoal]);
 
-  const value = {
+  // ✅ PERFORMANCE: Memoizált value object - megakadályozza unnecessary re-render-eket
+  const value = useMemo(() => ({
     preferences,
     loading,
-    savePreferences,
-    updateDiscoveryFilters,
-    updateNotificationSettings,
-    updatePrivacySettings,
-    toggleTheme,
-    changeLanguage,
-    resetPreferences,
+    savePreferences: savePreferencesMemo,
+    updateDiscoveryFilters: updateDiscoveryFiltersMemo,
+    updateNotificationSettings: updateNotificationSettingsMemo,
+    updatePrivacySettings: updatePrivacySettingsMemo,
+    toggleTheme: toggleThemeMemo,
+    changeLanguage: changeLanguageMemo,
+    resetPreferences: resetPreferencesMemo,
     getDiscoveryFilters,
-  };
+  }), [
+    preferences,
+    loading,
+    savePreferencesMemo,
+    updateDiscoveryFiltersMemo,
+    updateNotificationSettingsMemo,
+    updatePrivacySettingsMemo,
+    toggleThemeMemo,
+    changeLanguageMemo,
+    resetPreferencesMemo,
+    getDiscoveryFilters,
+  ]);
 
   return (
     <PreferencesContext.Provider value={value}>

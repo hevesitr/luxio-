@@ -267,7 +267,6 @@ const ProfileScreen = ({ navigation }) => {
         },
       ]
     );
-  }, [profile?.id, userProfile.photos]); // ✅ Add missing useCallback dependency array
 
   const mainOptions = [
     { icon: 'rocket-outline', title: 'Boost', subtitle: 'Profil kiemelés 30 percre', color: '#FF3B75', screen: 'Boost' },

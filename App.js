@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,29 +6,37 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Import screens
-import HomeScreen from './src/screens/HomeScreen';
-import MatchesScreen from './src/screens/MatchesScreen';
-import ChatScreen from './src/screens/ChatScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
-import PremiumScreen from './src/screens/PremiumScreen';
-import BoostScreen from './src/screens/BoostScreen';
-import SearchScreen from './src/screens/SearchScreen';
-import LikesYouScreen from './src/screens/LikesYouScreen';
-import TopPicksScreen from './src/screens/TopPicksScreen';
-import PassportScreen from './src/screens/PassportScreen';
-import VerificationScreen from './src/screens/VerificationScreen';
-import AnalyticsScreen from './src/screens/AnalyticsScreen';
-import GamificationScreen from './src/screens/GamificationScreen';
-import SafetyScreen from './src/screens/SafetyScreen';
-import SocialMediaScreen from './src/screens/SocialMediaScreen';
-import EditProfileModal from './src/components/EditProfileModal'; // Modal, nem screen
-import ProfileDetailScreen from './src/screens/ProfileDetailScreen';
-import GiftsScreen from './src/screens/GiftsScreen';
-import LookalikesScreen from './src/screens/LookalikesScreen';
-import EmailVerificationSuccessScreen from './src/screens/EmailVerificationSuccessScreen';
-import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
+// ✅ PERFORMANCE: Lazy loading screens - csak akkor töltődnek be, amikor szükséges
+const HomeScreen = lazy(() => import('./src/screens/HomeScreen'));
+const MatchesScreen = lazy(() => import('./src/screens/MatchesScreen'));
+const ChatScreen = lazy(() => import('./src/screens/ChatScreen'));
+const ProfileScreen = lazy(() => import('./src/screens/ProfileScreen'));
+const SettingsScreen = lazy(() => import('./src/screens/SettingsScreen'));
+const PremiumScreen = lazy(() => import('./src/screens/PremiumScreen'));
+const BoostScreen = lazy(() => import('./src/screens/BoostScreen'));
+const SearchScreen = lazy(() => import('./src/screens/SearchScreen'));
+const LikesYouScreen = lazy(() => import('./src/screens/LikesYouScreen'));
+const TopPicksScreen = lazy(() => import('./src/screens/TopPicksScreen'));
+const PassportScreen = lazy(() => import('./src/screens/PassportScreen'));
+const VerificationScreen = lazy(() => import('./src/screens/VerificationScreen'));
+const AnalyticsScreen = lazy(() => import('./src/screens/AnalyticsScreen'));
+const GamificationScreen = lazy(() => import('./src/screens/GamificationScreen'));
+const SafetyScreen = lazy(() => import('./src/screens/SafetyScreen'));
+const SocialMediaScreen = lazy(() => import('./src/screens/SocialMediaScreen'));
+const EditProfileModal = lazy(() => import('./src/components/EditProfileModal')); // Modal, nem screen
+const ProfileDetailScreen = lazy(() => import('./src/screens/ProfileDetailScreen'));
+const GiftsScreen = lazy(() => import('./src/screens/GiftsScreen'));
+const LookalikesScreen = lazy(() => import('./src/screens/LookalikesScreen'));
+const EmailVerificationSuccessScreen = lazy(() => import('./src/screens/EmailVerificationSuccessScreen'));
+const BlockedUsersScreen = lazy(() => import('./src/screens/BlockedUsersScreen'));
+
+// Loading component for lazy loading
+const ScreenLoader = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <ActivityIndicator size="large" color="#FF3B75" />
+    <Text style={{ marginTop: 10, color: '#666' }}>Képernyő betöltése...</Text>
+  </View>
+);
 
 // Import services
 import AuthService from './src/services/AuthService';
@@ -44,28 +52,29 @@ import { NotificationProvider } from './src/contexts/NotificationContext';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Simple Stack Navigator (like the simple version)
+// ✅ PERFORMANCE: Lazy loaded Simple Stack Navigator
 function SimpleStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Home" component={HomeScreen} />
-      <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
-      <Stack.Screen name="EmailVerificationSuccess" component={EmailVerificationSuccessScreen} />
-      <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
-      <Stack.Screen name="Matches" component={MatchesScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Search" component={SearchScreen} />
-      <Stack.Screen name="TopPicks" component={TopPicksScreen} />
-      <Stack.Screen name="Passport" component={PassportScreen} />
-      <Stack.Screen name="Boost" component={BoostScreen} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="Premium" component={PremiumScreen} />
-      <Stack.Screen name="Verification" component={VerificationScreen} />
-      <Stack.Screen name="Analytics" component={AnalyticsScreen} />
-      <Stack.Screen name="Gamification" component={GamificationScreen} />
-      <Stack.Screen name="Safety" component={SafetyScreen} />
-      <Stack.Screen name="SocialMedia" component={SocialMediaScreen} />
+    <Suspense fallback={<ScreenLoader />}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
+        <Stack.Screen name="EmailVerificationSuccess" component={EmailVerificationSuccessScreen} />
+        <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+        <Stack.Screen name="Matches" component={MatchesScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="TopPicks" component={TopPicksScreen} />
+        <Stack.Screen name="Passport" component={PassportScreen} />
+        <Stack.Screen name="Boost" component={BoostScreen} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Premium" component={PremiumScreen} />
+        <Stack.Screen name="Verification" component={VerificationScreen} />
+        <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+        <Stack.Screen name="Gamification" component={GamificationScreen} />
+        <Stack.Screen name="Safety" component={SafetyScreen} />
+        <Stack.Screen name="SocialMedia" component={SocialMediaScreen} />
       <Stack.Screen name="Gifts" component={GiftsScreen} />
       <Stack.Screen name="Lookalikes" component={LookalikesScreen} />
       <Stack.Screen name="LikesYou" component={LikesYouScreen} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import {
   View,
@@ -273,7 +273,8 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
     );
   };
 
-  const renderMatch = ({ item }) => {
+  // ✅ PERFORMANCE: Memoizált render függvény re-render csökkentéshez
+  const renderMatch = useCallback(({ item }) => {
     const lastMessage = lastMessages[item.id];
     const previewText = lastMessage?.text || 'Kezdj el beszélgetni...';
     const previewTime = formatLastMessageTime(lastMessage?.timestamp || item.matchedAt);
@@ -329,7 +330,7 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
         </View>
       </View>
     );
-  };
+  }, [theme, lastMessages, showOnMap]); // Dependencies for useCallback
 
   const styles = createStyles(theme);
 
@@ -372,6 +373,17 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
             renderItem={renderMatch}
             keyExtractor={(item, index) => `match-${item.id}-${item.matchedAt || index}`}
             contentContainerStyle={styles.listContainer}
+            // ✅ PERFORMANCE: Optimalizált FlatList konfiguráció
+            initialNumToRender={8} // Csak 8 item render-elődik kezdetben
+            windowSize={5} // 5 képernyőnyi tartalom marad memóriában
+            maxToRenderPerBatch={5} // Batch-ben max 5 item render-elődik
+            updateCellsBatchingPeriod={50} // 50ms batching periódus
+            removeClippedSubviews={true} // Memória takarékosság clipped subview-okkal
+            getItemLayout={(data, index) => ({
+              length: 120, // Item magasság (becsült)
+              offset: 120 * index,
+              index,
+            })}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
