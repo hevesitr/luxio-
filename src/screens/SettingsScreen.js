@@ -633,16 +633,32 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Adatvédelem</Text>
           
-          <TouchableOpacity 
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => navigation.navigate('PrivacySettings')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="shield-checkmark-outline" size={24} color="#4CAF50" />
+              <View>
+                <Text style={styles.settingLabel}>Adatvédelmi Beállítások</Text>
+                <Text style={styles.settingDescription}>
+                  Cookie-k, értesítések, adatmegosztás
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.linkRow}
             onPress={() => navigation.navigate('Consent')}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="checkbox-outline" size={24} color="#9C27B0" />
               <View>
-                <Text style={styles.settingLabel}>Adatkezelési Beállítások</Text>
+                <Text style={styles.settingLabel}>Adatkezelési Hozzájárulás</Text>
                 <Text style={styles.settingDescription}>
-                  Consent kezelés és beállítások
+                  Jogszabályi hozzájárulások kezelése
                 </Text>
               </View>
             </View>

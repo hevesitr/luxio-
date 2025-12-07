@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import CreditsService, { CREDIT_COSTS } from '../services/CreditsService';
+import GiftsService from '../services/GiftsService';
 import { profiles } from '../data/profiles';
 
 const GiftsScreen = ({ navigation, route }) => {
@@ -30,18 +31,7 @@ const GiftsScreen = ({ navigation, route }) => {
     setCredits(currentCredits);
   };
 
-  const gifts = [
-    { id: 1, name: 'Rózsa', emoji: '🌹', price: 10, color: '#FF3B75' },
-    { id: 2, name: 'Csokoládé', emoji: '🍫', price: 10, color: '#8B4513' },
-    { id: 3, name: 'Kávé', emoji: '☕', price: 10, color: '#6F4E37' },
-    { id: 4, name: 'Sör', emoji: '🍺', price: 10, color: '#FFD700' },
-    { id: 5, name: 'Szívecske', emoji: '💝', price: 15, color: '#FF69B4' },
-    { id: 6, name: 'Csillag', emoji: '⭐', price: 15, color: '#FFD700' },
-    { id: 7, name: 'Doboz', emoji: '🎁', price: 20, color: '#FF6B6B' },
-    { id: 8, name: 'Gyémánt', emoji: '💎', price: 30, color: '#00CED1' },
-    { id: 9, name: 'Király', emoji: '👑', price: 50, color: '#FFD700' },
-    { id: 10, name: 'Rakéta', emoji: '🚀', price: 50, color: '#4169E1' },
-  ];
+  const gifts = GiftsService.GIFTS;
 
   const handleSendGift = async (gift) => {
     if (!profile) {
@@ -68,32 +58,35 @@ const GiftsScreen = ({ navigation, route }) => {
       return;
     }
 
-    const result = await CreditsService.deductCredits(gift.price, `Gift: ${gift.name}`);
-    
+    // Ajándék küldése a GiftsService-en keresztül
+    const result = await GiftsService.sendGift(
+      'current-user-id', // TODO: Get from AuthContext
+      profile.id,
+      gift.id
+    );
+
     if (result.success) {
-      setCredits(result.balance);
+      setCredits(result.newBalance);
       setSelectedGift(gift);
       setShowGiftModal(true);
       setSentGifts([...sentGifts, { ...gift, profileId: profile?.id, timestamp: new Date() }]);
-      
+
       setTimeout(() => {
         setShowGiftModal(false);
         if (profile) {
           Alert.alert(
             '✅ Ajándék elküldve!',
-            `${gift.emoji} ${gift.name} ajándékot küldtél ${profile.name}nak!`,
-            [{ text: 'OK' }]
-          );
-        } else {
-          Alert.alert(
-            '✅ Ajándék elküldve!',
-            `${gift.emoji} ${gift.name} ajándékot küldtél!`,
+            `${gift.emoji} ${gift.name} ajándékot küldtél ${profile.name || 'a kiválasztott profilnak'}!`,
             [{ text: 'OK' }]
           );
         }
       }, 2000);
     } else {
-      Alert.alert('Hiba', result.message);
+      Alert.alert(
+        'Hiba történt',
+        result.error || 'Az ajándék küldése sikertelen volt.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

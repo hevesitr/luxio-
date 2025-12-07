@@ -584,6 +584,37 @@ class AccountService {
   }
 
   /**
+   * Cookie beállítások frissítése
+   */
+  async updateCookieSettings(settings) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('cookie_settings')
+        .upsert({
+          user_id: user.id,
+          necessary_cookies: settings.necessary ?? true,
+          analytics_consent: settings.analytics ?? false,
+          marketing_consent: settings.marketing ?? false,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      // Store locally for immediate access
+      await AsyncStorage.setItem('@cookie_settings', JSON.stringify(settings));
+
+      Logger.success('Cookie settings updated');
+      return { success: true };
+    } catch (error) {
+      Logger.error('Failed to update cookie settings', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * GDPR: Adatvédelmi beállítások lekérése
    * @param {string} userId - Felhasználó ID
    */
@@ -605,6 +636,48 @@ class AccountService {
 
       return settings;
     }, { operation: 'getPrivacySettings', userId });
+  }
+
+  /**
+   * Cookie beállítások lekérése
+   * @param {string} userId - Felhasználó ID
+   */
+  async getCookieSettings(userId) {
+    try {
+      // Try local storage first for immediate response
+      const localSettings = await AsyncStorage.getItem('@cookie_settings');
+      if (localSettings) {
+        return JSON.parse(localSettings);
+      }
+
+      const { data, error } = await supabase
+        .from('cookie_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      const settings = data || {
+        necessary_cookies: true,
+        analytics_consent: false,
+        marketing_consent: false,
+      };
+
+      // Cache locally
+      await AsyncStorage.setItem('@cookie_settings', JSON.stringify(settings));
+
+      return settings;
+    } catch (error) {
+      Logger.error('Failed to get cookie settings', error);
+      return {
+        necessary_cookies: true,
+        analytics_consent: false,
+        marketing_consent: false,
+      };
+    }
   }
 
   /**

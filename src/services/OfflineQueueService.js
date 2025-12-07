@@ -1,537 +1,299 @@
-/**
- * OfflineQueueService - SQLite-based reliable offline queue
- * Replaces AsyncStorage with proper database persistence
- */
-import * as SQLite from 'expo-sqlite';
-import Logger from './Logger';
-import ErrorHandler, { ErrorCodes } from './ErrorHandler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../config/supabase';
+import { Logger } from './Logger';
+import { ServiceError } from './ServiceError';
 
-class OfflineQueueService {
+/**
+ * OfflineQueueService - Persistent offline queue for critical operations
+ * Ensures no data loss when offline
+ */
+export class OfflineQueueService {
   constructor() {
-    this.db = null;
-    this.isInitialized = false;
-    this.TABLE_NAME = 'offline_messages';
+    this.QUEUE_KEY = '@offline_queue';
+    this.SYNCED_KEY = '@offline_queue_synced';
+    this.queue = [];
+    this.isSyncing = false;
   }
 
   /**
-   * Initialize SQLite database
+   * Add operation to offline queue
+   * @param {string} action - Action type (like, pass, message, etc)
+   * @param {object} data - Operation data
+   * @param {string} userId - User ID
+   * @returns {Promise<object>} Queue item with ID
    */
-  async initialize() {
+  async enqueue(action, data, userId) {
     try {
-      this.db = SQLite.openDatabase('offline_queue.db');
+      const queueItem = {
+        id: this.generateQueueId(userId, action, data),
+        action,
+        data,
+        userId,
+        timestamp: new Date().toISOString(),
+        synced: false,
+        retryCount: 0,
+        maxRetries: 3
+      };
 
-      await this.createTables();
-      await this.cleanupStaleMessages();
+      // Load existing queue
+      const queue = await this.loadQueue();
+      
+      // Check for duplicates (idempotency)
+      const isDuplicate = queue.some(item => item.id === queueItem.id);
+      if (isDuplicate) {
+        Logger.warn('Duplicate queue item detected', { id: queueItem.id });
+        return queue.find(item => item.id === queueItem.id);
+      }
 
-      this.isInitialized = true;
-      Logger.success('OfflineQueueService initialized with SQLite');
+      // Add to queue
+      queue.push(queueItem);
+      await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+
+      Logger.info('Item enqueued', { action, id: queueItem.id });
+      return queueItem;
     } catch (error) {
-      Logger.error('Failed to initialize OfflineQueueService', error);
-      throw ErrorHandler.createError(
-        ErrorCodes.SERVICE_ERROR,
-        'Failed to initialize offline queue database',
-        { error: error.message }
+      Logger.error('Failed to enqueue item', { error, action });
+      throw new ServiceError(
+        'QUEUE_ENQUEUE_FAILED',
+        'Failed to save offline operation',
+        'OFFLINE_QUEUE'
       );
     }
   }
 
   /**
-   * Create database tables
+   * Sync queue with server
+   * @returns {Promise<object>} Sync result
    */
-  async createTables() {
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS ${this.TABLE_NAME} (
-            id TEXT PRIMARY KEY,
-            message_data TEXT NOT NULL,
-            message_type TEXT DEFAULT 'message',
-            priority INTEGER DEFAULT 1,
-            status TEXT DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
-            retry_count INTEGER DEFAULT 0,
-            max_retries INTEGER DEFAULT 3,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            next_retry_at DATETIME,
-            error_message TEXT
-          )`,
-          [],
-          () => {
-            Logger.debug('Offline queue table created');
-            resolve();
-          },
-          (tx, error) => {
-            Logger.error('Failed to create offline queue table', error);
-            reject(error);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * Add message to offline queue
-   */
-  async addMessage(message, options = {}) {
-    if (!this.isInitialized) {
-      throw new Error('OfflineQueueService not initialized');
+  async syncQueue() {
+    if (this.isSyncing) {
+      Logger.warn('Sync already in progress');
+      return { synced: 0, failed: 0 };
     }
 
-    const {
-      priority = 1,
-      messageType = 'message',
-      maxRetries = 3
-    } = options;
+    this.isSyncing = true;
+    let synced = 0;
+    let failed = 0;
 
-    const messageId = message.id || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    try {
+      const queue = await this.loadQueue();
+      const unsyncedItems = queue.filter(item => !item.synced);
 
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        // Check for duplicates
-        tx.executeSql(
-          `SELECT id FROM ${this.TABLE_NAME} WHERE id = ?`,
-          [messageId],
-          (tx, result) => {
-            if (result.rows.length > 0) {
-              Logger.warn('Message already in offline queue', { messageId });
-              resolve({ success: false, reason: 'duplicate' });
-              return;
-            }
+      Logger.info('Starting queue sync', { count: unsyncedItems.length });
 
-            // Insert new message
-            const messageData = JSON.stringify({
-              ...message,
-              id: messageId,
-              queuedAt: new Date().toISOString()
-            });
-
-            tx.executeSql(
-              `INSERT INTO ${this.TABLE_NAME} (id, message_data, message_type, priority, max_retries)
-               VALUES (?, ?, ?, ?, ?)`,
-              [messageId, messageData, messageType, priority, maxRetries],
-              () => {
-                Logger.info('Message added to offline queue', {
-                  messageId,
-                  type: messageType,
-                  priority
-                });
-                resolve({ success: true, messageId });
-              },
-              (tx, error) => {
-                Logger.error('Failed to add message to offline queue', error);
-                reject(error);
-              }
-            );
-          },
-          (tx, error) => {
-            Logger.error('Failed to check for duplicate message', error);
-            reject(error);
+      for (const item of unsyncedItems) {
+        try {
+          await this.processQueueItem(item);
+          synced++;
+          
+          // Mark as synced
+          item.synced = true;
+          item.syncedAt = new Date().toISOString();
+        } catch (error) {
+          failed++;
+          item.retryCount++;
+          
+          if (item.retryCount >= item.maxRetries) {
+            Logger.error('Queue item max retries exceeded', { id: item.id });
+            item.failed = true;
+            item.failureReason = error.message;
           }
-        );
-      });
-    });
-  }
-
-  /**
-   * Get next batch of messages to process
-   */
-  async getNextBatch(batchSize = 10) {
-    if (!this.isInitialized) {
-      throw new Error('OfflineQueueService not initialized');
-    }
-
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `SELECT * FROM ${this.TABLE_NAME}
-           WHERE status = 'queued'
-           AND (next_retry_at IS NULL OR next_retry_at <= datetime('now'))
-           ORDER BY priority DESC, created_at ASC
-           LIMIT ?`,
-          [batchSize],
-          (tx, result) => {
-            const messages = [];
-            for (let i = 0; i < result.rows.length; i++) {
-              const row = result.rows.item(i);
-              try {
-                const messageData = JSON.parse(row.message_data);
-                messages.push({
-                  id: row.id,
-                  ...messageData,
-                  dbId: row.id,
-                  status: row.status,
-                  retryCount: row.retry_count,
-                  maxRetries: row.max_retries,
-                  priority: row.priority,
-                  createdAt: row.created_at
-                });
-              } catch (error) {
-                Logger.error('Failed to parse message data', { messageId: row.id, error });
-              }
-            }
-            resolve(messages);
-          },
-          (tx, error) => {
-            Logger.error('Failed to get next batch', error);
-            reject(error);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * Mark message as processing
-   */
-  async markAsProcessing(messageId) {
-    return this.updateMessageStatus(messageId, 'processing');
-  }
-
-  /**
-   * Mark message as completed
-   */
-  async markAsCompleted(messageId) {
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `DELETE FROM ${this.TABLE_NAME} WHERE id = ?`,
-          [messageId],
-          () => {
-            Logger.success('Message completed and removed from queue', { messageId });
-            resolve({ success: true });
-          },
-          (tx, error) => {
-            Logger.error('Failed to mark message as completed', error);
-            reject(error);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * Mark message as failed with retry logic
-   */
-  async markAsFailed(messageId, errorMessage = null) {
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        // First get current retry count
-        tx.executeSql(
-          `SELECT retry_count, max_retries FROM ${this.TABLE_NAME} WHERE id = ?`,
-          [messageId],
-          (tx, result) => {
-            if (result.rows.length === 0) {
-              resolve({ success: false, reason: 'not_found' });
-              return;
-            }
-
-            const row = result.rows.item(0);
-            const newRetryCount = row.retry_count + 1;
-            const canRetry = newRetryCount < row.max_retries;
-
-            if (canRetry) {
-              // Schedule retry with exponential backoff
-              const backoffMs = Math.min(1000 * Math.pow(2, newRetryCount), 300000); // Max 5 minutes
-              const nextRetryAt = new Date(Date.now() + backoffMs).toISOString();
-
-              tx.executeSql(
-                `UPDATE ${this.TABLE_NAME}
-                 SET status = 'queued', retry_count = ?, next_retry_at = ?, error_message = ?, updated_at = datetime('now')
-                 WHERE id = ?`,
-                [newRetryCount, nextRetryAt, errorMessage, messageId],
-                () => {
-                  Logger.info('Message scheduled for retry', {
-                    messageId,
-                    retryCount: newRetryCount,
-                    nextRetryAt
-                  });
-                  resolve({ success: true, willRetry: true, nextRetryAt });
-                },
-                (tx, error) => {
-                  Logger.error('Failed to schedule retry', error);
-                  reject(error);
-                }
-              );
-            } else {
-              // Max retries exceeded
-              tx.executeSql(
-                `UPDATE ${this.TABLE_NAME}
-                 SET status = 'failed', retry_count = ?, error_message = ?, updated_at = datetime('now')
-                 WHERE id = ?`,
-                [newRetryCount, errorMessage, messageId],
-                () => {
-                  Logger.warn('Message permanently failed', {
-                    messageId,
-                    finalRetryCount: newRetryCount
-                  });
-                  resolve({ success: true, willRetry: false, permanentlyFailed: true });
-                },
-                (tx, error) => {
-                  Logger.error('Failed to mark message as permanently failed', error);
-                  reject(error);
-                }
-              );
-            }
-          },
-          (tx, error) => {
-            Logger.error('Failed to get message retry info', error);
-            reject(error);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * Update message status
-   */
-  async updateMessageStatus(messageId, status, additionalData = {}) {
-    return new Promise((resolve, reject) => {
-      const updates = ['status = ?'];
-      const values = [status];
-
-      if (additionalData.errorMessage) {
-        updates.push('error_message = ?');
-        values.push(additionalData.errorMessage);
+        }
       }
 
-      updates.push('updated_at = datetime(\'now\')');
-      values.push(messageId);
+      // Save updated queue
+      await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+      
+      // Clean up synced items
+      await this.cleanupSyncedItems();
 
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `UPDATE ${this.TABLE_NAME} SET ${updates.join(', ')} WHERE id = ?`,
-          values,
-          () => {
-            Logger.debug('Message status updated', { messageId, status });
-            resolve({ success: true });
-          },
-          (tx, error) => {
-            Logger.error('Failed to update message status', error);
-            reject(error);
-          }
-        );
-      });
-    });
+      Logger.info('Queue sync complete', { synced, failed });
+      return { synced, failed };
+    } catch (error) {
+      Logger.error('Queue sync failed', { error });
+      throw error;
+    } finally {
+      this.isSyncing = false;
+    }
   }
 
   /**
-   * Get queue statistics
+   * Process individual queue item
+   * @private
    */
-  async getQueueStats() {
-    if (!this.isInitialized) {
-      throw new Error('OfflineQueueService not initialized');
+  async processQueueItem(item) {
+    const { action, data, userId } = item;
+
+    switch (action) {
+      case 'like':
+        return await this.processLike(data, userId);
+      case 'pass':
+        return await this.processPass(data, userId);
+      case 'message':
+        return await this.processMessage(data, userId);
+      case 'profile_update':
+        return await this.processProfileUpdate(data, userId);
+      default:
+        throw new Error(`Unknown action: ${action}`);
+    }
+  }
+
+  /**
+   * Process like action
+   * @private
+   */
+  async processLike(data, userId) {
+    const { targetUserId } = data;
+
+    // Check for duplicate like
+    const { data: existing } = await supabase
+      .from('likes')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('liked_user_id', targetUserId)
+      .single();
+
+    if (existing) {
+      Logger.warn('Like already exists', { userId, targetUserId });
+      return existing;
     }
 
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued,
-            SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
-            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
-           FROM ${this.TABLE_NAME}`,
-          [],
-          (tx, result) => {
-            const stats = result.rows.item(0);
-            resolve({
-              total: stats.total || 0,
-              queued: stats.queued || 0,
-              processing: stats.processing || 0,
-              failed: stats.failed || 0
-            });
-          },
-          (tx, error) => {
-            Logger.error('Failed to get queue stats', error);
-            reject(error);
-          }
-        );
-      });
-    });
+    const { data: like, error } = await supabase
+      .from('likes')
+      .insert({
+        user_id: userId,
+        liked_user_id: targetUserId,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return like;
   }
 
   /**
-   * Clean up stale messages
+   * Process pass action
+   * @private
    */
-  async cleanupStaleMessages(maxAgeHours = 24) {
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `DELETE FROM ${this.TABLE_NAME}
-           WHERE status = 'failed'
-           AND created_at < datetime('now', '-${maxAgeHours} hours')`,
-          [],
-          (tx, result) => {
-            if (result.rowsAffected > 0) {
-              Logger.info('Cleaned up stale failed messages', {
-                deletedCount: result.rowsAffected,
-                maxAgeHours
-              });
-            }
-            resolve({ deletedCount: result.rowsAffected });
-          },
-          (tx, error) => {
-            Logger.error('Failed to cleanup stale messages', error);
-            reject(error);
-          }
-        );
-      });
-    });
+  async processPass(data, userId) {
+    const { targetUserId } = data;
+
+    const { data: pass, error } = await supabase
+      .from('passes')
+      .insert({
+        user_id: userId,
+        passed_user_id: targetUserId,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return pass;
   }
 
   /**
-   * Clear entire queue (emergency)
+   * Process message action
+   * @private
+   */
+  async processMessage(data, userId) {
+    const { matchId, content } = data;
+
+    // Use atomic RPC for message + receipt
+    const { data: result, error } = await supabase.rpc('send_message_atomic', {
+      p_match_id: matchId,
+      p_sender_id: userId,
+      p_content: content,
+      p_timestamp: new Date().toISOString()
+    });
+
+    if (error) throw error;
+    return result;
+  }
+
+  /**
+   * Process profile update
+   * @private
+   */
+  async processProfileUpdate(data, userId) {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return profile;
+  }
+
+  /**
+   * Load queue from storage
+   * @private
+   */
+  async loadQueue() {
+    try {
+      const queueJson = await AsyncStorage.getItem(this.QUEUE_KEY);
+      return queueJson ? JSON.parse(queueJson) : [];
+    } catch (error) {
+      Logger.error('Failed to load queue', { error });
+      return [];
+    }
+  }
+
+  /**
+   * Clean up synced items
+   * @private
+   */
+  async cleanupSyncedItems() {
+    try {
+      const queue = await this.loadQueue();
+      const activeSyncedItems = queue.filter(item => item.synced && !item.failed);
+      
+      // Keep synced items for 24 hours for reference
+      const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const itemsToKeep = queue.filter(item => 
+        !item.synced || 
+        item.failed || 
+        (item.syncedAt && item.syncedAt > cutoffTime)
+      );
+
+      await AsyncStorage.setItem(this.QUEUE_KEY, JSON.stringify(itemsToKeep));
+    } catch (error) {
+      Logger.error('Failed to cleanup queue', { error });
+    }
+  }
+
+  /**
+   * Generate unique queue ID (idempotency key)
+   * @private
+   */
+  generateQueueId(userId, action, data) {
+    const key = `${userId}_${action}_${JSON.stringify(data)}_${Math.floor(Date.now() / 1000)}`;
+    return require('crypto').createHash('sha256').update(key).digest('hex');
+  }
+
+  /**
+   * Get queue status
+   */
+  async getQueueStatus() {
+    const queue = await this.loadQueue();
+    return {
+      total: queue.length,
+      synced: queue.filter(item => item.synced).length,
+      pending: queue.filter(item => !item.synced && !item.failed).length,
+      failed: queue.filter(item => item.failed).length
+    };
+  }
+
+  /**
+   * Clear queue (for testing)
    */
   async clearQueue() {
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        tx.executeSql(
-          `DELETE FROM ${this.TABLE_NAME}`,
-          [],
-          (tx, result) => {
-            Logger.warn('Offline queue cleared', { deletedCount: result.rowsAffected });
-            resolve({ deletedCount: result.rowsAffected });
-          },
-          (tx, error) => {
-            Logger.error('Failed to clear queue', error);
-            reject(error);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * Feldolgozza a függőben lévő offline műveleteket
-   */
-  async processPendingOperations() {
-    return new Promise((resolve, reject) => {
-      this.db.transaction(tx => {
-        // Lekérdezzük az összes függőben lévő műveletet
-        tx.executeSql(
-          `SELECT * FROM ${this.TABLE_NAME} WHERE status = 'queued' ORDER BY priority DESC, created_at ASC`,
-          [],
-          (tx, results) => {
-            const operations = [];
-            for (let i = 0; i < results.rows.length; i++) {
-              operations.push(results.rows.item(i));
-            }
-
-            Logger.info('Processing pending offline operations', { count: operations.length });
-
-            // Feldolgozzuk az egyes műveleteket
-            const processNext = async (index) => {
-              if (index >= operations.length) {
-                Logger.success('All offline operations processed successfully');
-                resolve();
-                return;
-              }
-
-              const operation = operations[index];
-              try {
-                await this.processSingleOperation(operation);
-
-                // Sikeres feldolgozás után töröljük a queue-ból
-                tx.executeSql(
-                  `DELETE FROM ${this.TABLE_NAME} WHERE id = ?`,
-                  [operation.id],
-                  () => {
-                    Logger.debug('Operation processed and removed from queue', { operationId: operation.id });
-                    processNext(index + 1);
-                  },
-                  (tx, error) => {
-                    Logger.error('Failed to remove processed operation from queue', error);
-                    processNext(index + 1);
-                  }
-                );
-              } catch (error) {
-                Logger.error('Failed to process operation, marking as failed', {
-                  operationId: operation.id,
-                  error: error.message
-                });
-
-                // Sikertelen műveletet failed állapotúra állítjuk
-                tx.executeSql(
-                  `UPDATE ${this.TABLE_NAME} SET status = 'failed', error_message = ?, updated_at = ? WHERE id = ?`,
-                  [error.message, new Date().toISOString(), operation.id],
-                  () => processNext(index + 1),
-                  (tx, error) => {
-                    Logger.error('Failed to update failed operation status', error);
-                    processNext(index + 1);
-                  }
-                );
-              }
-            };
-
-            processNext(0);
-          },
-          (tx, error) => {
-            Logger.error('Failed to retrieve pending operations', error);
-            reject(error);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * Feldolgoz egyetlen offline műveletet
-   */
-  async processSingleOperation(operation) {
-    const { message_data, message_type } = operation;
-    const data = JSON.parse(message_data);
-
-    Logger.debug('Processing single offline operation', { type: message_type, data });
-
-    // Itt implementáljuk a különböző művelettípusok feldolgozását
-    switch (message_type) {
-      case 'swipe':
-        // Swipe művelet feldolgozása
-        await this.processSwipeOperation(data);
-        break;
-      case 'message':
-        // Üzenet küldés feldolgozása
-        await this.processMessageOperation(data);
-        break;
-      case 'like':
-        // Like művelet feldolgozása
-        await this.processLikeOperation(data);
-        break;
-      default:
-        throw new Error(`Unknown operation type: ${message_type}`);
-    }
-  }
-
-  async processSwipeOperation(data) {
-    // Placeholder - valódi implementációban a MatchService-t kellene használni
-    Logger.info('Processing swipe operation', data);
-    // await MatchService.processSwipe(data.userId, data.targetUserId, data.action);
-  }
-
-  async processMessageOperation(data) {
-    // Placeholder - valódi implementációban a MessageService-t kellene használni
-    Logger.info('Processing message operation', data);
-    // await MessageService.sendMessage(data.matchId, data.senderId, data.content, data.type);
-  }
-
-  async processLikeOperation(data) {
-    // Placeholder - valódi implementációban a LikeService-t kellene használni
-    Logger.info('Processing like operation', data);
-    // await LikeService.sendLike(data.userId, data.targetUserId);
-  }
-
-  /**
-   * Close database connection
-   */
-  async close() {
-    if (this.db) {
-      this.db.closeAsync();
-      this.db = null;
-      this.isInitialized = false;
-      Logger.info('OfflineQueueService database closed');
-    }
+    await AsyncStorage.removeItem(this.QUEUE_KEY);
+    Logger.info('Queue cleared');
   }
 }
 
-export default new OfflineQueueService();
+export const offlineQueueService = new OfflineQueueService();

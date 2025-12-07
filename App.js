@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PreferencesProvider } from './src/context/PreferencesContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import CookieConsentManager from './src/components/CookieConsentManager';
 import MatchService from './src/services/MatchService';
 import { queryClient } from './src/config/queryClient';
 
@@ -45,6 +46,7 @@ import SearchScreen from './src/screens/SearchScreen';
 import ConsentScreen from './src/screens/ConsentScreen';
 import DataExportScreen from './src/screens/DataExportScreen';
 import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
+import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
@@ -132,6 +134,7 @@ function ProfileStack({ addMatch, matches, removeMatch, navigation: tabNavigatio
       <Stack.Screen name="Consent" component={ConsentScreen} />
       <Stack.Screen name="DataExport" component={DataExportScreen} />
       <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+      <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
       <Stack.Screen name="WebView" component={WebViewScreen} />
       <Stack.Screen name="LiveStream" component={LiveStreamScreen} />
       <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
@@ -328,6 +331,7 @@ export default function App() {
               <SafeAreaProvider>
                 <NavigationContainer>
                   <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
+                  <CookieConsentManager />
                 </NavigationContainer>
               </SafeAreaProvider>
             </NotificationProvider>
