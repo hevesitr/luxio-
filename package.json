@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit",
     "build:staging": "npx eas build --platform all --profile staging --non-interactive",
     "build:production": "npx eas build --platform all --profile production --non-interactive",
+    "build:local": "npm run test:ci && echo 'Build validation passed - ready for deployment'",
     "submit:staging": "npx eas submit --platform all --profile staging --non-interactive",
     "submit:production": "npx eas submit --platform all --profile production --non-interactive",
     "performance-test": "node scripts/performance-test.js",

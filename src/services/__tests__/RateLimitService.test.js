@@ -38,15 +38,12 @@ jest.mock('../supabaseClient', () => ({
 }));
 
 describe('RateLimitService', () => {
-  beforeAll(() => {
-    // Reset RateLimitService state once for all tests
-    RateLimitService.localCache = new Map();
-    RateLimitService.blockedUsers = new Set();
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
     mockStorage.clear();
+    // Reset RateLimitService state before each test to prevent state leakage
+    RateLimitService.localCache = new Map();
+    RateLimitService.blockedUsers = new Set();
   });
 
   describe('Login Attempts', () => {
@@ -72,7 +69,6 @@ describe('RateLimitService', () => {
 
       // 6th attempt should be blocked
       const finalResult = await RateLimitService.checkLoginAttempts(email);
-      console.log('MOCK STORAGE at end:', mockStorage);
       expect(finalResult.allowed).toBe(false);
       expect(finalResult.reason).toBe('too_many_attempts');
     });

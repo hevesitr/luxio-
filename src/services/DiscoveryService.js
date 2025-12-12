@@ -188,7 +188,7 @@ class DiscoveryService {
    * Mock profiles fallback (only used when Supabase fails)
    */
   getMockProfiles(filters = {}, excludeIds = []) {
-    const mockProfiles = [
+      const mockProfiles = [
         {
           id: 1,
           name: 'Anna',

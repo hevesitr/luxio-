@@ -82,11 +82,11 @@ describe('ProfileService Properties', () => {
             const getResult = await ProfileService.getProfile(userId);
 
             // Verify round-trip
-            expect(updateResult.data.full_name).toBe(updates.full_name);
+            expect(updateResult.data.name).toBe(updates.full_name);
             expect(updateResult.data.age).toBe(updates.age);
             expect(updateResult.data.bio).toBe(updates.bio);
             expect(getResult.success).toBe(true);
-            expect(getResult.data.full_name).toBe(updates.full_name);
+            expect(getResult.data.name).toBe(updates.full_name);
             expect(getResult.data.age).toBe(updates.age);
 
             return true;

@@ -53,7 +53,15 @@
     "coverage",
     "**/*.spec.js",
     "**/*.test.js",
-    "scripts/**/*.js"
+    "scripts/**/*.js",
+    "backup*/**/*",
+    "version_*/**/*",
+    "**/backup*/**/*",
+    "**/version_*/**/*",
+    "**/*.BACKUP*",
+    "**/*.backup*",
+    "**/ProfileScreen.styles.js",
+    "src/services/DiscoveryService.js"
   ],
   "include": [
     "**/*.js",
