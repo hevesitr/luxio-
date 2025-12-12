@@ -15,6 +15,19 @@ import { useTheme } from '../context/ThemeContext';
 
 const AnalyticsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const [stats, setStats] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [insights, setInsights] = useState([]);
@@ -53,7 +66,7 @@ const AnalyticsScreen = ({ navigation }) => {
     );
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   if (!stats || !metrics) {
     return (

@@ -148,6 +148,19 @@ const MessageItem = memo(({ item, match, theme, formatTime }) => (
 
 const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -443,7 +456,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     />
   ), [match, theme, formatTime]);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <KeyboardAvoidingView

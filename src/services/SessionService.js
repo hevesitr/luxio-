@@ -642,6 +642,7 @@ class SessionService {
 
 }
 
-// Singleton instance
+// Export both class and singleton instance
+export { SessionService };
 const sessionService = new SessionService();
 export default sessionService;

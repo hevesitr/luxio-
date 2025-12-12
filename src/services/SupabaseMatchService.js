@@ -230,11 +230,11 @@ class SupabaseMatchService {
         return { success: false };
       }
 
-      const serverMatches = serverResult.data;
-      const serverMatchIds = new Set(serverMatches.map(m => m.id));
+      const serverMatches = serverResult.data || [];
+      const serverMatchIds = new Set((serverMatches || []).map(m => m?.id).filter(Boolean));
 
       // Lokális match-ek, amik nincsenek a szerveren
-      const offlineMatches = localMatches.filter(m => !serverMatchIds.has(m.id));
+      const offlineMatches = (localMatches || []).filter(m => m?.id && !serverMatchIds.has(m.id));
 
       // Feltöltés a szerverre
       for (const match of offlineMatches) {

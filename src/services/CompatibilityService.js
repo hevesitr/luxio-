@@ -37,7 +37,7 @@ class CompatibilityService {
       userProfile.interests,
       matchProfile.interests
     );
-    const interestScore = Math.min(30, commonInterests.length * 10);
+    const interestScore = Math.min(30, (commonInterests?.length || 0) * 10);
     score += interestScore;
     if (commonInterests.length > 0) {
       reasons.push({
@@ -80,26 +80,31 @@ class CompatibilityService {
     }
 
     // 4. Korkülönbség (max 15 pont)
-    const ageDiff = Math.abs(userProfile.age - matchProfile.age);
-    const ageScore = Math.max(0, 15 - ageDiff * 2);
-    score += ageScore;
-    if (ageScore > 10) {
-      reasons.push({
-        type: 'age',
-        value: `Hasonló korosztály (${userProfile.age} & ${matchProfile.age})`,
-        score: ageScore,
-      });
+    if (typeof userProfile.age === 'number' && typeof matchProfile.age === 'number' && 
+        !isNaN(userProfile.age) && !isNaN(matchProfile.age)) {
+      const ageDiff = Math.abs(userProfile.age - matchProfile.age);
+      const ageScore = Math.max(0, 15 - ageDiff * 2);
+      score += ageScore;
+      if (ageScore > 10) {
+        reasons.push({
+          type: 'age',
+          value: `Hasonló korosztály (${userProfile.age} & ${matchProfile.age})`,
+          score: ageScore,
+        });
+      }
     }
 
     // 5. Távolság (max 10 pont)
-    const distanceScore = this.calculateDistanceScore(matchProfile.distance);
-    score += distanceScore;
-    if (distanceScore > 5) {
-      reasons.push({
-        type: 'distance',
-        value: `Közel vagytok (${matchProfile.distance} km)`,
-        score: distanceScore,
-      });
+    if (typeof matchProfile.distance === 'number' && !isNaN(matchProfile.distance)) {
+      const distanceScore = this.calculateDistanceScore(matchProfile.distance);
+      score += distanceScore;
+      if (distanceScore > 5) {
+        reasons.push({
+          type: 'distance',
+          value: `Közel vagytok (${matchProfile.distance} km)`,
+          score: distanceScore,
+        });
+      }
     }
 
     // Normalize 0-100 közé
@@ -115,6 +120,9 @@ class CompatibilityService {
 
   // Közös érdeklődések megkeresése
   static findCommonInterests(interests1, interests2) {
+    if (!Array.isArray(interests1) || !Array.isArray(interests2)) {
+      return [];
+    }
     return interests1.filter(interest => interests2.includes(interest));
   }
 

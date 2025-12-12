@@ -78,6 +78,15 @@ class PremiumService {
     },
   };
 
+  /**
+   * Get features for a specific tier
+   * @param {string} tier - The premium tier
+   * @returns {object} Features object for the tier
+   */
+  getTierFeatures(tier) {
+    return this.FEATURES[tier] || this.FEATURES[this.TIERS.FREE];
+  }
+
   async getUserTier(userId = null) {
     try {
       // ✅ P1-5: Server-side validáció - Supabase-ből kérdezzük le

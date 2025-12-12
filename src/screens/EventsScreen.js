@@ -14,6 +14,19 @@ import { useTheme } from '../context/ThemeContext';
 
 const EventsScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const categories = [
@@ -108,7 +121,7 @@ const EventsScreen = ({ navigation }) => {
     );
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <View style={styles.container}>

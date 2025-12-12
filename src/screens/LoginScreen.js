@@ -16,11 +16,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import StorageService from '../services/StorageService';
-import { SupabaseAuthService } from '../services/SupabaseAuthService';
+import AuthService from '../services/AuthService';
 import { useAuth } from '../context/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      card: '#1f1f1f',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      primaryDark: '#E6356A',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const { refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -50,28 +64,51 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const { user } = await SupabaseAuthService.signInUser({
-        email: normalizedEmail,
-        password,
-      });
 
-      if (rememberMe) {
-        await StorageService.setItem('remember_me', true);
-        await StorageService.setItem('saved_email', normalizedEmail);
-      } else {
-        await StorageService.removeItem('remember_me');
-        await StorageService.removeItem('saved_email');
+      // ✅ SECURITY: Check rate limiting before login attempt
+      const rateLimitCheck = await AuthService.checkLoginAttempts?.(normalizedEmail) ||
+                             { allowed: true }; // Fallback if method not available
+
+      if (!rateLimitCheck.allowed) {
+        const waitMinutes = Math.ceil(rateLimitCheck.remainingTime / (60 * 1000));
+        Alert.alert(
+          'Túl sok próbálkozás',
+          `Túl sok sikertelen bejelentkezési kísérlet. Próbáld újra ${waitMinutes} perc múlva.`,
+          [{ text: 'Rendben' }]
+        );
+        setLoading(false);
+        return;
       }
 
-      await refreshProfile();
+      const result = await AuthService.signIn(normalizedEmail, password);
 
-      if (user?.email && !user.email_confirmed_at) {
-        Alert.alert(
-          'Email megerősítés szükséges',
-          'Kérjük, erősítsd meg az email címedet a postaládádba érkezett linken keresztül.'
-        );
+      if (result.success) {
+        if (rememberMe) {
+          await StorageService.setItem('remember_me', true);
+          await StorageService.setItem('saved_email', normalizedEmail);
+        } else {
+          await StorageService.removeItem('remember_me');
+          await StorageService.removeItem('saved_email');
+        }
+
+        await refreshProfile();
+
+        if (result.user?.email && !result.user.email_confirmed_at) {
+          Alert.alert(
+            'Email megerősítés szükséges',
+            'Kérjük, erősítsd meg az email címedet a postaládádba érkezett linken keresztül.'
+          );
+        } else {
+          // No alert for successful login - handled by navigation
+        }
       } else {
-        Alert.alert('✅ Sikeres bejelentkezés', 'Üdv újra a Luxio-ban!');
+        // Record failed login attempt for rate limiting
+        await AuthService.recordFailedLogin?.(normalizedEmail);
+
+        const message = result.error?.includes('Invalid login credentials')
+          ? 'Hibás email cím vagy jelszó.'
+          : result.error || 'Hiba történt a bejelentkezés során.';
+        Alert.alert('Hiba', message);
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -117,7 +154,7 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

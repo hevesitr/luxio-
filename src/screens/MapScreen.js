@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Temporarily disabled for web compatibility
-// import LiveMapView from '../components/LiveMapView';
+// LiveMapView import for map functionality
+import LiveMapView from '../components/LiveMapView';
 import LocationService from '../services/LocationService';
 import MatchService from '../services/MatchService';
 import { profiles } from '../data/profiles';
@@ -30,6 +30,7 @@ const MapScreen = ({ navigation, route, onMatch: onMatchProp, matches: matchesPr
   const [likedProfiles, setLikedProfiles] = useState(new Set()); // Track liked profile IDs (sent heart)
   const [locationError, setLocationError] = useState(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [mapKey, setMapKey] = useState(0); // Key to force map re-render when needed
   const slideAnim = React.useRef(new Animated.Value(300)).current;
   const mapRef = React.useRef(null); // Ref to preserve map region
 
@@ -282,6 +283,22 @@ const MapScreen = ({ navigation, route, onMatch: onMatchProp, matches: matchesPr
     }
   };
 
+  // Aliases for LiveMapView compatibility
+  const handleProfileSelect = handleProfilePress;
+  const handleProfileLike = handleLike;
+  const handleProfilePass = (profile) => {
+    console.log('MapScreen: handleProfilePass called with profile:', profile?.name);
+    // Pass functionality - close profile card
+    handleCloseProfileCard();
+  };
+  const handleLocationUpdate = (location) => {
+    console.log('MapScreen: handleLocationUpdate called with location:', location);
+    // Update user location if needed
+    if (location && location.latitude && location.longitude) {
+      setUserLocation(location);
+    }
+  };
+
   const handleCloseProfileCard = () => {
     Animated.timing(slideAnim, {
       toValue: 300,
@@ -503,16 +520,28 @@ const MapScreen = ({ navigation, route, onMatch: onMatchProp, matches: matchesPr
       </View>
 
       <View style={styles.mapContainer}>
-        {/* Temporarily disabled LiveMapView for web compatibility */}
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map" size={64} color="#666" />
-          <Text style={styles.mapPlaceholderText}>
-            Térkép funkció fejlesztés alatt
-          </Text>
-          <Text style={styles.mapPlaceholderSubtext}>
-            Ez a funkció csak mobil alkalmazásokban érhető el.
-          </Text>
-        </View>
+        {/* LiveMapView for map functionality */}
+        <LiveMapView
+          ref={mapRef}
+          userLocation={userLocation}
+          nearbyProfiles={nearbyProfiles}
+          matchedProfiles={matchedProfiles}
+          likedProfiles={likedProfiles}
+          onProfileSelect={handleProfileSelect}
+          onProfileLike={handleProfileLike}
+          onProfilePass={handleProfilePass}
+          onLocationUpdate={handleLocationUpdate}
+          selectedProfile={selectedProfile}
+          returnToMatchPopup={returnToMatchPopup}
+          matchPopupParams={matchPopupParams}
+          slideAnim={slideAnim}
+          onCloseProfileCard={() => setProfileCardVisible(false)}
+          onMatch={onMatch}
+          onUnmatch={onUnmatch}
+          matches={matches}
+          navigation={navigation}
+          key={mapKey} // Force re-render when needed
+        />
         {(locationError || isRequestingLocation) && (
           <View style={styles.locationOverlay}>
             <Ionicons name="navigate" size={22} color="#000" />

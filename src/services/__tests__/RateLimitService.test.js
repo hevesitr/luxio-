@@ -5,11 +5,19 @@
 import RateLimitService from '../RateLimitService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Mock AsyncStorage with in-memory storage
+const mockStorage = new Map();
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  getAllKeys: jest.fn(),
+  getItem: jest.fn((key) => Promise.resolve(mockStorage.get(key) || null)),
+  setItem: jest.fn((key, value) => {
+    mockStorage.set(key, value);
+    return Promise.resolve();
+  }),
+  removeItem: jest.fn((key) => {
+    mockStorage.delete(key);
+    return Promise.resolve();
+  }),
+  getAllKeys: jest.fn(() => Promise.resolve(Array.from(mockStorage.keys()))),
 }));
 
 jest.mock('../supabaseClient', () => ({
@@ -55,7 +63,7 @@ describe('RateLimitService', () => {
 
       // Exceed the limit (5 attempts)
       for (let i = 0; i < 6; i++) {
-        await RateLimitService.checkLoginAttempts('user@example.com');
+        await RateLimitService.recordFailedLogin('user@example.com');
       }
 
       const result = await RateLimitService.checkLoginAttempts('user@example.com');
@@ -70,7 +78,7 @@ describe('RateLimitService', () => {
 
       // Should increment the attempts counter
       const attempts = await RateLimitService.getAttempts('login_attempts_user@example.com', 15);
-      expect(attempts).toBe(1);
+      expect(attempts.length).toBe(1);
     });
 
     it('should reset login attempts after successful login', async () => {
@@ -80,7 +88,7 @@ describe('RateLimitService', () => {
       await RateLimitService.recordSuccessfulLogin('user@example.com');
 
       const attempts = await RateLimitService.getAttempts('login_attempts_user@example.com', 15);
-      expect(attempts).toBe(0);
+      expect(attempts.length).toBe(0);
     });
   });
 
@@ -90,7 +98,7 @@ describe('RateLimitService', () => {
 
       const result = await RateLimitService.checkSwipeAction('user123');
       expect(result.allowed).toBe(true);
-      expect(result.remaining).toBe(99); // 100 - 1
+      expect(result.remaining).toBe(99); // 100 - 1 after consumption
     });
 
     it('should block swipe actions after daily limit exceeded', async () => {
@@ -114,7 +122,7 @@ describe('RateLimitService', () => {
 
       const result = await RateLimitService.checkMessageSend('user123');
       expect(result.allowed).toBe(true);
-      expect(result.remaining).toBe(49); // 50 - 1
+      expect(result.remaining).toBe(49); // 50 - 1 after consumption
     });
 
     it('should block message sending after hourly limit exceeded', async () => {
@@ -168,7 +176,7 @@ describe('RateLimitService', () => {
 
       await RateLimitService.saveLocalCache();
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        'rate_limit_cache',
+        '@rate_limits',
         expect.any(String)
       );
     });

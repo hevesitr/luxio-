@@ -16,16 +16,29 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AnimatedAvatar from '../components/AnimatedAvatar';
 import ChatScreen from './ChatScreen';
-import { currentUser } from '../data/userProfile';
 import MatchService from '../services/MatchService';
-import SupabaseMatchService from '../services/SupabaseMatchService';
 import Logger from '../services/Logger';
 import { useNavigation } from '../hooks/useNavigation';
+import { useAuth } from '../context/AuthContext';
 
 const SETTINGS_KEY = '@user_settings';
 
 const MatchesScreen = ({ matches, navigation, removeMatch }) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
+
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+
   const navService = useNavigation();
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [chatVisible, setChatVisible] = useState(false);
@@ -40,19 +53,23 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
 
   const loadLastMessages = async () => {
     try {
-      const stored = await MatchService.loadLastMessages();
+      if (!user?.id) return;
+      const stored = await MatchService.loadLastMessages(user.id);
       setLastMessages(stored || {});
     } catch (error) {
       console.error('MatchesScreen: Error loading last messages:', error);
+      Logger.error('MatchesScreen: Error loading last messages', error);
     }
   };
 
   const handleLastMessageUpdate = async (matchId, message) => {
     try {
-      const updated = await MatchService.updateLastMessage(matchId, message);
+      if (!user?.id) return;
+      const updated = await MatchService.updateLastMessage(matchId, message, user.id);
       setLastMessages(updated);
     } catch (error) {
       console.error('MatchesScreen: Error updating last message:', error);
+      Logger.error('MatchesScreen: Error updating last message', error);
     }
   };
 
@@ -150,7 +167,8 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
   };
 
   const openChat = (match) => {
-    navService.goToChat(match);
+    setSelectedMatch(match);
+    setChatVisible(true);
   };
 
   const closeChat = () => {
@@ -332,7 +350,7 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
     );
   }, [theme, lastMessages, showOnMap]); // Dependencies for useCallback
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

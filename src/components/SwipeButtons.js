@@ -2,7 +2,6 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
 
 /**
  * SwipeButtons - Swipe akció gombok
@@ -30,13 +29,14 @@ const SwipeButtons = ({
 
   const handlePress = async (callback, hapticStyle) => {
     if (disabled) return;
-    
-    try {
-      await Haptics.impactAsync(hapticStyle);
-    } catch (error) {
-      console.log('Haptics error:', error);
-    }
-    
+
+    // try {
+    //   // Use string values directly for better compatibility
+    //   await Haptics.impactAsync(hapticStyle);
+    // } catch (error) {
+    //   // Haptics might not be available, ignore error
+    // } // DISABLED
+
     if (callback) callback();
   };
 
@@ -45,7 +45,7 @@ const SwipeButtons = ({
       {/* Undo Button */}
       <TouchableOpacity
         style={[styles.button, styles.smallButton, !canUndo && styles.buttonDisabled]}
-        onPress={() => handlePress(onUndo, Haptics.ImpactFeedbackStyle.Light)}
+        onPress={() => handlePress(onUndo, 'light')}
         disabled={!canUndo || disabled}
         activeOpacity={0.7}
       >
@@ -59,7 +59,7 @@ const SwipeButtons = ({
       {/* Dislike Button */}
       <TouchableOpacity
         style={[styles.button, styles.largeButton, disabled && styles.buttonDisabled]}
-        onPress={() => handlePress(onDislike, Haptics.ImpactFeedbackStyle.Medium)}
+        onPress={() => handlePress(onDislike, 'medium')}
         disabled={disabled}
         activeOpacity={0.7}
       >
@@ -71,7 +71,7 @@ const SwipeButtons = ({
       {/* Super Like Button */}
       <TouchableOpacity
         style={[styles.button, styles.mediumButton, disabled && styles.buttonDisabled]}
-        onPress={() => handlePress(onSuperLike, Haptics.ImpactFeedbackStyle.Heavy)}
+        onPress={() => handlePress(onSuperLike, 'heavy')}
         disabled={disabled}
         activeOpacity={0.7}
       >
@@ -88,7 +88,7 @@ const SwipeButtons = ({
       {/* Like Button */}
       <TouchableOpacity
         style={[styles.button, styles.largeButton, disabled && styles.buttonDisabled]}
-        onPress={() => handlePress(onLike, Haptics.ImpactFeedbackStyle.Heavy)}
+        onPress={() => handlePress(onLike, 'heavy')}
         disabled={disabled}
         activeOpacity={0.7}
       >
@@ -100,7 +100,7 @@ const SwipeButtons = ({
       {/* Boost Button */}
       <TouchableOpacity
         style={[styles.button, styles.smallButton, disabled && styles.buttonDisabled]}
-        onPress={() => handlePress(onBoost, Haptics.ImpactFeedbackStyle.Light)}
+        onPress={() => handlePress(onBoost, 'light')}
         disabled={disabled}
         activeOpacity={0.7}
       >

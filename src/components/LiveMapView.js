@@ -141,7 +141,10 @@ const generateRouteCoordinates = (lat1, lon1, lat2, lon2) => {
   return coordinates;
 };
 
-const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLocation, matchedProfiles = new Set(), likedProfiles = new Set(), showProfileImages = true }, ref) => {
+const LiveMapView = React.forwardRef(({ profiles: profilesProp, nearbyProfiles, onProfilePress, currentUserLocation, matchedProfiles = new Set(), likedProfiles = new Set(), showProfileImages = true }, ref) => {
+  // Use nearbyProfiles if provided, otherwise use profiles prop
+  const profiles = nearbyProfiles || profilesProp || [];
+  
   const [userLocation, setUserLocation] = useState(currentUserLocation);
   const [isLocationEnabled, setIsLocationEnabled] = useState(false);
   const [mapRegion, setMapRegion] = useState(null); // Preserve map region
@@ -157,21 +160,23 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
   // Update profile locations when profiles prop changes
   useEffect(() => {
     const locations = new Map();
-    profiles.forEach(profile => {
-      if (profile && profile.id && profile.location) {
-        locations.set(profile.id, {
-          latitude: profile.location.latitude,
-          longitude: profile.location.longitude,
-          timestamp: Date.now(),
-        });
-      }
-    });
+    if (profiles && Array.isArray(profiles)) {
+      profiles.forEach(profile => {
+        if (profile && profile.id && profile.location) {
+          locations.set(profile.id, {
+            latitude: profile.location.latitude,
+            longitude: profile.location.longitude,
+            timestamp: Date.now(),
+          });
+        }
+      });
+    }
     setProfileLocations(locations);
   }, [profiles]);
 
   // Real-time location updates for online users (simulate with interval)
   useEffect(() => {
-    if (profiles.length === 0) return;
+    if (!profiles || profiles.length === 0) return;
 
     // Simulate real-time location updates for online users
     // In a real app, this would come from a WebSocket or polling API
@@ -219,7 +224,7 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
 
   // Use preserved region if available, otherwise calculate from user location or profiles
   // If there's only one profile, center on it with a tighter zoom
-  const region = mapRegion || (profiles.length === 1 && profiles[0].location
+  const region = mapRegion || (profiles && profiles.length === 1 && profiles[0] && profiles[0].location
     ? {
         latitude: profiles[0].location.latitude,
         longitude: profiles[0].location.longitude,
@@ -233,7 +238,7 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
       }
-    : profiles.length > 0 && profiles[0].location
+    : profiles && profiles.length > 0 && profiles[0] && profiles[0].location
     ? {
         latitude: profiles[0].location.latitude,
         longitude: profiles[0].location.longitude,
@@ -333,7 +338,7 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
           <View style={styles.infoBox}>
             <Ionicons name="location" size={16} color="#FF3B75" />
             <Text style={styles.infoText}>
-              {profiles.filter(p => {
+              {(profiles || []).filter(p => {
                 if (!p.location || !userLocation || 
                     typeof p.location.latitude !== 'number' || 
                     typeof p.location.longitude !== 'number') return false;
@@ -374,7 +379,7 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
             pinColor="#FF3B75"
           />
         )}
-                {profiles.map((profile) => {
+                {(profiles || []).map((profile) => {
                   if (!profile || !profile.id) {
                     return null;
                   }
@@ -512,7 +517,7 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
                   );
         })}
         {/* Draw routes from user location to matched/liked profiles */}
-        {userLocation && Polyline && profiles.map((profile) => {
+        {userLocation && Polyline && (profiles || []).map((profile) => {
           if (!profile || !profile.id) return null;
           
           const realTimeLocation = profileLocations.get(profile.id);
@@ -607,7 +612,7 @@ const LiveMapView = React.forwardRef(({ profiles, onProfilePress, currentUserLoc
         <View style={styles.infoBox}>
           <Ionicons name="location" size={16} color="#FF3B75" />
           <Text style={styles.infoText}>
-            {profiles.filter(p => {
+            {(profiles || []).filter(p => {
               if (!p.location || !userLocation || 
                   typeof p.location.latitude !== 'number' || 
                   typeof p.location.longitude !== 'number') return false;

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { profiles as allProfiles } from '../data/profiles';
+import withErrorBoundary from '../components/withErrorBoundary';
 
 /**
  * ✅ PERFORMANCE OPTIMIZATION: SearchScreen Refactoring
@@ -29,6 +30,19 @@ import { profiles as allProfiles } from '../data/profiles';
 
 const SearchScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const onApplyFilters = route?.params?.onApplyFilters;
 
   // ✅ PERFORMANCE: Csoportosított state objects csökkentik re-render számot
@@ -76,35 +90,36 @@ const SearchScreen = ({ navigation, route }) => {
   }, []);
 
   const handleToggleInterest = (interest) => {
-    setSelectedInterests(prev => {
-      if (prev.includes(interest)) {
-        return prev.filter(i => i !== interest);
+    setFilterState(prev => {
+      const currentInterests = prev.selectedInterests || [];
+      if (currentInterests.includes(interest)) {
+        return { ...prev, selectedInterests: currentInterests.filter(i => i !== interest) };
       } else {
-        return [...prev, interest];
+        return { ...prev, selectedInterests: [...currentInterests, interest] };
       }
     });
   };
 
   const handleApplyFilters = () => {
     const filters = {
-      searchQuery: searchQuery.trim(),
-      ageMin,
-      ageMax,
-      distance: distanceEnabled ? distance : null,
-      showOnlyVerified,
-      relationshipGoal: relationshipGoal !== 'all' ? relationshipGoal : null,
-      interests: selectedInterests.length > 0 ? selectedInterests : null,
-      heightMin: heightEnabled ? heightMin : null,
-      heightMax: heightEnabled ? heightMax : null,
-      education: education !== 'all' ? education : null,
-      smoking: smoking !== 'all' ? smoking : null,
-      drinking: drinking !== 'all' ? drinking : null,
-      exercise: exercise !== 'all' ? exercise : null,
-      zodiacSign: zodiacSign !== 'all' ? zodiacSign : null,
-      mbti: mbti !== 'all' ? mbti : null,
-      onlineOnly,
-      newProfilesOnly,
-      gender: gender !== 'all' ? gender : null,
+      searchQuery: filterState.searchQuery.trim(),
+      ageMin: filterState.ageMin,
+      ageMax: filterState.ageMax,
+      distance: filterState.distanceEnabled ? filterState.distance : null,
+      showOnlyVerified: filterState.showOnlyVerified,
+      relationshipGoal: filterState.relationshipGoal !== 'all' ? filterState.relationshipGoal : null,
+      interests: filterState.selectedInterests.length > 0 ? filterState.selectedInterests : null,
+      heightMin: filterState.heightEnabled ? filterState.heightMin : null,
+      heightMax: filterState.heightEnabled ? filterState.heightMax : null,
+      education: filterState.education !== 'all' ? filterState.education : null,
+      smoking: filterState.smoking !== 'all' ? filterState.smoking : null,
+      drinking: filterState.drinking !== 'all' ? filterState.drinking : null,
+      exercise: filterState.exercise !== 'all' ? filterState.exercise : null,
+      zodiacSign: filterState.zodiacSign !== 'all' ? filterState.zodiacSign : null,
+      mbti: filterState.mbti !== 'all' ? filterState.mbti : null,
+      onlineOnly: filterState.onlineOnly,
+      newProfilesOnly: filterState.newProfilesOnly,
+      gender: filterState.gender !== 'all' ? filterState.gender : null,
     };
 
     // Alkalmazzuk a szűrőket
@@ -143,22 +158,11 @@ const SearchScreen = ({ navigation, route }) => {
       onlineOnly: false,
       newProfilesOnly: false,
       selectedInterests: [],
+      interests: filterState.interests, // Keep the interests list
     });
-    setHeightMin(150);
-    setHeightMax(200);
-    setHeightEnabled(false);
-    setEducation('all');
-    setSmoking('all');
-    setDrinking('all');
-    setExercise('all');
-    setZodiacSign('all');
-    setMbti('all');
-    setOnlineOnly(false);
-    setNewProfilesOnly(false);
-    setGender('all');
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -185,8 +189,8 @@ const SearchScreen = ({ navigation, route }) => {
               value={filterState.searchQuery}
               onChangeText={(text) => setFilterState(prev => ({ ...prev, searchQuery: text }))}
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+            {filterState.searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setFilterState(prev => ({ ...prev, searchQuery: '' }))} style={styles.clearButton}>
                 <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             )}
@@ -205,15 +209,15 @@ const SearchScreen = ({ navigation, route }) => {
             <View style={styles.ageContainer}>
               <TextInput
                 style={styles.ageInput}
-                value={ageMin.toString()}
-                onChangeText={(text) => setAgeMin(parseInt(text) || 18)}
+                value={filterState.ageMin.toString()}
+                onChangeText={(text) => setFilterState(prev => ({ ...prev, ageMin: parseInt(text) || 18 }))}
                 keyboardType="numeric"
               />
               <Text style={styles.ageSeparator}>-</Text>
               <TextInput
                 style={styles.ageInput}
-                value={ageMax.toString()}
-                onChangeText={(text) => setAgeMax(parseInt(text) || 50)}
+                value={filterState.ageMax.toString()}
+                onChangeText={(text) => setFilterState(prev => ({ ...prev, ageMax: parseInt(text) || 50 }))}
                 keyboardType="numeric"
               />
             </View>
@@ -232,19 +236,19 @@ const SearchScreen = ({ navigation, route }) => {
             />
           </View>
 
-          {distanceEnabled && (
+          {filterState.distanceEnabled && (
             <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>Maximum távolság: {distance} km</Text>
+              <Text style={styles.sliderLabel}>Maximum távolság: {filterState.distance} km</Text>
               <View style={styles.sliderButtons}>
                 <TouchableOpacity
                   style={styles.sliderButton}
-                  onPress={() => setDistance(Math.max(5, distance - 5))}
+                  onPress={() => setFilterState(prev => ({ ...prev, distance: Math.max(5, prev.distance - 5) }))}
                 >
                   <Ionicons name="remove" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.sliderButton}
-                  onPress={() => setDistance(Math.min(100, distance + 5))}
+                  onPress={() => setFilterState(prev => ({ ...prev, distance: Math.min(100, prev.distance + 5) }))}
                 >
                   <Ionicons name="add" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
@@ -276,14 +280,14 @@ const SearchScreen = ({ navigation, route }) => {
                   key={goal}
                   style={[
                     styles.optionButton,
-                    relationshipGoal === goal && styles.optionButtonActive,
+                    filterState.relationshipGoal === goal && styles.optionButtonActive,
                   ]}
-                  onPress={() => setRelationshipGoal(goal)}
+                  onPress={() => setFilterState(prev => ({ ...prev, relationshipGoal: goal }))}
                 >
                   <Text
                     style={[
                       styles.optionButtonText,
-                      relationshipGoal === goal && styles.optionButtonTextActive,
+                      filterState.relationshipGoal === goal && styles.optionButtonTextActive,
                     ]}
                   >
                     {goal === 'all' ? 'Összes' : goal === 'serious' ? 'Komoly' : goal === 'casual' ? 'Laza' : 'Barátság'}
@@ -304,14 +308,14 @@ const SearchScreen = ({ navigation, route }) => {
                   key={g}
                   style={[
                     styles.optionButton,
-                    gender === g && styles.optionButtonActive,
+                    filterState.gender === g && styles.optionButtonActive,
                   ]}
-                  onPress={() => setGender(g)}
+                  onPress={() => setFilterState(prev => ({ ...prev, gender: g }))}
                 >
                   <Text
                     style={[
                       styles.optionButtonText,
-                      gender === g && styles.optionButtonTextActive,
+                      filterState.gender === g && styles.optionButtonTextActive,
                     ]}
                   >
                     {g === 'all' ? 'Összes' : g === 'female' ? 'Nő' : g === 'male' ? 'Férfi' : 'Egyéb'}
@@ -323,28 +327,28 @@ const SearchScreen = ({ navigation, route }) => {
         </View>
 
         {/* Érdeklődési körök */}
-        {interests.length > 0 && (
+        {filterState.interests.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Érdeklődési körök</Text>
             <View style={styles.interestsContainer}>
-              {interests.map((interest) => (
+              {filterState.interests.map((interest) => (
                 <TouchableOpacity
                   key={interest}
                   style={[
                     styles.interestTag,
-                    selectedInterests.includes(interest) && styles.interestTagActive,
+                    filterState.selectedInterests.includes(interest) && styles.interestTagActive,
                   ]}
                   onPress={() => handleToggleInterest(interest)}
                 >
                   <Text
                     style={[
                       styles.interestTagText,
-                      selectedInterests.includes(interest) && styles.interestTagTextActive,
+                      filterState.selectedInterests.includes(interest) && styles.interestTagTextActive,
                     ]}
                   >
                     {interest}
                   </Text>
-                  {selectedInterests.includes(interest) && (
+                  {filterState.selectedInterests.includes(interest) && (
                     <Ionicons name="checkmark" size={16} color={theme.colors.text} />
                   )}
                 </TouchableOpacity>
@@ -370,32 +374,32 @@ const SearchScreen = ({ navigation, route }) => {
             />
           </View>
 
-          {heightEnabled && (
+          {filterState.heightEnabled && (
             <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>Magasság: {heightMin} - {heightMax} cm</Text>
+              <Text style={styles.sliderLabel}>Magasság: {filterState.heightMin} - {filterState.heightMax} cm</Text>
               <View style={styles.sliderButtons}>
                 <TouchableOpacity
                   style={styles.sliderButton}
-                  onPress={() => setHeightMin(Math.max(140, heightMin - 5))}
+                  onPress={() => setFilterState(prev => ({ ...prev, heightMin: Math.max(140, prev.heightMin - 5) }))}
                 >
                   <Ionicons name="remove" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.sliderButton}
-                  onPress={() => setHeightMin(Math.min(heightMax - 5, heightMin + 5))}
+                  onPress={() => setFilterState(prev => ({ ...prev, heightMin: Math.min(prev.heightMax - 5, prev.heightMin + 5) }))}
                 >
                   <Ionicons name="add" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <View style={styles.sliderSeparator} />
                 <TouchableOpacity
                   style={styles.sliderButton}
-                  onPress={() => setHeightMax(Math.max(heightMin + 5, heightMax - 5))}
+                  onPress={() => setFilterState(prev => ({ ...prev, heightMax: Math.max(prev.heightMin + 5, prev.heightMax - 5) }))}
                 >
                   <Ionicons name="remove" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.sliderButton}
-                  onPress={() => setHeightMax(Math.min(220, heightMax + 5))}
+                  onPress={() => setFilterState(prev => ({ ...prev, heightMax: Math.min(220, prev.heightMax + 5) }))}
                 >
                   <Ionicons name="add" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
@@ -419,7 +423,7 @@ const SearchScreen = ({ navigation, route }) => {
               { value: 'master', label: 'Egyetem' },
               { value: 'phd', label: 'Doktorátus' },
             ]}
-            onSelect={setEducation}
+            onSelect={(value) => setFilterState(prev => ({ ...prev, education: value }))}
             theme={theme}
           />
 
@@ -433,7 +437,7 @@ const SearchScreen = ({ navigation, route }) => {
               { value: 'sometimes', label: 'Néha' },
               { value: 'regularly', label: 'Rendszeresen' },
             ]}
-            onSelect={setSmoking}
+            onSelect={(value) => setFilterState(prev => ({ ...prev, smoking: value }))}
             theme={theme}
           />
 
@@ -447,7 +451,7 @@ const SearchScreen = ({ navigation, route }) => {
               { value: 'sometimes', label: 'Néha' },
               { value: 'regularly', label: 'Rendszeresen' },
             ]}
-            onSelect={setDrinking}
+            onSelect={(value) => setFilterState(prev => ({ ...prev, drinking: value }))}
             theme={theme}
           />
 
@@ -461,7 +465,7 @@ const SearchScreen = ({ navigation, route }) => {
               { value: 'sometimes', label: 'Néha' },
               { value: 'regularly', label: 'Rendszeresen' },
             ]}
-            onSelect={setExercise}
+            onSelect={(value) => setFilterState(prev => ({ ...prev, exercise: value }))}
             theme={theme}
           />
         </View>
@@ -496,7 +500,7 @@ const SearchScreen = ({ navigation, route }) => {
           <FilterDropdown
             label="MBTI"
             icon="person-outline"
-            value={mbti}
+            value={filterState.mbti}
             options={[
               { value: 'all', label: 'Összes' },
               { value: 'INTJ', label: 'INTJ' },
@@ -516,7 +520,7 @@ const SearchScreen = ({ navigation, route }) => {
               { value: 'ESTP', label: 'ESTP' },
               { value: 'ESFP', label: 'ESFP' },
             ]}
-            onSelect={setMbti}
+            onSelect={(value) => setFilterState(prev => ({ ...prev, mbti: value }))}
             theme={theme}
           />
         </View>
@@ -531,7 +535,7 @@ const SearchScreen = ({ navigation, route }) => {
               <Text style={styles.filterLabel}>Csak online felhasználók</Text>
             </View>
             <Switch
-              value={onlineOnly}
+              value={filterState.onlineOnly}
               onValueChange={(value) => setFilterState(prev => ({ ...prev, onlineOnly: value }))}
               trackColor={{ false: '#ccc', true: theme.colors.primary }}
               thumbColor="#fff"
@@ -544,7 +548,7 @@ const SearchScreen = ({ navigation, route }) => {
               <Text style={styles.filterLabel}>Csak új profilok</Text>
             </View>
             <Switch
-              value={newProfilesOnly}
+              value={filterState.newProfilesOnly}
               onValueChange={(value) => setFilterState(prev => ({ ...prev, newProfilesOnly: value }))}
               trackColor={{ false: '#ccc', true: theme.colors.primary }}
               thumbColor="#fff"
@@ -882,5 +886,5 @@ const createStyles = (theme) => StyleSheet.create({
   },
 });
 
-export default SearchScreen;
+export default withErrorBoundary(SearchScreen, 'SearchScreen');
 

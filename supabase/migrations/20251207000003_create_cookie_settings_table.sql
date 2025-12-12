@@ -23,6 +23,12 @@ CREATE INDEX IF NOT EXISTS idx_cookie_settings_user_id ON public.cookie_settings
 -- Enable Row Level Security
 ALTER TABLE public.cookie_settings ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own cookie settings" ON public.cookie_settings;
+DROP POLICY IF EXISTS "Users can insert their own cookie settings" ON public.cookie_settings;
+DROP POLICY IF EXISTS "Users can update their own cookie settings" ON public.cookie_settings;
+DROP POLICY IF EXISTS "Service role can manage all cookie settings" ON public.cookie_settings;
+
 -- RLS Policies
 CREATE POLICY "Users can view their own cookie settings"
   ON public.cookie_settings FOR SELECT

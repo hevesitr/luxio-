@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import COLORS from '../constants/Colors';
 import { currentUser } from '../data/userProfile';
-import * as Haptics from 'expo-haptics';
+// Haptics disabled
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -53,7 +53,11 @@ const LiveStreamScreen = ({ route, navigation }) => {
       
       setMessages(prev => [...prev, newMessage]);
       setInputText('');
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // try {
+      //   await Haptics.impactAsync('light');
+      // } catch (error) {
+      //   // Haptics might not be available, ignore error
+      // } // DISABLED
       
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -64,7 +68,11 @@ const LiveStreamScreen = ({ route, navigation }) => {
   const handleLike = async () => {
     setLikes(prev => prev + 1);
     setShowHeartAnimation(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // try {
+    //   await Haptics.impactAsync('medium');
+    // } catch (error) {
+    //   // Haptics might not be available, ignore error
+    // } // DISABLED
     
     // Animate heart
     heartAnim.setValue(0);

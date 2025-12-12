@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { SupabaseAuthService } from '../services/SupabaseAuthService';
+import AuthService from '../services/AuthService';
 import { supabase } from '../services/supabaseClient';
 
 const AuthContext = createContext({
@@ -136,6 +137,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const handleSignUp = async (email, password, profileData) => {
+    try {
+      const result = await AuthService.signUp({
+        email,
+        password,
+        profileData: {
+          firstName: profileData.full_name,
+          age: profileData.birth_date ? new Date().getFullYear() - new Date(profileData.birth_date).getFullYear() : null,
+          gender: profileData.gender,
+          bio: '',
+          location: null,
+          phone: profileData.phone,
+          lookingFor: profileData.looking_for,
+          birthDate: profileData.birth_date,
+        }
+      });
+
+      if (result.success) {
+        // Load the new profile
+        await loadProfile(result.user);
+        return { success: true, requiresEmailConfirmation: !result.user?.email_confirmed_at };
+      } else {
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('SignUp failed:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -145,6 +176,7 @@ export const AuthProvider = ({ children }) => {
     refreshProfile: () =>
       session?.user ? loadProfile(session.user) : Promise.resolve(),
     completeOnboarding: handleCompleteOnboarding,
+    signUp: handleSignUp,
     signOut: handleSignOut,
   };
 

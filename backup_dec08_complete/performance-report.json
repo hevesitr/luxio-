@@ -1,0 +1,26 @@
+{
+  "bundleAnalysis": {
+    "estimatedSourceSize": "2.39 MB",
+    "nodeModulesSize": "570.92 MB",
+    "totalDependencies": 54,
+    "runtimeDependencies": 33,
+    "devDependencies": 21,
+    "status": "✅ GOOD",
+    "recommendations": []
+  },
+  "memoryUsage": {
+    "status": "PARTIAL",
+    "error": "Cannot find module 'C:\\Users\\heves\\Desktop\\dating-app\\src\\services\\Logger' imported from C:\\Users\\heves\\Desktop\\dating-app\\src\\services\\ProfileService.js",
+    "recommendations": [
+      "Monitor memory usage in production app"
+    ]
+  },
+  "loadTesting": {
+    "status": "FAILED",
+    "error": "Cannot find module 'C:\\Users\\heves\\Desktop\\dating-app\\src\\services\\Logger' imported from C:\\Users\\heves\\Desktop\\dating-app\\src\\services\\ProfileService.js",
+    "recommendations": [
+      "Implement proper load testing with K6 or Artillery"
+    ]
+  },
+  "recommendations": []
+}

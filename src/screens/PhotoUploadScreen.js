@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+// Haptics disabled
 import MediaUploadService from '../services/MediaUploadService';
 import ImageCompressionService from '../services/ImageCompressionService';
 import { supabase } from '../services/supabaseClient';
@@ -79,7 +79,7 @@ const PhotoUploadScreen = ({ navigation, route }) => {
 
   const handleCamera = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Haptics.impactAsync('light'); // DISABLED
       const result = await MediaUploadService.pickImageFromCamera();
       if (result) {
         await uploadPhoto(result.uri);
@@ -92,7 +92,7 @@ const PhotoUploadScreen = ({ navigation, route }) => {
 
   const handleGallery = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Haptics.impactAsync('light'); // DISABLED
       const result = await MediaUploadService.pickImageFromGallery();
       if (result) {
         await uploadPhoto(result.uri);
@@ -135,7 +135,7 @@ const PhotoUploadScreen = ({ navigation, route }) => {
 
       if (error) throw error;
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // DISABLED
       Alert.alert('Siker', 'Kép feltöltve és optimalizálva!');
     } catch (error) {
       console.error('Upload error:', error);
@@ -169,7 +169,7 @@ const PhotoUploadScreen = ({ navigation, route }) => {
 
               if (error) throw error;
 
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // DISABLED
             } catch (error) {
               console.error('Delete error:', error);
               Alert.alert('Hiba', 'Kép törlése sikertelen.');

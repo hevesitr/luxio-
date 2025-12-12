@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import * as Haptics from 'expo-haptics';
+// Haptics disabled
+import withErrorBoundary from '../components/withErrorBoundary';
 
 const ChatRoomScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
@@ -48,8 +49,8 @@ const ChatRoomScreen = ({ route, navigation }) => {
       
       setMessages(prev => [...prev, newMessage]);
       setInputText('');
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+      // Haptics.impactAsync('light'); // DISABLED
+
       // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -241,4 +242,4 @@ const createStyles = (theme) => StyleSheet.create({
   },
 });
 
-export default ChatRoomScreen;
+export default withErrorBoundary(ChatRoomScreen, 'ChatRoomScreen');

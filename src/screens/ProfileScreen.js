@@ -307,12 +307,19 @@ const ProfileScreen = ({ navigation }) => {
     { icon: 'checkmark-circle-outline', title: 'Profil Verifikáció', color: '#2196F3', screen: 'Verification' },
     { icon: 'shield-checkmark-outline', title: 'Biztonság', color: '#4CAF50', screen: 'Safety' },
     { icon: 'help-circle-outline', title: 'Súgó', color: '#FF9800', screen: 'Help' },
+    { icon: 'lock-closed-outline', title: 'Adatvédelem', color: '#607D8B', screen: 'PrivacySettings' },
+    { icon: 'ban-outline', title: 'Blokkolt Felhasználók', color: '#F44336', screen: 'BlockedUsers' },
+    { icon: 'pause-circle-outline', title: 'Fiók Szüneteltetése', color: '#FF9800', screen: 'PauseAccount' },
   ];
 
   const styles = createStyles(theme);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 100 }}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
         <Image
           source={{ uri: userProfile.photo }}
@@ -456,66 +463,6 @@ const ProfileScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Közösség</Text>
-        {communityOptions.map((option, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={styles.settingItem}
-            onPress={() => {
-              if (option.screen) {
-                navigation.navigate(option.screen);
-              } else {
-                Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
-              }
-            }}
-          >
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: option.color + '20' }]}>
-                <Ionicons name={option.icon} size={24} color={option.color} />
-              </View>
-              <View>
-                <Text style={styles.settingTitle}>{option.title}</Text>
-                {option.subtitle && (
-                  <Text style={styles.settingSubtitle}>{option.subtitle}</Text>
-                )}
-              </View>
-            </View>
-              <Ionicons name="chevron-forward" size={24} color="rgba(255, 255, 255, 0.4)" />
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sugar Dating</Text>
-        {sugarOptions.map((option, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={styles.settingItem}
-            onPress={() => {
-              if (option.screen) {
-                navigation.navigate(option.screen);
-              } else {
-                Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
-              }
-            }}
-          >
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: option.color + '20' }]}>
-                <Ionicons name={option.icon} size={24} color={option.color} />
-              </View>
-              <View>
-                <Text style={styles.settingTitle}>{option.title}</Text>
-                {option.subtitle && (
-                  <Text style={styles.settingSubtitle}>{option.subtitle}</Text>
-                )}
-              </View>
-            </View>
-              <Ionicons name="chevron-forward" size={24} color="rgba(255, 255, 255, 0.4)" />
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fő Funkciók</Text>
         {mainOptions.map((option, index) => (
           <TouchableOpacity 
@@ -586,6 +533,36 @@ const ProfileScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Sugar Dating</Text>
+        {sugarOptions.map((option, index) => (
+          <TouchableOpacity 
+            key={index} 
+            style={styles.settingItem}
+            onPress={() => {
+              if (option.screen) {
+                navigation.navigate(option.screen);
+              } else {
+                Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
+              }
+            }}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: option.color + '20' }]}>
+                <Ionicons name={option.icon} size={24} color={option.color} />
+              </View>
+              <View>
+                <Text style={styles.settingTitle}>{option.title}</Text>
+                {option.subtitle && (
+                  <Text style={styles.settingSubtitle}>{option.subtitle}</Text>
+                )}
+              </View>
+            </View>
+              <Ionicons name="chevron-forward" size={24} color="rgba(255, 255, 255, 0.4)" />
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Közösség</Text>
         {communityOptions.map((option, index) => (
           <TouchableOpacity 
@@ -622,28 +599,16 @@ const ProfileScreen = ({ navigation }) => {
             key={index}
             style={styles.settingItem}
             onPress={() => {
-              switch (option.screen) {
-                case 'Settings':
-                  navService.goToSettings();
-                  break;
-                case 'Verification':
-                  navService.goToVerification();
-                  break;
-                case 'Premium':
-                  navService.goToPremium();
-                  break;
-                case 'Boost':
-                  navService.goToBoost();
-                  break;
-                case 'EditProfile':
-                  navService.goToEditProfile();
-                  break;
-                default:
-                  if (option.screen) {
-                    navService.navigate(option.screen);
-                  } else {
-                    Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
-                  }
+              console.log('Settings button pressed:', option.title, option.screen);
+              if (option.screen) {
+                try {
+                  navigation.navigate(option.screen);
+                } catch (error) {
+                  console.error('Navigation error:', error);
+                  Alert.alert('Hiba', `Nem sikerült megnyitni: ${option.title}`);
+                }
+              } else {
+                Alert.alert(option.title, 'Ez a funkció hamarosan elérhető lesz!');
               }
             }}
           >

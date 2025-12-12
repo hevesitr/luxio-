@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,382 +7,424 @@ import {
   Alert,
   ActivityIndicator,
   Text,
-  Modal,
-  TextInput,
-  Switch,
-  ScrollView,
-  FlatList,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import SwipeCard from '../components/SwipeCard';
 import MatchAnimation from '../components/MatchAnimation';
-import ChatScreen from './ChatScreen';
-import StoryCircle from '../components/StoryCircle';
-import StoryViewer from '../components/StoryViewer';
-// import VideoProfile from '../components/VideoProfile'; // Temporarily disabled due to animation issues
-import ProfileDetailScreen from './ProfileDetailScreen';
+import AISearchModal from '../components/discovery/AISearchModal';
 import { profiles as initialProfiles } from '../data/profiles';
 import { currentUser } from '../data/userProfile';
-import StoryService from '../services/StoryService';
-import GamificationService from '../services/GamificationService';
-import AIRecommendationService from '../services/AIRecommendationService';
 import MatchService from '../services/MatchService';
-import SupabaseMatchService from '../services/SupabaseMatchService';
 import DiscoveryService from '../services/DiscoveryService';
-import PaymentService from '../services/PaymentService';
+import CompatibilityService from '../services/CompatibilityService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
-import { usePreferences } from '../context/PreferencesContext';
 import { useAuth } from '../context/AuthContext';
-import { useNavigation } from '../hooks/useNavigation';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const ACTION_BUTTON_SIZE = 52;
 
 /**
- * ✅ PERFORMANCE OPTIMIZATION: HomeScreen Refactoring
- *
- * **Problémák megoldva:**
- * - Túl sok state (20+) → Csoportosított state objects
- * - Inline függvények → useCallback memoizálás
- * - Túl sok re-render → React.memo és dependency optimalizálás
- * - Stories inline render → Memoizált komponens
- * - Túl sok service dependency → Lazy loading és selective imports
- *
- * **Várt teljesítmény javulás:** 40-60% kevesebb re-render, 30% gyorsabb inicializálás
+ * HomeScreen - Teljes eredeti layout a screenshot alapján
+ * 
+ * Felső ikonsor (7 ikon):
+ * 1. Passport - Helyszín váltás
+ * 2. Verified - Hitelesített profilok
+ * 3. Sparkles - Boost/Kiemelés
+ * 4. Chart - Top Picks
+ * 5. Search - Keresés
+ * 6. Diamond - Premium
+ * 7. Lightning - Boost
+ * 
+ * Jobb oldal:
+ * - Match % - Kompatibilitás
+ * - Refresh - Profil frissítés
+ * - 3 pont - További opciók
+ * 
+ * Alsó navigáció (5 menü):
+ * 1. Felfedezés (piros)
+ * 2. Események
+ * 3. Matchek
+ * 4. Videók
+ * 5. Profil
+ * 
+ * Alsó akció gombok (3 gomb):
+ * - Bal nyíl - Pass
+ * - Kör - Superlike
+ * - Jobb nyíl - Like
  */
 
-const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
-  // ✅ PERFORMANCE: Selective context usage - csak a szükséges hook-ok
+const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
 
-  // ✅ PERFORMANCE: Csoportosított state objects csökkentik re-render számot
-  const [uiState, setUiState] = useState({
-    loading: true,
-    dropdownVisible: false,
-    aiModalVisible: false,
-    matchAnimVisible: false,
-    storiesVisible: false,
-    videoModalVisible: false,
-    sugarDatingIntroShown: false,
-  });
+  const [profiles, setProfiles] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [swipeLoading, setSwipeLoading] = useState(false);
+  const [matchAnimVisible, setMatchAnimVisible] = useState(false);
+  const [matchedProfile, setMatchedProfile] = useState(null);
+  const [compatibility, setCompatibility] = useState(null);
+  const [aiSearchModalVisible, setAiSearchModalVisible] = useState(false);
 
-  const [dataState, setDataState] = useState({
-    profiles: [],
-    stories: [],
-    currentIndex: 0,
-    matchedProfile: null,
-    selectedStoryIndex: 0,
-  });
-
-  const [filterState, setFilterState] = useState({
-    searchFilters: {
-      ageMin: 18,
-      ageMax: 35,
-      distance: 50,
-      verifiedOnly: false,
-      searchQuery: '',
-    },
-    aiInputText: '',
-    aiDescription: '',
-    sugarDatingMode: false,
-  });
-
-  const [history, setHistory] = useState([]);
-
-  // ✅ PERFORMANCE: useCallback for state updaters to prevent re-creation
-  const updateUiState = useCallback((updates) => {
-    setUiState(prev => ({ ...prev, ...updates }));
-  }, []);
-
-  const updateDataState = useCallback((updates) => {
-    setDataState(prev => ({ ...prev, ...updates }));
-  }, []);
-
-  const updateFilterState = useCallback((updates) => {
-    setFilterState(prev => ({ ...prev, ...updates }));
-  }, []);
-
-  // ✅ PERFORMANCE: Single useEffect with cleanup, selective async loading
-  useEffect(() => {
-    let isMounted = true;
-
-    const initializeScreen = async () => {
-      try {
-        if (!isMounted) return;
-
-        updateUiState({ loading: true });
-
-        // Parallel loading for better performance
-        const [
-          savedFilters,
-          sugarMode,
-          introShown,
-          stories
-        ] = await Promise.all([
-          AsyncStorage.getItem('discoveryFilters').then(JSON.parse).catch(() => null),
-          AsyncStorage.getItem('sugarDatingMode'),
-          AsyncStorage.getItem('sugarDatingIntroShown'),
-          StoryService.getStories().catch(() => [])
-        ]);
-
-        if (!isMounted) return;
-
-        // ✅ FIX: Use default filters if none saved
-        const filtersToUse = savedFilters || {
-          ageMin: 18,
-          ageMax: 35,
-          distance: 50,
-          verifiedOnly: false,
-          searchQuery: '',
-        };
-
-        // ✅ FIX: Load profiles and exclude already liked/passed ones
-        const history = await MatchService.loadHistory().catch(() => []);
-        const excludeIds = history.map(h => h.id);
-        const profiles = await DiscoveryService.getDiscoveryProfiles(filtersToUse, excludeIds).catch(() => initialProfiles);
-
-        if (savedFilters) {
-          updateFilterState({ searchFilters: savedFilters });
-        } else {
-          updateFilterState({ searchFilters: filtersToUse });
-        }
-
-        updateFilterState({
-          sugarDatingMode: sugarMode === 'true'
-        });
-
-        updateUiState({
-          sugarDatingIntroShown: introShown === 'true',
-          loading: false
-        });
-
-        updateDataState({
-          profiles,
-          stories
-        });
-
-      } catch (error) {
-        if (isMounted) {
-          Logger.error('HomeScreen: Error initializing screen', error);
-          updateUiState({ loading: false });
-        }
-      }
-    };
-
-    initializeScreen();
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Empty dependency array - only run once
-
-  // ✅ PERFORMANCE: Separate loadProfiles function for filter changes
-  const loadProfiles = useCallback(async () => {
-    try {
-      updateUiState({ loading: true });
-
-      const profiles = await DiscoveryService.getDiscoveryProfiles(filterState.searchFilters).catch(() => initialProfiles);
-
-      updateDataState({
-        profiles,
-        currentIndex: 0 // Reset to first profile when filters change
-      });
-
-      updateUiState({ loading: false });
-      Logger.debug('HomeScreen: Profiles reloaded', { count: profiles.length });
-    } catch (error) {
-      Logger.error('HomeScreen: Error loading profiles', error);
-      updateUiState({ loading: false });
-    }
-  }, [filterState.searchFilters]);
-
-  // ✅ PERFORMANCE: Removed separate load functions - now handled in useEffect
-  // Profiles and stories are loaded in parallel during initialization
-
-  // ✅ PERFORMANCE: useCallback for swipe handlers to prevent unnecessary re-renders
-  const handleSwipeLeft = useCallback(async (profile) => {
-    const userId = user?.id || currentUser.id;
-    if (!userId) {
-      Logger.error('HomeScreen: User not available for swipe');
-      return;
-    }
-    try {
-      await MatchService.processSwipe(userId, profile.id, 'pass');
-      setHistory(prev => [...prev, { profile, action: 'pass' }]);
-      updateDataState(prev => ({ currentIndex: prev.currentIndex + 1 }));
-    } catch (error) {
-      Logger.error('HomeScreen: Error processing pass', error);
-    }
-  }, [user?.id]);
-
-  const handleSwipeRight = useCallback(async (profile) => {
-    console.log('HomeScreen: handleSwipeRight called with profile:', profile?.name, 'currentIndex before:', dataState.currentIndex);
-    const userId = user?.id || currentUser.id;
-    if (!userId) {
-      Logger.error('HomeScreen: User not available for swipe');
-      return;
-    }
-    try {
-      const result = await MatchService.processSwipe(userId, profile.id, 'like');
-      setHistory(prev => [...prev, { profile, action: 'like' }]);
-
-      if (result.isMatch) {
-        // It's a match!
-        console.log('HomeScreen: Match with profile:', profile.name, profile.id);
-        updateDataState({ matchedProfile: profile });
-        updateUiState({ matchAnimVisible: true });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        // Show match animation for 3 seconds
-        setTimeout(() => {
-          updateUiState({ matchAnimVisible: false });
-          updateDataState({ matchedProfile: null });
-        }, 3000);
-      }
-
-      console.log('HomeScreen: Incrementing currentIndex from', dataState.currentIndex, 'to', dataState.currentIndex + 1);
-      updateDataState(prev => ({ currentIndex: prev.currentIndex + 1 }));
-    } catch (error) {
-      Logger.error('HomeScreen: Error processing like', error);
-    }
-  }, [user?.id]);
-
-  const handleSuperLike = useCallback(async (profile) => {
-    const userId = user?.id || currentUser.id;
-    if (!userId) {
-      Logger.error('HomeScreen: User not available for swipe');
-      return;
-    }
-    try {
-      const result = await MatchService.processSwipe(userId, profile.id, 'superlike');
-      setHistory(prev => [...prev, { profile, action: 'superlike' }]);
-
-      if (result.isMatch) {
-        updateDataState({ matchedProfile: profile });
-        updateUiState({ matchAnimVisible: true });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        setTimeout(() => {
-          updateUiState({ matchAnimVisible: false });
-          updateDataState({ matchedProfile: null });
-        }, 3000);
-      }
-
-      updateDataState(prev => ({ currentIndex: prev.currentIndex + 1 }));
-    } catch (error) {
-      Logger.error('HomeScreen: Error processing superlike', error);
-    }
-  }, [user?.id]);
-
-  // ✅ PERFORMANCE: useCallback for undo handler
-  const handleUndo = useCallback(() => {
-    if (history.length > 0) {
-      const lastAction = history[history.length - 1];
-      setHistory(prev => prev.slice(0, -1));
-      updateDataState(prev => ({ currentIndex: prev.currentIndex - 1 }));
-      Alert.alert('Visszavonva', `${lastAction.action} visszavonva`);
-    }
-  }, [history.length]);
-
-  // ✅ PERFORMANCE: useCallback for story press handler
-  const handleStoryPress = useCallback((index) => {
-    updateDataState({ selectedStoryIndex: index });
-    updateUiState({ storiesVisible: true });
-  }, []);
-
-  // ✅ PERFORMANCE: useCallback for video profile handler
-  const handleOpenVideoProfile = useCallback(() => {
-    Alert.alert('Video Profil', 'Video profil funkció hamarosan elérhető!');
-  }, []);
-
-  // ✅ PERFORMANCE: useCallback for verified filter toggle
-  const handleToggleVerifiedFilter = useCallback(() => {
-    const newFilters = { ...filterState.searchFilters, verifiedOnly: !filterState.searchFilters.verifiedOnly };
-    updateFilterState({ searchFilters: newFilters });
-    saveDiscoveryFilters(newFilters);
-    loadProfiles();
-  }, [filterState.searchFilters, saveDiscoveryFilters]);
-
-  const handleBoost = () => {
-    navigation.navigate('Boost');
-  };
-
-  const handleOpenMap = () => {
-    navigation.navigate('Passport');
-  };
-
-  const handleOpenSearch = () => {
-    navigation.navigate('Search');
-  };
-
-  const handleToggleAI = () => {
-    // AI mode toggle logic
-  };
-
-  // ✅ FUNCTION: Save discovery filters to AsyncStorage
-  const saveDiscoveryFilters = useCallback(async (filters) => {
-    try {
-      await AsyncStorage.setItem('discoveryFilters', JSON.stringify(filters));
-      Logger.debug('Discovery filters saved', { filters });
-    } catch (error) {
-      Logger.error('Failed to save discovery filters', error);
-    }
-  }, []);
-
-  const handleToggleSugarDating = () => {
-    updateFilterState(prev => ({ sugarDatingMode: !prev.sugarDatingMode }));
-    AsyncStorage.setItem('sugarDatingMode', (!filterState.sugarDatingMode).toString());
-  };
-
-  const handleAIFilter = async () => {
-    if (aiInputText && aiInputText.trim()) {
-      updateFilterState({
-        aiDescription: filterState.aiInputText.trim(),
-        aiInputText: ''
-      });
-      updateUiState({ aiModalVisible: false });
-
-      // Apply AI filter
-      try {
-        const aiProfiles = await AIRecommendationService.getRecommendations(aiInputText.trim());
-        updateDataState({
-          profiles: aiProfiles,
-          currentIndex: 0
-        });
-      } catch (error) {
-        Logger.error('HomeScreen: Error applying AI filter', error);
-      }
-    }
-  };
-
-  // ✅ PERFORMANCE: Memoized current profile calculation
-  const currentProfile = useMemo(() =>
-    dataState.profiles[dataState.currentIndex],
-    [dataState.profiles, dataState.currentIndex]
+  const currentProfile = useMemo(() => 
+    profiles[currentIndex],
+    [profiles, currentIndex]
   );
 
-  // Debug logging only in development
+  // Load profiles
   useEffect(() => {
-    if (__DEV__) {
-      console.log('HomeScreen: currentProfile:', currentProfile?.name, currentProfile?.id, 'currentIndex:', dataState.currentIndex, 'profiles length:', dataState.profiles.length);
-    }
-  }, [currentProfile, dataState.currentIndex, dataState.profiles.length]);
+    console.log('HomeScreen: useEffect triggered, calling loadProfiles');
+    loadProfiles();
+    
+    // Timeout fallback - ha 5 másodperc után még mindig loading, használjuk az initialProfiles-t
+    const timeout = setTimeout(() => {
+      console.log('HomeScreen: Timeout reached, using initialProfiles');
+      if (loading) {
+        setProfiles(initialProfiles);
+        setLoading(false);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, []);
 
-  if (uiState.loading) {
+  // Calculate compatibility for current profile
+  useEffect(() => {
+    if (currentProfile && user) {
+      const comp = CompatibilityService.calculateCompatibility(user, currentProfile);
+      setCompatibility(comp);
+    }
+  }, [currentProfile, user]);
+
+  const loadProfiles = async () => {
+    console.log('HomeScreen: loadProfiles started');
+    try {
+      setLoading(true);
+
+      // ✅ SECURITY FIX: Only use authenticated user ID
+      if (!user?.id) {
+        console.warn('HomeScreen: No authenticated user, skipping profile load');
+        setProfiles([]);
+        setLoading(false);
+        return;
+      }
+
+      const userId = user.id;
+      console.log('HomeScreen: Loading profiles for user:', userId);
+
+      const history = await MatchService.loadHistory(userId).catch(() => []);
+      console.log('HomeScreen: history loaded:', history.length);
+
+      const excludeIds = history.map(h => h.id);
+      console.log('HomeScreen: excludeIds:', excludeIds);
+
+      const loadedProfiles = await DiscoveryService.getDiscoveryProfiles(
+        { userId },
+        excludeIds
+      );
+      console.log('HomeScreen: profiles loaded:', loadedProfiles.length);
+
+      setProfiles(loadedProfiles);
+      setLoading(false);
+    } catch (error) {
+      console.error('HomeScreen: Error loading profiles:', error);
+      Logger.error('HomeScreen: Error loading profiles', error);
+
+      // ✅ UX IMPROVEMENT: Show user-friendly error message
+      Alert.alert(
+        'Hiba a profilok betöltésekor',
+        'Nem sikerült betölteni a felfedezésre váró profilokat. Ellenőrizd az internetkapcsolatod.',
+        [
+          { text: 'Újra próbálkozás', onPress: loadProfiles },
+          { text: 'Rendben', style: 'cancel' }
+        ]
+      );
+
+      // Fallback to empty array instead of mock data for security
+      setProfiles([]);
+      setLoading(false);
+    }
+  };
+
+  const handleSwipeLeft = useCallback(async (profile) => {
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Nem vagy bejelentkezve. Jelentkezz be a folytatáshoz.');
+      return;
+    }
+
+    if (swipeLoading) return; // Prevent multiple simultaneous swipes
+
+    setSwipeLoading(true);
+    try {
+      const result = await MatchService.processSwipe(user.id, profile.id, 'pass');
+
+      if (result?.success) {
+        setCurrentIndex(prev => prev + 1);
+      } else {
+        Alert.alert('Hiba', 'Nem sikerült feldolgozni a pass műveletet. Próbáld újra.');
+      }
+    } catch (error) {
+      Logger.error('HomeScreen: Error processing pass', error);
+
+      // ✅ UX IMPROVEMENT: User-friendly error message
+      const errorMessage = error.message?.includes('rate_limit')
+        ? 'Túl sok műveletet hajtottál végre. Próbáld újra később.'
+        : 'Nem sikerült feldolgozni a pass műveletet. Ellenőrizd az internetkapcsolatod.';
+
+      Alert.alert('Hiba', errorMessage);
+    } finally {
+      setSwipeLoading(false);
+    }
+  }, [user?.id, swipeLoading]);
+
+  const handleSwipeRight = useCallback(async (profile) => {
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Nem vagy bejelentkezve. Jelentkezz be a folytatáshoz.');
+      return;
+    }
+
+    if (swipeLoading) return; // Prevent multiple simultaneous swipes
+
+    setSwipeLoading(true);
+    try {
+      const result = await MatchService.processSwipe(user.id, profile.id, 'like');
+
+      if (result?.success) {
+        // Check for match
+        if (result.isMatch) {
+          // Add match to matches list
+          if (onMatch) {
+            console.log('HomeScreen: Match found with profile:', profile.name);
+            onMatch({
+              ...profile,
+              matchedAt: new Date().toISOString(),
+            });
+          }
+
+          setMatchedProfile(profile);
+          setMatchAnimVisible(true);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+          // Auto-hide match animation after 3 seconds
+          setTimeout(() => {
+            setMatchAnimVisible(false);
+            setMatchedProfile(null);
+          }, 3000);
+        }
+
+        setCurrentIndex(prev => prev + 1);
+      } else {
+        Alert.alert('Hiba', 'Nem sikerült feldolgozni a like műveletet. Próbáld újra.');
+      }
+    } catch (error) {
+      Logger.error('HomeScreen: Error processing like', error);
+
+      // ✅ UX IMPROVEMENT: User-friendly error messages
+      const errorMessage = error.message?.includes('rate_limit')
+        ? 'Túl sok like-ot küldtél. Próbáld újra később.'
+        : error.message?.includes('already_liked')
+        ? 'Már like-oltad ezt a profilt.'
+        : 'Nem sikerült feldolgozni a like műveletet. Ellenőrizd az internetkapcsolatod.';
+
+      Alert.alert('Hiba', errorMessage);
+    } finally {
+      setSwipeLoading(false);
+    }
+  }, [user?.id, onMatch, swipeLoading]);
+
+  const handleSuperLike = useCallback(async (profile) => {
+    if (!user?.id) {
+      Alert.alert('Hiba', 'Nem vagy bejelentkezve. Jelentkezz be a folytatáshoz.');
+      return;
+    }
+
+    if (swipeLoading) return; // Prevent multiple simultaneous swipes
+
+    setSwipeLoading(true);
+    try {
+      const result = await MatchService.processSwipe(user.id, profile.id, 'superlike');
+
+      if (result?.success) {
+        // Check for match
+        if (result.isMatch) {
+          // Add match to matches list
+          if (onMatch) {
+            console.log('HomeScreen: Super match found with profile:', profile.name);
+            onMatch({
+              ...profile,
+              matchedAt: new Date().toISOString(),
+            });
+          }
+
+          setMatchedProfile(profile);
+          setMatchAnimVisible(true);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+          // Auto-hide match animation after 3 seconds
+          setTimeout(() => {
+            setMatchAnimVisible(false);
+            setMatchedProfile(null);
+          }, 3000);
+        }
+
+        setCurrentIndex(prev => prev + 1);
+      } else {
+        Alert.alert('Hiba', 'Nem sikerült feldolgozni a super like műveletet. Próbáld újra.');
+      }
+    } catch (error) {
+      Logger.error('HomeScreen: Error processing superlike', error);
+
+      // ✅ UX IMPROVEMENT: User-friendly error messages
+      const errorMessage = error.message?.includes('rate_limit')
+        ? 'Túl sok super like-ot küldtél. Próbáld újra később.'
+        : error.message?.includes('premium_required')
+        ? 'Super like használatához prémium előfizetés szükséges.'
+        : 'Nem sikerült feldolgozni a super like műveletet. Ellenőrizd az internetkapcsolatod.';
+
+      Alert.alert('Hiba', errorMessage);
+    } finally {
+      setSwipeLoading(false);
+    }
+  }, [user?.id, onMatch, swipeLoading]);
+
+  const handleAISearch = useCallback(async (searchQuery) => {
+    try {
+      console.log('HomeScreen: AI Search started with query:', searchQuery);
+      Logger.info('HomeScreen: AI Search query', { query: searchQuery });
+      
+      // Close the modal
+      setAiSearchModalVisible(false);
+      
+      // Filter profiles based on search query
+      const query = searchQuery.toLowerCase();
+      console.log('HomeScreen: Filtering profiles with query:', query);
+      
+      const filtered = initialProfiles.filter(profile => {
+        if (!profile) return false;
+        
+        // Search in name
+        if (profile.name && profile.name.toLowerCase().includes(query)) return true;
+        
+        // Search in bio
+        if (profile.bio && profile.bio.toLowerCase().includes(query)) return true;
+        
+        // Search in interests
+        if (profile.interests && Array.isArray(profile.interests)) {
+          if (profile.interests.some(interest => interest.toLowerCase().includes(query))) return true;
+        }
+        
+        // Search in work
+        if (profile.work) {
+          if (profile.work.company && profile.work.company.toLowerCase().includes(query)) return true;
+          if (profile.work.title && profile.work.title.toLowerCase().includes(query)) return true;
+        }
+        
+        // Search in education
+        if (profile.education) {
+          if (profile.education.school && profile.education.school.toLowerCase().includes(query)) return true;
+          if (profile.education.degree && profile.education.degree.toLowerCase().includes(query)) return true;
+        }
+        
+        // Search in relationshipGoal with Hungarian translations
+        if (profile.relationshipGoal) {
+          const goal = profile.relationshipGoal.toLowerCase();
+          if (goal.includes(query)) return true;
+          // Hungarian translations
+          if (query === 'laza' && goal === 'casual') return true;
+          if (query === 'komoly' && goal === 'serious') return true;
+          if (query === 'barátság' && goal === 'friendship') return true;
+        }
+        
+        // Search in zodiac sign
+        if (profile.zodiacSign && profile.zodiacSign.toLowerCase().includes(query)) return true;
+        
+        // Search in MBTI
+        if (profile.mbti && profile.mbti.toLowerCase().includes(query)) return true;
+        
+        return false;
+      });
+      
+      console.log('HomeScreen: Filtered profiles count:', filtered.length);
+      
+      if (filtered.length > 0) {
+        setProfiles(filtered);
+        setCurrentIndex(0);
+        Alert.alert(
+          '✨ AI Keresés',
+          `${filtered.length} profil találat "${searchQuery}" keresésre`,
+          [{ text: 'Rendben' }]
+        );
+      } else {
+        Alert.alert(
+          '🔍 Nincs találat',
+          `Nem találtunk profilt "${searchQuery}" keresésre.\n\nPróbálj más kulcsszavakat!`,
+          [
+            { 
+              text: 'Vissza az összes profilhoz', 
+              onPress: () => {
+                setProfiles(initialProfiles);
+                setCurrentIndex(0);
+              }
+            },
+            { text: 'Új keresés', onPress: () => setAiSearchModalVisible(true) }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('HomeScreen: AI Search error:', error);
+      Logger.error('HomeScreen: Error processing AI search', error);
+      Alert.alert('Hiba', 'Nem sikerült a keresés: ' + error.message);
+    }
+  }, []);
+
+  const handleTopIconPress = useCallback((iconName) => {
+    console.log('HomeScreen: Top icon pressed:', iconName);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    switch(iconName) {
+      case 'passport':
+        if (navigation) {
+          navigation.navigate('Profil', { screen: 'Map' });
+        }
+        break;
+      case 'verified':
+        Alert.alert('Hitelesített Profilok', 'Csak hitelesített felhasználók megjelenítése');
+        break;
+      case 'sparkles':
+        setAiSearchModalVisible(true);
+        break;
+      case 'chart':
+        if (navigation) {
+          navigation.navigate('Profil', { screen: 'TopPicks' });
+        }
+        break;
+      case 'search':
+        if (navigation) {
+          navigation.navigate('Profil', { screen: 'Search' });
+        }
+        break;
+      case 'diamond':
+        if (navigation) {
+          navigation.navigate('Profil', { screen: 'Premium' });
+        }
+        break;
+      case 'lightning':
+        if (navigation) {
+          navigation.navigate('Profil', { screen: 'Boost' });
+        }
+        break;
+      default:
+        console.log('Unknown icon:', iconName);
+    }
+  }, [navigation]);
+
+  if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
-            Profilok betöltése...
-          </Text>
         </View>
       </SafeAreaView>
     );
@@ -390,288 +432,202 @@ const HomeScreen = ({ onMatch, navigation, matches = [], route }) => {
 
   if (!currentProfile) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Felfedezés</Text>
-        </View>
-
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.center}>
-          <Ionicons name="search" size={50} color={theme.colors.textSecondary} />
           <Text style={[styles.emptyText, { color: theme.colors.text }]}>
-            Nincs több profil a jelenlegi szűrők alapján
+            Nincs több profil
           </Text>
-          <TouchableOpacity
-            style={[styles.filterButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => updateUiState({ aiModalVisible: true })}
-          >
-            <Text style={styles.filterButtonText}>AI Szűrő módosítása</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        {/* Menu Icon */}
-        <TouchableOpacity
-          style={styles.headerIcon}
-          onPress={() => updateUiState(prev => ({ dropdownVisible: !prev.dropdownVisible }))}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      {/* Felső ikonsor - 7 ikon */}
+      <View style={styles.topIconBar} pointerEvents="box-none">
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('passport')}
+          activeOpacity={0.7}
         >
-          <Ionicons name="menu" size={24} color={theme.colors.primary} />
+          <Ionicons name="airplane" size={24} color="#fff" />
         </TouchableOpacity>
 
-        <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Felfedezés</Text>
-
-        {/* Filter Icon */}
-        <TouchableOpacity
-          style={styles.headerIcon}
-          onPress={() => updateUiState({ aiModalVisible: true })}
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('verified')}
+          activeOpacity={0.7}
         >
-          <Ionicons name="filter" size={24} color={theme.colors.primary} />
+          <Ionicons name="checkmark-circle" size={24} color="#fff" />
         </TouchableOpacity>
 
-        {/* Dropdown Menu */}
-        {uiState.dropdownVisible && (
-          <View style={[styles.dropdownMenu, { backgroundColor: theme.colors.surface }]}>
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                updateUiState({ dropdownVisible: false });
-                navigation.navigate('Matches');
-              }}
-            >
-              <Ionicons name="heart" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Matchek</Text>
-            </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('sparkles')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="sparkles" size={24} color="#fff" />
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                updateUiState({ dropdownVisible: false });
-                navigation.navigate('Profile');
-              }}
-            >
-              <Ionicons name="person" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Profil</Text>
-            </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('chart')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="bar-chart" size={24} color="#fff" />
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                updateUiState({ dropdownVisible: false });
-                navigation.navigate('Search');
-              }}
-            >
-              <Ionicons name="search" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Keresés</Text>
-            </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('search')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="search" size={24} color="#fff" />
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                updateUiState({ dropdownVisible: false });
-                navigation.navigate('Boost');
-              }}
-            >
-              <Ionicons name="flash" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Boost</Text>
-            </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('diamond')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="diamond" size={24} color="#fff" />
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                updateUiState({ dropdownVisible: false });
-                navigation.navigate('Passport');
-              }}
-            >
-              <Ionicons name="map" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dropdownText, { color: theme.colors.text }]}>Helyszínek</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <TouchableOpacity 
+          style={styles.topIcon}
+          onPress={() => handleTopIconPress('lightning')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="flash" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      {/* Stories Bar */}
-      <View style={styles.storiesContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={styles.addStoryButton}
-            onPress={() => Alert.alert('Story', 'Story létrehozás hamarosan elérhető!')}
-          >
-            <View style={[styles.addStoryIcon, { borderColor: theme.colors.primary }]}>
-              <Ionicons name="add" size={20} color={theme.colors.primary} />
-            </View>
-            <Text style={[styles.addStoryText, { color: theme.colors.text }]}>Saját</Text>
-          </TouchableOpacity>
-
-          {dataState.stories.map((story, index) => (
-            <StoryCircle
-              key={story.id}
-              story={story}
-              onPress={() => handleStoryPress(index)}
-            />
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Profile Card */}
-      <View style={styles.cardContainer}>
+      {/* Profil kártya */}
+      <View style={styles.cardContainer} pointerEvents="box-none">
         <SwipeCard
+          key={currentProfile.id}
           profile={currentProfile}
-          isFirst={true}
           onSwipeLeft={handleSwipeLeft}
           onSwipeRight={handleSwipeRight}
           onSuperLike={handleSuperLike}
-          onProfilePress={() => navigation.navigate('ProfileDetail', { profile: currentProfile })}
-          disabled={dataState.currentIndex >= dataState.profiles.length}
+          onProfilePress={() => {
+            console.log('HomeScreen: Opening profile detail');
+            if (navigation) {
+              navigation.navigate('Profil', { 
+                screen: 'ProfileDetail', 
+                params: { profile: currentProfile } 
+              });
+            }
+          }}
+          isFirst={true}
+          userProfile={user || currentUser}
         />
+
+        {/* Jobb oldali akciók */}
+        <View style={styles.rightActions} pointerEvents="box-none">
+          <TouchableOpacity 
+            style={styles.rightActionButton}
+            onPress={() => {
+              console.log('HomeScreen: Refresh pressed');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              loadProfiles();
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={24} color="#333" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.rightActionButton}
+            onPress={() => {
+              console.log('HomeScreen: Options pressed');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert('Opciók', 'További beállítások');
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Bal alsó vissza gomb */}
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => {
+            console.log('HomeScreen: Back pressed');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setCurrentIndex(prev => Math.max(0, prev - 1));
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
+      {/* Alsó akció gombok - 3 gomb */}
+      <View style={styles.actionButtons} pointerEvents="box-none">
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => handleSwipeLeft(currentProfile)}
-          disabled={dataState.currentIndex >= dataState.profiles.length}
+          style={[styles.actionButton, styles.passButton]}
+          onPress={() => {
+            console.log('HomeScreen: Pass button pressed');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handleSwipeLeft(currentProfile);
+          }}
+          activeOpacity={0.7}
         >
-          <Ionicons name="close" size={24} color="#FF4444" />
+          <Ionicons name="close" size={32} color="#FF4444" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.actionButton, styles.superLikeButton]}
-          onPress={() => handleSuperLike(currentProfile)}
-          disabled={dataState.currentIndex >= dataState.profiles.length}
+          onPress={() => {
+            console.log('HomeScreen: Super Like button pressed');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            handleSuperLike(currentProfile);
+          }}
+          activeOpacity={0.7}
         >
-          <Ionicons name="star" size={20} color="#FFFFFF" />
+          <Ionicons name="star" size={28} color="#4A90E2" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => handleSwipeRight(currentProfile)}
-          disabled={dataState.currentIndex >= dataState.profiles.length}
+          style={[styles.actionButton, styles.likeButton]}
+          onPress={() => {
+            console.log('HomeScreen: Like button pressed');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handleSwipeRight(currentProfile);
+          }}
+          activeOpacity={0.7}
         >
-          <Ionicons name="heart" size={24} color="#FF4444" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Bottom Controls */}
-      <View style={styles.bottomControls}>
-        <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
-          onPress={handleUndo}
-          disabled={history.length === 0}
-        >
-          <Ionicons name="refresh" size={20} color={history.length > 0 ? theme.colors.primary : theme.colors.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
-          onPress={handleOpenVideoProfile}
-          disabled={dataState.currentIndex >= dataState.profiles.length}
-        >
-          <Ionicons name="videocam" size={20} color={theme.colors.primary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleBoost}
-        >
-          <Ionicons name="flash" size={20} color="#FFFFFF" />
-          <Text style={styles.boostText}>Boost</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
-          onPress={handleOpenMap}
-        >
-          <Ionicons name="map" size={20} color={theme.colors.primary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
-          onPress={handleOpenSearch}
-        >
-          <Ionicons name="search" size={20} color={theme.colors.primary} />
+          <Ionicons name="heart" size={32} color="#FF4444" />
         </TouchableOpacity>
       </View>
 
       {/* Match Animation */}
       <MatchAnimation
-        visible={uiState.matchAnimVisible}
-        profile={dataState.matchedProfile}
-        onClose={() => updateUiState({ matchAnimVisible: false })}
+        visible={matchAnimVisible}
+        profile={matchedProfile}
+        onClose={() => setMatchAnimVisible(false)}
+        onSendMessage={(profile) => {
+          console.log('HomeScreen: onSendMessage called with profile:', profile?.name);
+          setMatchAnimVisible(false);
+          navigation.navigate('Matchek', {
+            screen: 'Chat',
+            params: { match: profile }
+          });
+        }}
+        navigation={navigation}
+        allMatches={matches}
       />
 
-      {/* Story Viewer */}
-      <StoryViewer
-        visible={uiState.storiesVisible}
-        stories={dataState.stories}
-        initialIndex={dataState.selectedStoryIndex}
-        onClose={() => updateUiState({ storiesVisible: false })}
+      {/* AI Search Modal */}
+      <AISearchModal
+        theme={theme}
+        visible={aiSearchModalVisible}
+        onClose={() => setAiSearchModalVisible(false)}
+        onSearch={handleAISearch}
       />
-
-      {/* Video Profile Modal - Temporarily disabled */}
-      {/* <VideoProfile
-        visible={uiState.videoModalVisible}
-        profile={currentProfile}
-        onClose={() => updateUiState({ videoModalVisible: false })}
-      /> */}
-
-      {/* AI Filter Modal */}
-      <Modal
-        visible={uiState.aiModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => updateUiState({ aiModalVisible: false })}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => updateUiState({ aiModalVisible: false })}
-        >
-          <TouchableOpacity 
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              AI Szűrő
-            </Text>
-            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-              Írd le, milyen partnert keresel
-            </Text>
-
-            <TextInput
-              style={[styles.aiInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]}
-              placeholder="Pl: sportos, könyvmoly, kalandvágyó..."
-              placeholderTextColor={theme.colors.textSecondary}
-              value={filterState.aiInputText}
-              onChangeText={(text) => updateFilterState({ aiInputText: text })}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => updateUiState({ aiModalVisible: false })}
-              >
-                <Text style={styles.cancelButtonText}>Mégse</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
-                onPress={handleAIFilter}
-              >
-                <Text style={styles.modalButtonText}>Alkalmaz</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -684,200 +640,161 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  header: {
-    padding: 20,
-    paddingBottom: 10,
+  emptyText: {
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  
+  // Felső ikonsor
+  topIconBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: 'transparent',
   },
-  headerIcon: {
-    padding: 8,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  filterIcon: {
-    padding: 8,
-  },
-  storiesContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-  },
-  addStoryButton: {
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  addStoryIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
+  topIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  addStoryText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
+
+  // Profil kártya
   cardContainer: {
     flex: 1,
-    marginHorizontal: 20,
-    marginTop: 10,
+    marginTop: 60,
+    marginBottom: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+
+  // Match % badge
+  matchBadge: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  matchPercent: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  matchText: {
+    color: '#fff',
+    fontSize: 12,
+  },
+
+  // Jobb oldali akciók
+  rightActions: {
+    position: 'absolute',
+    right: 20,
+    bottom: 100,
+    gap: 16,
+    zIndex: 50,
+  },
+  rightActionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+  },
+
+  // Bal alsó vissza gomb
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    bottom: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+
+  // Alsó akció gombok
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
-    gap: 20,
+    gap: 24,
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    zIndex: 50,
   },
   actionButton: {
-    width: ACTION_BUTTON_SIZE,
-    height: ACTION_BUTTON_SIZE,
-    borderRadius: ACTION_BUTTON_SIZE / 2,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  passButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   superLikeButton: {
-    backgroundColor: '#FFD700',
-    transform: [{ scale: 1.1 }],
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
-  bottomControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-  },
-  controlButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  boostText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  filterButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  filterButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    margin: 20,
-    borderRadius: 20,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  aiInput: {
-    borderRadius: 10,
-    padding: 15,
-    fontSize: 16,
-    textAlignVertical: 'top',
-    marginBottom: 20,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  modalButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    width: 200,
-    borderRadius: 10,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    gap: 12,
-  },
-  dropdownText: {
-    fontSize: 16,
-    fontWeight: '500',
+  likeButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
 });
 
-export default memo(HomeScreen);
+export default HomeScreen;

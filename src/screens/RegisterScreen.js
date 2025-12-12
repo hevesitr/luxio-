@@ -17,10 +17,24 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import ConsentScreen from './ConsentScreen';
-import { SupabaseAuthService } from '../services/SupabaseAuthService';
+import AuthService from '../services/AuthService';
 
 const RegisterScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      card: '#1f1f1f',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      primaryDark: '#E6356A',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1: Regisztráció, 2: Consent
@@ -131,7 +145,7 @@ const RegisterScreen = ({ navigation }) => {
       const normalizedEmail = email.trim().toLowerCase();
       const birthDateString = birthDate.toISOString().split('T')[0];
 
-      // Use AuthContext signUp method
+      // Use AuthContext signUp method with AuthService security
       const result = await signUp(
         normalizedEmail,
         password,
@@ -141,10 +155,6 @@ const RegisterScreen = ({ navigation }) => {
           gender,
           looking_for: lookingFor,
           birth_date: birthDateString,
-          consent_terms: consents.terms,
-          consent_privacy: consents.privacy,
-          consent_marketing: consents.marketing,
-          consent_analytics: consents.analytics,
         }
       );
 
@@ -190,7 +200,7 @@ const RegisterScreen = ({ navigation }) => {
     });
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   if (step === 2) {
     return (

@@ -19,7 +19,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 50;
 
 const MatchAnimation = ({ visible, onClose, onSendMessage, profile, allMatches = [], navigation }) => {
-  console.log('MatchAnimation: Received profile:', profile?.name, profile?.id);
+  // console.log('MatchAnimation: Received profile:', profile?.name, profile?.id, 'visible:', visible, 'allMatches length:', allMatches?.length);
+  
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const slideX = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -36,23 +37,23 @@ const MatchAnimation = ({ visible, onClose, onSendMessage, profile, allMatches =
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Get all matches including current profile
-  const matches = allMatches && allMatches.length > 0 
+  const matches = Array.isArray(allMatches) && allMatches.length > 0 
     ? allMatches 
     : profile 
       ? [profile] 
       : [];
 
-  // Set current index when profile changes
+  // Set current index when profile changes - MUST be before early return
   useEffect(() => {
-    if (profile && matches.length > 0) {
-      const index = matches.findIndex(m => m.id === profile.id);
+    if (profile && Array.isArray(matches) && matches.length > 0) {
+      const index = matches.findIndex(m => m && m.id === profile.id);
       if (index >= 0) {
         setCurrentMatchIndex(index);
       }
     }
   }, [profile, matches]);
 
-  // Pan responder for swipe gestures - improved for better touch handling
+  // Pan responder for swipe gestures - MUST be before early return (React Rules of Hooks)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (evt, gestureState) => {
@@ -257,8 +258,16 @@ const MatchAnimation = ({ visible, onClose, onSendMessage, profile, allMatches =
     }
   }, [visible]);
 
+  // Early return AFTER all hooks - React rules
+  if (!visible || (!profile && matches.length === 0)) {
+    return null;
+  }
+
   const currentProfile = matches[currentMatchIndex] || profile;
-  if (!currentProfile) return null;
+  if (!currentProfile || !currentProfile.id) {
+    console.log('MatchAnimation: No valid currentProfile, returning null');
+    return null;
+  }
 
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],

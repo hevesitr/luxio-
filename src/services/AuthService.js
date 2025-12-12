@@ -9,6 +9,9 @@ import PasswordService from './PasswordService';
 import SessionService from './SessionService';
 import RateLimitService from './RateLimitService';
 import * as SecureStore from 'expo-secure-store';
+// Phase 1: Device Fingerprinting for Session Fixation Prevention
+import { deviceFingerprintService } from './DeviceFingerprintService';
+import { piiRedactionService } from './PIIRedactionService';
 
 class AuthService extends BaseService {
   constructor() {
@@ -187,7 +190,7 @@ class AuthService extends BaseService {
       // ✅ P1-1: Sikeres bejelentkezés - számláló visszaállítása
       await RateLimitService.recordSuccessfulLogin(email);
 
-      Logger.success('User signed in', { email });
+      Logger.success('User signed in', { email: piiRedactionService.redactEmail(email) });
 
       // Session mentése
       if (data.session) {
@@ -195,6 +198,20 @@ class AuthService extends BaseService {
         this.session = data.session;
         this.currentUser = data.user;
         this.startRefreshTimer();
+
+        // Phase 1: Device Fingerprinting for Session Fixation Prevention
+        try {
+          const fingerprint = await deviceFingerprintService.generateFingerprint();
+          await deviceFingerprintService.storeFingerprint(fingerprint);
+          
+          // Store fingerprint with session in database
+          await this.storeSessionFingerprint(data.session.access_token, fingerprint);
+          
+          Logger.info('[AuthService] Device fingerprint stored for session');
+        } catch (fingerprintError) {
+          Logger.warn('[AuthService] Failed to store device fingerprint', fingerprintError);
+          // Non-critical, don't block login
+        }
 
         // Session létrehozása adatbázisban
         try {
@@ -593,8 +610,8 @@ class AuthService extends BaseService {
    */
   async saveSession(session) {
     try {
-      // 🔒 Device fingerprint generálása
-      const deviceFingerprint = await this.generateDeviceFingerprint();
+      // 🔒 Device fingerprint generálása (DeviceFingerprintService használatával)
+      const deviceFingerprint = await deviceFingerprintService.generateFingerprint();
 
       // 🔒 Session adatok titkosítása
       const sessionData = {
@@ -616,33 +633,6 @@ class AuthService extends BaseService {
   }
 
   /**
-   * ✅ JAVÍTOTT: Device fingerprint generálása session security-hez
-   */
-  async generateDeviceFingerprint() {
-    try {
-      const deviceInfo = {
-        platform: 'web', // Expo app
-        userAgent: navigator?.userAgent || 'unknown',
-        language: navigator?.language || 'unknown',
-        timezone: Intl?.DateTimeFormat?.().resolvedOptions?.timeZone || 'unknown',
-        screenResolution: `${screen?.width || 0}x${screen?.height || 0}`,
-        timestamp: new Date().toISOString().split('T')[0] // Date only for stability
-      };
-
-      // Create hash from device info
-      const deviceString = JSON.stringify(deviceInfo);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(deviceString));
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      return hashHex;
-    } catch (error) {
-      Logger.warn('Failed to generate device fingerprint', error);
-      return 'fallback-fingerprint';
-    }
-  }
-
-  /**
    * ✅ JAVÍTOTT: Session betöltése dekódolással és fingerprint ellenőrzéssel
    */
   async loadSession() {
@@ -656,7 +646,7 @@ class AuthService extends BaseService {
           const decodedData = JSON.parse(atob(sessionStr));
 
           // 🔒 Fingerprint ellenőrzés
-          const currentFingerprint = await this.generateDeviceFingerprint();
+          const currentFingerprint = await deviceFingerprintService.generateFingerprint();
           if (decodedData.fingerprint !== currentFingerprint) {
             Logger.warn('Session fingerprint mismatch - possible device change');
             await this.clearSession();
@@ -1027,6 +1017,68 @@ class AuthService extends BaseService {
    */
   isAuthenticated() {
     return !!this.currentUser && !!this.session && !this.isSessionExpired();
+  }
+  /**
+   * Phase 1: Store session fingerprint in database
+   * @param {string} sessionToken - Session access token
+   * @param {string} fingerprint - Device fingerprint
+   */
+  async storeSessionFingerprint(sessionToken, fingerprint) {
+    try {
+      // Store in secure storage for client-side validation
+      await SecureStore.setItemAsync('session_fingerprint', fingerprint);
+      
+      // Store in database for server-side validation
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from('device_fingerprints')
+          .upsert({
+            user_id: user.id,
+            fingerprint: fingerprint,
+            last_seen_at: new Date().toISOString(),
+            is_active: true
+          }, {
+            onConflict: 'user_id,fingerprint'
+          });
+        
+        if (error) {
+          Logger.warn('[AuthService] Failed to store fingerprint in database', error);
+        }
+      }
+    } catch (error) {
+      Logger.error('[AuthService] Error storing session fingerprint', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Phase 1: Validate session fingerprint
+   * @returns {Promise<boolean>} - True if fingerprint matches
+   */
+  async validateSessionFingerprint() {
+    try {
+      const storedFingerprint = await SecureStore.getItemAsync('session_fingerprint');
+      if (!storedFingerprint) {
+        Logger.warn('[AuthService] No stored fingerprint found');
+        return false;
+      }
+      
+      const currentFingerprint = await deviceFingerprintService.generateFingerprint();
+      const isValid = await deviceFingerprintService.validateFingerprint(currentFingerprint);
+      
+      if (!isValid) {
+        Logger.warn('[AuthService] Device fingerprint mismatch - possible session hijacking');
+        // Invalidate session
+        await this.signOut();
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      Logger.error('[AuthService] Error validating session fingerprint', error);
+      return false;
+    }
   }
 }
 

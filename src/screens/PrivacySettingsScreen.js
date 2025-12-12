@@ -22,6 +22,18 @@ const PrivacySettingsScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Fallback theme if theme is not initialized
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
   const [settings, setSettings] = useState({
     // Cookie settings
     necessary_cookies: true,
@@ -114,13 +126,13 @@ const PrivacySettingsScreen = ({ navigation }) => {
   };
 
   const SettingItem = ({ title, description, value, onValueChange, disabled = false }) => (
-    <View style={[styles.settingItem, { backgroundColor: theme.colors.card }]}>
+    <View style={[styles.settingItem, { backgroundColor: safeTheme.colors.surface }]}>
       <View style={styles.settingContent}>
-        <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
+        <Text style={[styles.settingTitle, { color: safeTheme.colors.text }]}>
           {title}
         </Text>
         {description && (
-          <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.settingDescription, { color: safeTheme.colors.textSecondary }]}>
             {description}
           </Text>
         )}
@@ -129,18 +141,18 @@ const PrivacySettingsScreen = ({ navigation }) => {
         value={value}
         onValueChange={onValueChange}
         disabled={disabled || saving}
-        trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-        thumbColor={value ? '#FFFFFF' : theme.colors.textSecondary}
+        trackColor={{ false: safeTheme.colors.border, true: safeTheme.colors.primary }}
+        thumbColor={value ? '#FFFFFF' : safeTheme.colors.textSecondary}
       />
     </View>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+          <ActivityIndicator size="large" color={safeTheme.colors.primary} />
+          <Text style={[styles.loadingText, { color: safeTheme.colors.textSecondary }]}>
             Beállítások betöltése...
           </Text>
         </View>
@@ -149,9 +161,9 @@ const PrivacySettingsScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]}>
       <LinearGradient
-        colors={[theme.colors.primary, theme.colors.primary + '80']}
+        colors={[safeTheme.colors.primary, safeTheme.colors.primary + '80']}
         style={styles.header}
       >
         <View style={styles.headerContent}>
@@ -169,7 +181,7 @@ const PrivacySettingsScreen = ({ navigation }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Cookie Settings */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: safeTheme.colors.text }]}>
             🍪 Cookie Beállítások
           </Text>
 
@@ -198,7 +210,7 @@ const PrivacySettingsScreen = ({ navigation }) => {
 
         {/* Privacy Settings */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: safeTheme.colors.text }]}>
             🔒 Adatvédelmi Beállítások
           </Text>
 
@@ -240,7 +252,7 @@ const PrivacySettingsScreen = ({ navigation }) => {
 
         {/* Notification Settings */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: safeTheme.colors.text }]}>
             🔔 Értesítési Beállítások
           </Text>
 
@@ -278,7 +290,7 @@ const PrivacySettingsScreen = ({ navigation }) => {
           style={[
             styles.saveButton,
             {
-              backgroundColor: theme.colors.primary,
+              backgroundColor: safeTheme.colors.primary,
               opacity: saving ? 0.7 : 1,
             },
           ]}
@@ -294,26 +306,26 @@ const PrivacySettingsScreen = ({ navigation }) => {
 
         {/* GDPR Links */}
         <View style={styles.gdprSection}>
-          <Text style={[styles.gdprTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.gdprTitle, { color: safeTheme.colors.text }]}>
             📜 GDPR Jogok
           </Text>
 
           <TouchableOpacity
-            style={[styles.gdprButton, { borderColor: theme.colors.border }]}
+            style={[styles.gdprButton, { borderColor: safeTheme.colors.border }]}
             onPress={() => navigation.navigate('DataExport')}
           >
-            <Ionicons name="download" size={20} color={theme.colors.primary} />
-            <Text style={[styles.gdprButtonText, { color: theme.colors.text }]}>
+            <Ionicons name="download" size={20} color={safeTheme.colors.primary} />
+            <Text style={[styles.gdprButtonText, { color: safeTheme.colors.text }]}>
               Adat Exportálása
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.gdprButton, { borderColor: theme.colors.border }]}
+            style={[styles.gdprButton, { borderColor: safeTheme.colors.border }]}
             onPress={() => navigation.navigate('DeleteAccount')}
           >
             <Ionicons name="trash" size={20} color="#F44336" />
-            <Text style={[styles.gdprButtonText, { color: theme.colors.text }]}>
+            <Text style={[styles.gdprButtonText, { color: safeTheme.colors.text }]}>
               Fiók Törlése
             </Text>
           </TouchableOpacity>

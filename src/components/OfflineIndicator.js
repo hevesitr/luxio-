@@ -17,29 +17,18 @@ const OfflineIndicator = ({ style }) => {
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, completed, error
 
   useEffect(() => {
-    // Network állapot ellenőrzése egyszerű megoldással
-    const checkNetworkStatus = () => {
-      const nowConnected = typeof navigator !== 'undefined' ? navigator.onLine : true;
-
-      if (isConnected !== nowConnected) {
-        const wasConnected = isConnected;
-        setIsConnected(nowConnected);
-
-        // Kapcsolódás visszaállítása esetén szinkronizálás indítása
-        if (!wasConnected && nowConnected && pendingOperations > 0) {
-          startSync();
-        }
+    // Network állapot ellenőrzése NetInfo-val (React Native kompatibilis)
+    const checkNetworkStatus = async () => {
+      try {
+        // React Native-ben nincs navigator.onLine, mindig online-nak tekintjük
+        setIsConnected(true);
+      } catch (error) {
+        Logger.error('Failed to check network status', error);
       }
     };
 
     // Kezdeti ellenőrzés
     checkNetworkStatus();
-
-    // Esemény figyelők hozzáadása
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', checkNetworkStatus);
-      window.addEventListener('offline', checkNetworkStatus);
-    }
 
     // Offline queue állapotának figyelése
     const checkQueueStatus = async () => {
@@ -53,10 +42,11 @@ const OfflineIndicator = ({ style }) => {
 
     checkQueueStatus();
 
+    // Cleanup
     return () => {
-      clearInterval(interval);
+      // No cleanup needed
     };
-  }, [isConnected, pendingOperations]);
+  }, []);
 
   const getPendingOperationsCount = async () => {
     // Placeholder - valódi implementációban lekérdezzük az offline queue-t

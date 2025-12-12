@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Alert,
   Animated,
@@ -108,7 +109,7 @@ const BoostScreen = ({ navigation }) => {
         <View style={{ width: 28 }} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {isBoostActive ? (
           <View style={styles.activeBoostContainer}>
             <Animated.View style={[styles.boostIcon, { transform: [{ scale: pulseAnim }] }]}>
@@ -206,7 +207,7 @@ const BoostScreen = ({ navigation }) => {
             )}
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

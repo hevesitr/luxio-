@@ -15,6 +15,20 @@ import { useTheme } from '../context/ThemeContext';
 
 const GamificationScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  
+  // Fallback theme protection
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      primaryLight: '#FF6B9D',
+      border: 'rgba(255, 255, 255, 0.1)',
+    }
+  };
+  
   const [streak, setStreak] = useState({ days: 0, lastDate: null });
   const [badges, setBadges] = useState([]);
   const [stats, setStats] = useState({
@@ -38,7 +52,7 @@ const GamificationScreen = ({ navigation }) => {
     setStats(userStats);
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

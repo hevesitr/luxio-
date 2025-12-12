@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+// Haptics disabled
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { COLORS } from '../constants/Colors';
@@ -48,10 +48,14 @@ const IncomingCallScreen = ({ route, navigation }) => {
       })
     ).start();
 
-    // Haptic feedback every 2 seconds
-    const hapticInterval = setInterval(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    }, 2000);
+    // Haptic feedback every 2 seconds - DISABLED
+    // const hapticInterval = setInterval(() => {
+    //   try {
+    //     Haptics.impactAsync('heavy');
+    //   } catch (error) {
+    //     // Haptics might not be available, ignore error
+    //   }
+    // }, 2000);
 
     return () => {
       clearInterval(hapticInterval);
@@ -59,7 +63,7 @@ const IncomingCallScreen = ({ route, navigation }) => {
   }, []);
 
   const handleAccept = async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // DISABLED
     
     // Navigate to appropriate call screen
     if (callType === 'video') {
@@ -70,7 +74,7 @@ const IncomingCallScreen = ({ route, navigation }) => {
   };
 
   const handleDecline = async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    // await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); // DISABLED
     navigation.goBack();
   };
 

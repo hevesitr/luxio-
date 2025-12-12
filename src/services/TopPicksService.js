@@ -9,8 +9,13 @@ class TopPicksService {
 
   async generateTopPicks(allProfiles, userProfile, extraPicks = 0) {
     try {
-      // Calculate compatibility for all profiles
-      const profilesWithScores = allProfiles.map(profile => ({
+      // Null safety checks
+      if (!Array.isArray(allProfiles) || !userProfile) {
+        return { success: false, error: 'Invalid input parameters' };
+      }
+
+      // Calculate compatibility for all profiles with null safety
+      const profilesWithScores = (allProfiles || []).map(profile => ({
         ...profile,
         compatibility: CompatibilityService.calculateCompatibility(userProfile, profile),
       }));
@@ -83,19 +88,21 @@ class TopPicksService {
   }
 
   getPickReason(compatibility) {
-    if (compatibility.commonInterests.length >= 3) {
+    if (!compatibility) return 'Ajánlott számodra';
+    
+    if (compatibility.commonInterests && compatibility.commonInterests.length >= 3) {
       return `${compatibility.commonInterests.length} közös érdeklődés`;
     }
     if (compatibility.score >= 85) {
       return 'Nagyon magas kompatibilitás';
     }
-    if (compatibility.level.name === 'Kiváló') {
+    if (compatibility.level && compatibility.level.name === 'Kiváló') {
       return 'Tökéletes találat';
     }
-    if (compatibility.details.zodiacMatch) {
+    if (compatibility.details && compatibility.details.zodiacMatch) {
       return 'Kompatibilis csillagjegy';
     }
-    if (compatibility.details.mbtiMatch === 'Excellent') {
+    if (compatibility.details && compatibility.details.mbtiMatch === 'Excellent') {
       return 'Kompatibilis személyiség';
     }
     return 'Ajánlott számodra';

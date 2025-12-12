@@ -5,6 +5,8 @@
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
 import ErrorHandler, { ErrorCodes } from './ErrorHandler';
+// Phase 1: Idempotency for Payment Duplicate Prevention
+import { idempotencyService } from './IdempotencyService';
 
 class PaymentService {
   constructor() {
@@ -16,9 +18,9 @@ class PaymentService {
     this.subscriptionPlans = {
       MONTHLY: {
         id: 'premium_monthly',
-        name: 'Premium Monthly',
-        price: 9.99,
-        currency: 'USD',
+        name: 'Prémium Havi',
+        price: 3590,
+        currency: 'HUF',
         duration: 30, // days
         features: [
           'unlimited_swipes',
@@ -30,9 +32,9 @@ class PaymentService {
       },
       QUARTERLY: {
         id: 'premium_quarterly',
-        name: 'Premium Quarterly',
-        price: 24.99,
-        currency: 'USD',
+        name: 'Prémium Negyedéves',
+        price: 8990,
+        currency: 'HUF',
         duration: 90, // days
         features: [
           'unlimited_swipes',
@@ -44,9 +46,9 @@ class PaymentService {
       },
       YEARLY: {
         id: 'premium_yearly',
-        name: 'Premium Yearly',
-        price: 79.99,
-        currency: 'USD',
+        name: 'Prémium Éves',
+        price: 28990,
+        currency: 'HUF',
         duration: 365, // days
         features: [
           'unlimited_swipes',
@@ -62,40 +64,55 @@ class PaymentService {
 
   /**
    * Előfizetés létrehozása
+   * Phase 1: Enhanced with idempotency to prevent duplicate charges
    */
   async createSubscription(userId, planId) {
+    // Phase 1: Generate idempotency key for this payment
+    const idempotencyKey = idempotencyService.generateKey();
+    
     return ErrorHandler.wrapServiceCall(async () => {
-      const plan = Object.values(this.subscriptionPlans).find(p => p.id === planId);
-      
-      if (!plan) {
-        throw new Error('Invalid subscription plan');
-      }
+      // Phase 1: Execute with idempotency protection
+      return await idempotencyService.executeWithIdempotency(
+        idempotencyKey,
+        async () => {
+          const plan = Object.values(this.subscriptionPlans).find(p => p.id === planId);
+          
+          if (!plan) {
+            throw new Error('Invalid subscription plan');
+          }
 
-      // Előfizetés mentése
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + plan.duration);
+          // Előfizetés mentése
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + plan.duration);
 
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: userId,
-          plan_id: planId,
-          status: 'active',
-          started_at: new Date().toISOString(),
-          expires_at: expiresAt.toISOString(),
-          price: plan.price,
-          currency: plan.currency,
-        })
-        .select()
-        .single();
+          const { data, error } = await supabase
+            .from('subscriptions')
+            .insert({
+              user_id: userId,
+              plan_id: planId,
+              status: 'active',
+              started_at: new Date().toISOString(),
+              expires_at: expiresAt.toISOString(),
+              price: plan.price,
+              currency: plan.currency,
+              idempotency_key: idempotencyKey, // Store idempotency key
+            })
+            .select()
+            .single();
 
-      if (error) throw error;
+          if (error) throw error;
 
-      // Profil frissítése - premium státusz
-      await this.grantPremiumFeatures(userId, expiresAt);
+          // Profil frissítése - premium státusz
+          await this.grantPremiumFeatures(userId, expiresAt);
 
-      Logger.success('Subscription created', { userId, planId });
-      return data;
+          Logger.success('Subscription created with idempotency', { 
+            userId, 
+            planId,
+            idempotencyKey: idempotencyKey.substring(0, 8) + '...'
+          });
+          return data;
+        }
+      );
     }, { operation: 'createSubscription', userId, planId });
   }
 

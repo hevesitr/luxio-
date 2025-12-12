@@ -42,11 +42,20 @@ class LocationService {
    * Aktuális helyzet lekérése
    */
   async getCurrentLocation() {
-    return ErrorHandler.wrapServiceCall(async () => {
+    try {
       // Engedély ellenőrzése
-      const { status } = await Location.getForegroundPermissionsAsync();
+      let { status } = await Location.getForegroundPermissionsAsync();
+      
+      // Ha nincs engedély, kérjük el
       if (status !== 'granted') {
-        throw new Error('Location permission not granted');
+        console.log('LocationService: Requesting location permission...');
+        const permissionResult = await Location.requestForegroundPermissionsAsync();
+        status = permissionResult.status;
+        
+        if (status !== 'granted') {
+          console.log('LocationService: Location permission denied by user');
+          return null;
+        }
       }
 
       // Helyzet lekérése
@@ -61,7 +70,11 @@ class LocationService {
 
       Logger.debug('Current location fetched', this.currentLocation);
       return this.currentLocation;
-    }, { operation: 'getCurrentLocation' });
+    } catch (error) {
+      console.log('LocationService: Error getting current location:', error.message);
+      // Return null instead of throwing error to prevent app crash
+      return null;
+    }
   }
 
   /**
@@ -333,6 +346,40 @@ class LocationService {
       longitude >= -180 &&
       longitude <= 180
     );
+  }
+
+  /**
+   * Profilok távolságának frissítése a felhasználó helyzetéhez képest
+   * @param {Array} profiles - Profilok listája
+   * @param {Object} userLocation - Felhasználó helyzete {latitude, longitude}
+   * @returns {Array} - Profilok távolsággal kiegészítve
+   */
+  updateProfileDistances(profiles, userLocation) {
+    if (!profiles || !Array.isArray(profiles)) {
+      return [];
+    }
+
+    if (!userLocation || !this.isValidCoordinates(userLocation)) {
+      return profiles;
+    }
+
+    return profiles.map(profile => {
+      if (!profile || !profile.location || !this.isValidCoordinates(profile.location)) {
+        return profile;
+      }
+
+      const distance = this.calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        profile.location.latitude,
+        profile.location.longitude
+      );
+
+      return {
+        ...profile,
+        distance: Math.round(distance * 10) / 10 // Round to 1 decimal place
+      };
+    });
   }
 }
 

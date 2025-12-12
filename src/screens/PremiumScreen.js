@@ -112,7 +112,7 @@ const PremiumScreen = ({ navigation }) => {
 
     Alert.alert(
       '✨ Előfizetés',
-      `Szeretnéd aktiválni a ${plan.name}-t $${plan.price}/${plan.duration} napért?`,
+      `Szeretnéd aktiválni a ${plan.name}-t ${plan.price.toLocaleString('hu-HU')} Ft-ért ${plan.duration} napra?`,
       [
         { text: 'Mégsem', style: 'cancel' },
         {
@@ -219,12 +219,12 @@ const PremiumScreen = ({ navigation }) => {
           style={styles.tierHeader}
         >
           <Text style={styles.tierName}>{plan.name}</Text>
-          <Text style={styles.tierPrice}>${plan.price}</Text>
+          <Text style={styles.tierPrice}>{plan.price.toLocaleString('hu-HU')} Ft</Text>
           <Text style={styles.tierPeriod}>/ {plan.duration} nap</Text>
         </LinearGradient>
 
         <View style={styles.benefitsList}>
-          {plan.features.map((feature, index) => (
+          {(plan.features || []).map((feature, index) => (
             <View key={index} style={styles.benefitItem}>
               <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
               <Text style={styles.benefitText}>
@@ -299,7 +299,7 @@ const PremiumScreen = ({ navigation }) => {
             style={styles.heroGradient}
           >
             <Ionicons name="sparkles" size={60} color="#FFF" />
-            <Text style={styles.heroTitle}>Upgrade Your Experience</Text>
+            <Text style={styles.heroTitle}>Fejleszd fel az élményedet</Text>
             <Text style={styles.heroSubtitle}>
               Szerezz több matchet és éld meg a teljes prémium élményt
             </Text>
@@ -307,7 +307,7 @@ const PremiumScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.pricingContainer}>
-          {plans.map((plan, index) => (
+          {(plans || []).map((plan, index) => (
             <PricingCard 
               key={plan.id} 
               plan={plan} 
@@ -342,7 +342,7 @@ const PremiumScreen = ({ navigation }) => {
           <View style={styles.featureCard}>
             <Ionicons name="heart" size={32} color="#FF3B75" />
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Likes You</Text>
+              <Text style={styles.featureTitle}>Kedvelések</Text>
               <Text style={styles.featureDesc}>
                 Lásd azonnal ki lájkolt téged
               </Text>
@@ -352,7 +352,7 @@ const PremiumScreen = ({ navigation }) => {
           <View style={styles.featureCard}>
             <Ionicons name="earth" size={32} color="#FF3B75" />
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Passport</Text>
+              <Text style={styles.featureTitle}>Útlevél</Text>
               <Text style={styles.featureDesc}>
                 Swipelj bárhol a világon
               </Text>
@@ -362,7 +362,7 @@ const PremiumScreen = ({ navigation }) => {
           <View style={styles.featureCard}>
             <Ionicons name="diamond" size={32} color="#FF3B75" />
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Top Picks</Text>
+              <Text style={styles.featureTitle}>Kiemelt ajánlások</Text>
               <Text style={styles.featureDesc}>
                 Extra prémium ajánlások minden nap
               </Text>
@@ -392,7 +392,7 @@ const PremiumScreen = ({ navigation }) => {
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <Text style={styles.purchaseText}>
-                  Előfizetés - ${plans.find(p => p.id === selectedPlan)?.price || 0}
+                  Előfizetés - {(plans.find(p => p.id === selectedPlan)?.price || 0).toLocaleString('hu-HU')} Ft
                 </Text>
               )}
             </LinearGradient>

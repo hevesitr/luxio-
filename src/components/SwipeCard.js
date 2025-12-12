@@ -253,6 +253,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
       <Image
         source={{ uri: allPhotos[currentPhotoIndex] || 'https://via.placeholder.com/400x600?text=No+Image' }}
         style={styles.image}
+        resizeMode="cover"
       />
 
       {/* Photo indicators */}

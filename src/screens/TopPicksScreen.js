@@ -58,7 +58,7 @@ const TopPicksScreen = ({ navigation }) => {
 
   const handleProfilePress = (profile) => {
     // Navigate to profile detail or swipe view
-    navigation.navigate('Home', { initialProfile: profile });
+    navigation.navigate('Felfedezés', { initialProfile: profile });
   };
 
   const renderPickCard = ({ item, index }) => (

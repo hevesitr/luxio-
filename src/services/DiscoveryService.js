@@ -1,6 +1,7 @@
 /**
  * DiscoveryService - Felfedezési feed kezelése és szűrés
  */
+import { supabase } from './supabaseClient';
 
 class DiscoveryService {
   constructor() {
@@ -8,11 +9,186 @@ class DiscoveryService {
   }
 
   /**
-   * Egyszerű discovery profiles lekérése szűrőkkel
+   * Calculate age from birth date
+   */
+  calculateAge(birthDate) {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+
+    return age;
+  }
+
+  /**
+   * Calculate distance between two coordinates (Haversine formula)
+   */
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLon = this.toRadians(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c); // Distance in kilometers
+  }
+
+  /**
+   * Convert degrees to radians
+   */
+  toRadians(degrees) {
+    return degrees * (Math.PI / 180);
+  }
+
+  /**
+   * Discovery profiles lekérése Supabase-ból valódi adatokkal
    */
   async getDiscoveryProfiles(filters = {}, excludeIds = []) {
     try {
-      const mockProfiles = [
+      // Real Supabase query for profiles
+      let query = supabase
+        .from('profiles')
+        .select(`
+          id,
+          user_id,
+          bio,
+          interests,
+          relationship_goal,
+          communication_style,
+          height,
+          work,
+          education,
+          exercise,
+          smoking,
+          drinking,
+          children,
+          religion,
+          politics,
+          zodiac_sign,
+          mbti,
+          location_latitude,
+          location_longitude,
+          location_city,
+          location_country,
+          is_verified,
+          is_premium,
+          is_sugar_dating,
+          completion_percentage,
+          created_at,
+          updated_at,
+          users!inner(
+            id,
+            email,
+            name,
+            birth_date,
+            gender,
+            looking_for,
+            last_active,
+            created_at
+          ),
+          profile_photos(
+            url,
+            thumbnail_url,
+            is_private,
+            is_primary,
+            order_index
+          )
+        `)
+        .eq('users.is_active', true)
+        .neq('users.id', supabase.auth.getUser()?.id) // Exclude current user
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Apply filters
+      if (filters.gender) {
+        query = query.eq('users.gender', filters.gender);
+      }
+
+      if (filters.lookingFor) {
+        query = query.contains('users.looking_for', [filters.lookingFor]);
+      }
+
+      if (filters.minAge || filters.maxAge) {
+        const now = new Date();
+        const minDate = filters.minAge ? new Date(now.getFullYear() - filters.minAge, now.getMonth(), now.getDate()) : null;
+        const maxDate = filters.maxAge ? new Date(now.getFullYear() - filters.maxAge, now.getMonth(), now.getDate()) : null;
+
+        if (minDate) query = query.lte('users.birth_date', minDate.toISOString());
+        if (maxDate) query = query.gte('users.birth_date', maxDate.toISOString());
+      }
+
+      if (filters.verifiedOnly) {
+        query = query.eq('is_verified', true);
+      }
+
+      if (filters.premiumOnly) {
+        query = query.eq('is_premium', true);
+      }
+
+      if (excludeIds && excludeIds.length > 0) {
+        query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('DiscoveryService: Supabase query error:', error);
+        // Fallback to mock data on error
+        return this.getMockProfiles(filters, excludeIds);
+      }
+
+      if (!data || data.length === 0) {
+        console.log('DiscoveryService: No profiles found, using mock data');
+        return this.getMockProfiles(filters, excludeIds);
+      }
+
+      // Transform Supabase data to expected format
+      const profiles = data.map(profile => ({
+        id: profile.user_id,
+        name: profile.users.name,
+        age: this.calculateAge(profile.users.birth_date),
+        distance: filters.location ? this.calculateDistance(
+          filters.location.latitude,
+          filters.location.longitude,
+          profile.location_latitude,
+          profile.location_longitude
+        ) : Math.floor(Math.random() * 50) + 1, // Fallback distance
+        verified: profile.is_verified || false,
+        premium: profile.is_premium || false,
+        sugarDating: profile.is_sugar_dating || false,
+        photo: profile.profile_photos?.find(p => p.is_primary)?.url ||
+               profile.profile_photos?.[0]?.url ||
+               'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop',
+        photos: profile.profile_photos?.map(p => p.url) || [],
+        bio: profile.bio || '',
+        interests: profile.interests || [],
+        relationshipGoal: profile.relationship_goal,
+        work: profile.work,
+        education: profile.education,
+        location: profile.location_city ? `${profile.location_city}, ${profile.location_country || ''}`.trim() : null,
+        lastActive: profile.users.last_active,
+      }));
+
+      console.log('DiscoveryService: Loaded profiles from Supabase:', profiles.length);
+      return profiles;
+    } catch (error) {
+      console.error('DiscoveryService: Error loading profiles:', error);
+      // Fallback to mock data
+      return this.getMockProfiles(filters, excludeIds);
+    }
+  }
+
+  /**
+   * Mock profiles fallback (only used when Supabase fails)
+   */
+  getMockProfiles(filters = {}, excludeIds = []) {
+    const mockProfiles = [
         {
           id: 1,
           name: 'Anna',
@@ -405,11 +581,7 @@ class DiscoveryService {
 
       let filtered = [...mockProfiles];
 
-      // ✅ FIX: Exclude already liked/passed profiles
-      if (excludeIds && excludeIds.length > 0) {
-        filtered = filtered.filter(p => !excludeIds.includes(p.id));
-      }
-
+      // Apply filters similar to Supabase query
       if (filters.ageMin) {
         filtered = filtered.filter(p => p.age >= filters.ageMin);
       }
@@ -423,11 +595,13 @@ class DiscoveryService {
         filtered = filtered.filter(p => p.verified);
       }
 
-      // ✅ FIX: Shuffle results so not always the same order
+      // Exclude already processed profiles
+      if (Array.isArray(excludeIds) && excludeIds.length > 0) {
+        filtered = filtered.filter(p => !excludeIds.includes(p.id));
+      }
+
+      // Shuffle results
       return filtered.sort(() => Math.random() - 0.5);
-    } catch (error) {
-      console.error('DiscoveryService error:', error);
-      return [];
     }
   }
 }

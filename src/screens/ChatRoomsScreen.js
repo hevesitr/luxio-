@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import * as Haptics from 'expo-haptics';
+// Haptics disabled
 
 const CHAT_ROOMS = [
   {
@@ -59,7 +59,11 @@ const ChatRoomsScreen = ({ navigation }) => {
   const [rooms] = useState(CHAT_ROOMS);
 
   const handleRoomPress = async (room) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // try {
+    //   await Haptics.impactAsync('light');
+    // } catch (error) {
+    //   // Haptics might not be available, ignore error
+    // } // DISABLED
     navigation.navigate('ChatRoom', {
       roomId: room.id,
       roomName: room.name,

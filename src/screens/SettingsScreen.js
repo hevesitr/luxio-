@@ -20,6 +20,22 @@ const SETTINGS_KEY = '@user_settings';
 
 const SettingsScreen = ({ navigation }) => {
   const { theme, isDark, themeMode, setTheme, accentMode, setAccentMode } = useTheme();
+  
+  // Fallback theme if theme is not initialized
+  const safeTheme = theme || {
+    colors: {
+      background: '#0a0a0a',
+      surface: '#1a1a1a',
+      card: '#1f1f1f',
+      text: '#FFFFFF',
+      textSecondary: 'rgba(255, 255, 255, 0.7)',
+      primary: '#FF3B75',
+      border: 'rgba(255, 255, 255, 0.1)',
+      disabled: '#666666',
+      success: '#4CAF50',
+    }
+  };
+  
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [newMatchNotif, setNewMatchNotif] = useState(true);
   const [messageNotif, setMessageNotif] = useState(true);
@@ -209,7 +225,7 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(safeTheme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

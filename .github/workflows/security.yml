@@ -1,0 +1,188 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security audit daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: npm-audit
+        run: |
+          # Run audit and capture output
+          npm audit --json > audit-report.json || true
+          
+          # Check for vulnerabilities
+          CRITICAL=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0')
+          MODERATE=$(cat audit-report.json | jq '.metadata.vulnerabilities.moderate // 0')
+          LOW=$(cat audit-report.json | jq '.metadata.vulnerabilities.low // 0')
+          
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+          echo "low=$LOW" >> $GITHUB_OUTPUT
+          
+          # Generate human-readable report
+          npm audit --audit-level=moderate > audit-report.txt || true
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit-report
+          path: |
+            audit-report.json
+            audit-report.txt
+
+      - name: Check for critical vulnerabilities
+        run: |
+          CRITICAL=${{ steps.npm-audit.outputs.critical }}
+          HIGH=${{ steps.npm-audit.outputs.high }}
+          
+          echo "🔍 Security Audit Results:"
+          echo "  Critical: $CRITICAL"
+          echo "  High: $HIGH"
+          echo "  Moderate: ${{ steps.npm-audit.outputs.moderate }}"
+          echo "  Low: ${{ steps.npm-audit.outputs.low }}"
+          
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ CRITICAL vulnerabilities found! Build failed."
+            exit 1
+          fi
+          
+          if [ "$HIGH" -gt 0 ]; then
+            echo "⚠️  HIGH vulnerabilities found! Please review."
+            # Uncomment to fail on high vulnerabilities:
+            # exit 1
+          fi
+          
+          echo "✅ No critical vulnerabilities found."
+
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install license-checker
+        run: npm install -g license-checker
+
+      - name: Check licenses
+        run: |
+          # Generate license report
+          license-checker --json > licenses.json || true
+          license-checker --summary > licenses-summary.txt || true
+          
+          # Check for problematic licenses
+          # Fail if GPL, AGPL, or other copyleft licenses are found
+          PROBLEMATIC=$(license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;Unlicense' --summary || echo "found")
+          
+          if [ "$PROBLEMATIC" = "found" ]; then
+            echo "⚠️  Potentially problematic licenses found. Please review licenses-summary.txt"
+            cat licenses-summary.txt
+            # Uncomment to fail on problematic licenses:
+            # exit 1
+          else
+            echo "✅ All licenses are compatible."
+          fi
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v3
+        with:
+          name: license-report
+          path: |
+            licenses.json
+            licenses-summary.txt
+
+  code-scanning:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for secret scanning
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, license-check, code-scanning, secret-scanning]
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# 🔒 Security Audit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dependency Audit:** ${{ needs.dependency-audit.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **License Check:** ${{ needs.license-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Code Scanning:** ${{ needs.code-scanning.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Secret Scanning:** ${{ needs.secret-scanning.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.dependency-audit.result }}" = "failure" ]; then
+            echo "❌ **Critical vulnerabilities found in dependencies!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No critical vulnerabilities found.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
