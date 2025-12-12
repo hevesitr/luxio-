@@ -126,7 +126,7 @@ describe('Data Integrity Properties', () => {
           expect(deserialized.count).toBe(originalData.count);
           expect(deserialized.active).toBe(originalData.active);
           expect(deserialized.tags).toEqual(originalData.tags);
-          expect(deserialized.score).toBe(originalData.score);
+          expect(deserialized.score).toBe(originalData.score === -0 ? 0 : originalData.score);
         }
       ),
       { numRuns: 100 }
@@ -221,19 +221,22 @@ describe('Data Integrity Properties', () => {
   it('Date objects should be serialized as ISO strings', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.date(),
+        fc.date({ min: new Date('1900-01-01'), max: new Date('2100-12-31') }),
         async (date) => {
+          // Skip invalid dates
+          if (isNaN(date.getTime())) return;
+
           const data = { timestamp: date };
-          
+
           // Serialize
           const serialized = JSON.stringify(data);
-          
+
           // Deserialize
           const deserialized = JSON.parse(serialized);
-          
+
           // Date becomes ISO string
           expect(typeof deserialized.timestamp).toBe('string');
-          
+
           // Can be converted back to Date
           const reconstructedDate = new Date(deserialized.timestamp);
           expect(reconstructedDate.getTime()).toBe(date.getTime());

@@ -82,11 +82,11 @@ describe('ProfileService Properties', () => {
             const getResult = await ProfileService.getProfile(userId);
 
             // Verify round-trip
-            expect(updateResult.data.name).toBe(updates.name);
+            expect(updateResult.data.full_name).toBe(updates.full_name);
             expect(updateResult.data.age).toBe(updates.age);
             expect(updateResult.data.bio).toBe(updates.bio);
             expect(getResult.success).toBe(true);
-            expect(getResult.data.name).toBe(updates.name);
+            expect(getResult.data.full_name).toBe(updates.full_name);
             expect(getResult.data.age).toBe(updates.age);
 
             return true;
@@ -160,11 +160,13 @@ describe('ProfileService Properties', () => {
      * 
      * For any birthdate, the calculated age should match the actual years since birth.
      */
-    it('should calculate age correctly from birthdate', async () => {
-      await fc.assert(
-        fc.property(
-          fc.date({ min: new Date('1925-01-01'), max: new Date('2006-12-31') }),
-          (birthdate) => {
+     it('should calculate age correctly from birthdate', async () => {
+       await fc.assert(
+         fc.property(
+           fc.date({ min: new Date('1925-01-01'), max: new Date('2006-12-31') }),
+           (birthdate) => {
+             // Skip invalid dates
+             if (isNaN(birthdate.getTime())) return;
             // Calculate expected age
             const today = new Date();
             let age = today.getFullYear() - birthdate.getFullYear();

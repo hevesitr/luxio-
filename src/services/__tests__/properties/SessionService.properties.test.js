@@ -4,7 +4,7 @@
  */
 import fc from 'fast-check';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SessionService from '../../SessionService';
+import sessionService from '../../SessionService';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -27,7 +27,8 @@ describe('SessionService - Security Properties', () => {
     jest.clearAllMocks();
     AsyncStorage.getItem.mockResolvedValue(null);
     AsyncStorage.setItem.mockResolvedValue();
-    service = new SessionService();
+    service = sessionService;
+    // Reset the service state for testing
     await service.initialize();
   });
 

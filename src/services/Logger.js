@@ -20,7 +20,6 @@ class Logger {
       'full_name',
       'first_name',
       'last_name',
-      'name',
       'address',
       'credit_card',
       'ssn',
@@ -41,7 +40,7 @@ class Logger {
       },
       {
         name: 'phone',
-        pattern: /(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
+        pattern: /\b(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
         replacement: '[PHONE_REDACTED]'
       }
     ];

@@ -40,7 +40,7 @@ describe('PreferencesContext', () => {
       wrapper: PreferencesProvider,
     });
 
-    expect(result.current.filters).toEqual({
+    expect(result.current.discoveryFilters).toEqual({
       ageMin: 18,
       ageMax: 99,
       distanceMax: 50,
@@ -75,25 +75,25 @@ describe('PreferencesContext', () => {
     });
 
     await act(async () => {
-      await result.current.updateFilters({ ageMin: 25, ageMax: 35 });
+      await result.current.updateDiscoveryFilters({ ageMin: 25, ageMax: 35 });
     });
 
-    expect(result.current.filters.ageMin).toBe(25);
-    expect(result.current.filters.ageMax).toBe(35);
+    expect(result.current.discoveryFilters.ageMin).toBe(25);
+    expect(result.current.discoveryFilters.ageMax).toBe(35);
   });
 
-  it('should reset filters to defaults', async () => {
+  it('should reset all preferences to defaults', async () => {
     const { result } = renderHook(() => usePreferences(), {
       wrapper: PreferencesProvider,
     });
 
     await act(async () => {
-      await result.current.updateFilters({ ageMin: 25, ageMax: 35 });
-      await result.current.resetFilters();
+      await result.current.updateDiscoveryFilters({ ageMin: 25, ageMax: 35 });
+      await result.current.resetAllPreferences();
     });
 
-    expect(result.current.filters.ageMin).toBe(18);
-    expect(result.current.filters.ageMax).toBe(99);
+    expect(result.current.discoveryFilters.ageMin).toBe(18);
+    expect(result.current.discoveryFilters.ageMax).toBe(99);
   });
 
   it('should update preferences', async () => {

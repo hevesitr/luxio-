@@ -312,6 +312,15 @@ class OnboardingValidationService {
       ...step3Validation.warnings
     ];
 
+    // Calculate overall completion directly to avoid circular dependency
+    const stepCompletions = [
+      step1Validation.completionPercentage,
+      step2Validation.completionPercentage,
+      step3Validation.completionPercentage,
+      step4Validation.completionPercentage
+    ];
+    const averageCompletion = stepCompletions.reduce((sum, comp) => sum + comp, 0) / stepCompletions.length;
+
     return {
       isValid: allErrors.length === 0,
       errors: allErrors,
@@ -322,7 +331,7 @@ class OnboardingValidationService {
         step3: step3Validation,
         step4: step4Validation
       },
-      completionPercentage: this.calculateOverallCompletion(data)
+      completionPercentage: Math.round(averageCompletion)
     };
   }
 

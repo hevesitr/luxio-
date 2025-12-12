@@ -348,6 +348,135 @@ class OfflineQueueService {
   }
 
   /**
+   * Add message to offline queue (wrapper for MessagingService compatibility)
+   * @param {object} message - Message object
+   * @param {object} options - Additional options
+   * @returns {Promise<object>} Result with success status
+   */
+  async addMessage(message, options = {}) {
+    try {
+      // Ensure message has an ID
+      if (!message.id) {
+        message.id = uuidv4();
+      }
+
+      const actionId = await this.enqueue('message', {
+        ...message,
+        messageType: options.messageType || 'chat_message',
+        priority: options.priority || 1
+      }, message.sender_id || message.userId);
+
+      if (!actionId) {
+        return { success: false, reason: 'duplicate' };
+      }
+
+      return { success: true, messageId: message.id };
+    } catch (error) {
+      console.error('[OfflineQueue] Error adding message:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get next batch of messages to process
+   * @param {number} limit - Maximum number of messages to return
+   * @returns {Promise<Array>} Array of queued messages
+   */
+  async getNextBatch(limit = 10) {
+    try {
+      const queue = await this.loadQueue();
+      const pendingMessages = queue
+        .filter(action => action.action === 'message' && action.status === 'pending')
+        .sort((a, b) => {
+          // Sort by priority (higher first) then by creation time (older first)
+          const priorityDiff = (b.data.priority || 1) - (a.data.priority || 1);
+          if (priorityDiff !== 0) return priorityDiff;
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        })
+        .slice(0, limit);
+
+      return pendingMessages.map(action => ({
+        ...action.data,
+        dbId: action.id, // Reference to the queue entry
+        id: action.data.id,
+      }));
+    } catch (error) {
+      console.error('[OfflineQueue] Error getting next batch:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Mark message as processing
+   * @param {string} dbId - Database ID of the queue entry
+   * @returns {Promise<void>}
+   */
+  async markAsProcessing(dbId) {
+    try {
+      const queue = await this.loadQueue();
+      const action = queue.find(a => a.id === dbId);
+      if (action) {
+        action.status = 'processing';
+        await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        this.queue = queue;
+        console.log(`[OfflineQueue] Marked as processing: ${dbId}`);
+      }
+    } catch (error) {
+      console.error('[OfflineQueue] Error marking as processing:', error);
+    }
+  }
+
+  /**
+   * Mark message as completed
+   * @param {string} dbId - Database ID of the queue entry
+   * @returns {Promise<void>}
+   */
+  async markAsCompleted(dbId) {
+    try {
+      const queue = await this.loadQueue();
+      const actionIndex = queue.findIndex(a => a.id === dbId);
+      if (actionIndex >= 0) {
+        const action = queue[actionIndex];
+        action.status = 'completed';
+        action.syncedAt = new Date().toISOString();
+        await this.markProcessed(action.action, action.data, action.userId);
+
+        // Remove from queue after successful sync
+        queue.splice(actionIndex, 1);
+        await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        this.queue = queue;
+
+        console.log(`[OfflineQueue] Marked as completed and removed: ${dbId}`);
+      }
+    } catch (error) {
+      console.error('[OfflineQueue] Error marking as completed:', error);
+    }
+  }
+
+  /**
+   * Mark message as failed
+   * @param {string} dbId - Database ID of the queue entry
+   * @param {string} error - Error message
+   * @returns {Promise<void>}
+   */
+  async markAsFailed(dbId, error) {
+    try {
+      const queue = await this.loadQueue();
+      const action = queue.find(a => a.id === dbId);
+      if (action) {
+        action.status = 'failed';
+        action.error = error;
+        action.retryCount = (action.retryCount || 0) + 1;
+        await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        this.queue = queue;
+        console.log(`[OfflineQueue] Marked as failed: ${dbId}, error: ${error}`);
+      }
+    } catch (err) {
+      console.error('[OfflineQueue] Error marking as failed:', err);
+    }
+  }
+
+  /**
    * Export queue for debugging
    */
   async exportQueue() {
