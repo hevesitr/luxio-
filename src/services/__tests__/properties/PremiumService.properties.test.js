@@ -75,10 +75,10 @@ describe('PremiumService Properties', () => {
 
             // Should have expected properties
             expect(features).toHaveProperty('dailySwipes');
-            expect(features).toHaveProperty('superLikes');
-            expect(features).toHaveProperty('boosts');
+            expect(features).toHaveProperty('superLikesPerDay');
+            expect(features).toHaveProperty('boostsPerMonth');
             expect(features).toHaveProperty('rewind');
-            expect(features).toHaveProperty('seeWhoLiked');
+            expect(features).toHaveProperty('likesYou');
 
             // Higher tiers should have more/better features
             if (tier === 'free') {

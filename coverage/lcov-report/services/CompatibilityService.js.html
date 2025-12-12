@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/63</span>
+                <span class='fraction'>0/67</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/46</span>
+                <span class='fraction'>0/62</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/55</span>
+                <span class='fraction'>0/59</span>
             </div>
         
             
@@ -227,7 +227,15 @@
 <a name='L162'></a><a href='#L162'>162</a>
 <a name='L163'></a><a href='#L163'>163</a>
 <a name='L164'></a><a href='#L164'>164</a>
-<a name='L165'></a><a href='#L165'>165</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -310,17 +318,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -332,6 +331,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -343,6 +356,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -430,7 +446,7 @@
       userProfile.interests,
       matchProfile.interests
     );
-    const interestScore = <span class="cstat-no" title="statement not covered" >Math.min(30, commonInterests.length * 10);</span>
+    const interestScore = <span class="cstat-no" title="statement not covered" >Math.min(30, (commonInterests?.length || 0) * 10);</span>
 <span class="cstat-no" title="statement not covered" >    score += interestScore;</span>
 <span class="cstat-no" title="statement not covered" >    if (commonInterests.length &gt; 0) {</span>
 <span class="cstat-no" title="statement not covered" >      reasons.push({</span>
@@ -473,26 +489,31 @@
     }
 &nbsp;
     // 4. Korkülönbség (max 15 pont)
-    const ageDiff = <span class="cstat-no" title="statement not covered" >Math.abs(userProfile.age - matchProfile.age);</span>
-    const ageScore = <span class="cstat-no" title="statement not covered" >Math.max(0, 15 - ageDiff * 2);</span>
-<span class="cstat-no" title="statement not covered" >    score += ageScore;</span>
-<span class="cstat-no" title="statement not covered" >    if (ageScore &gt; 10) {</span>
-<span class="cstat-no" title="statement not covered" >      reasons.push({</span>
-        type: 'age',
-        value: `Hasonló korosztály (${userProfile.age} &amp; ${matchProfile.age})`,
-        score: ageScore,
-      });
+<span class="cstat-no" title="statement not covered" >    if (typeof userProfile.age === 'number' &amp;&amp; typeof matchProfile.age === 'number' &amp;&amp; </span>
+        !isNaN(userProfile.age) &amp;&amp; !isNaN(matchProfile.age)) {
+      const ageDiff = <span class="cstat-no" title="statement not covered" >Math.abs(userProfile.age - matchProfile.age);</span>
+      const ageScore = <span class="cstat-no" title="statement not covered" >Math.max(0, 15 - ageDiff * 2);</span>
+<span class="cstat-no" title="statement not covered" >      score += ageScore;</span>
+<span class="cstat-no" title="statement not covered" >      if (ageScore &gt; 10) {</span>
+<span class="cstat-no" title="statement not covered" >        reasons.push({</span>
+          type: 'age',
+          value: `Hasonló korosztály (${userProfile.age} &amp; ${matchProfile.age})`,
+          score: ageScore,
+        });
+      }
     }
 &nbsp;
     // 5. Távolság (max 10 pont)
-    const distanceScore = <span class="cstat-no" title="statement not covered" >this.calculateDistanceScore(matchProfile.distance);</span>
-<span class="cstat-no" title="statement not covered" >    score += distanceScore;</span>
-<span class="cstat-no" title="statement not covered" >    if (distanceScore &gt; 5) {</span>
-<span class="cstat-no" title="statement not covered" >      reasons.push({</span>
-        type: 'distance',
-        value: `Közel vagytok (${matchProfile.distance} km)`,
-        score: distanceScore,
-      });
+<span class="cstat-no" title="statement not covered" >    if (typeof matchProfile.distance === 'number' &amp;&amp; !isNaN(matchProfile.distance)) {</span>
+      const distanceScore = <span class="cstat-no" title="statement not covered" >this.calculateDistanceScore(matchProfile.distance);</span>
+<span class="cstat-no" title="statement not covered" >      score += distanceScore;</span>
+<span class="cstat-no" title="statement not covered" >      if (distanceScore &gt; 5) {</span>
+<span class="cstat-no" title="statement not covered" >        reasons.push({</span>
+          type: 'distance',
+          value: `Közel vagytok (${matchProfile.distance} km)`,
+          score: distanceScore,
+        });
+      }
     }
 &nbsp;
     // Normalize 0-100 közé
@@ -508,6 +529,9 @@
 &nbsp;
   // Közös érdeklődések megkeresése
 <span class="fstat-no" title="function not covered" >  st</span>atic findCommonInterests(interests1, interests2) {
+<span class="cstat-no" title="statement not covered" >    if (!Array.isArray(interests1) || !Array.isArray(interests2)) {</span>
+<span class="cstat-no" title="statement not covered" >      return [];</span>
+    }
 <span class="cstat-no" title="statement not covered" >    return interests1.filter(<span class="fstat-no" title="function not covered" >in</span>terest =&gt; <span class="cstat-no" title="statement not covered" >interests2.includes(interest))</span>;</span>
   }
 &nbsp;
@@ -562,7 +586,7 @@ export default CompatibilityService;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

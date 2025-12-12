@@ -47,9 +47,11 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
   const [lastMessages, setLastMessages] = useState({});
 
   useEffect(() => {
-    loadShowOnMapSetting();
-    loadLastMessages();
-  }, []);
+    if (user?.id) {
+      loadShowOnMapSetting();
+      loadLastMessages();
+    }
+  }, [user?.id]);
 
   const loadLastMessages = async () => {
     try {
@@ -75,17 +77,23 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
 
   const loadShowOnMapSetting = async () => {
     try {
-      const data = await AsyncStorage.getItem(SETTINGS_KEY);
+      if (!user?.id) {
+        setShowOnMap(true); // Default value
+        return;
+      }
+
+      const data = await AsyncStorage.getItem(`${SETTINGS_KEY}_${user.id}`);
       if (data) {
         const settings = JSON.parse(data);
         setShowOnMap(settings.showOnMap !== undefined ? settings.showOnMap : true);
       } else {
-        // Ha nincs beállítás, használjuk a currentUser értékét
-        setShowOnMap(currentUser.showOnMap !== false);
+        // Default to true for new users
+        setShowOnMap(true);
       }
     } catch (error) {
       console.error('Error loading showOnMap setting:', error);
-      setShowOnMap(currentUser.showOnMap !== false);
+      Logger.error('MatchesScreen: Error loading showOnMap setting', error);
+      setShowOnMap(true); // Safe default
     }
   };
 

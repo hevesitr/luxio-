@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/101</span>
+                <span class='fraction'>0/103</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/69</span>
+                <span class='fraction'>0/79</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/98</span>
+                <span class='fraction'>0/101</span>
             </div>
         
             
@@ -920,7 +920,16 @@
 <a name='L855'></a><a href='#L855'>855</a>
 <a name='L856'></a><a href='#L856'>856</a>
 <a name='L857'></a><a href='#L857'>857</a>
-<a name='L858'></a><a href='#L858'>858</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L858'></a><a href='#L858'>858</a>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a>
+<a name='L867'></a><a href='#L867'>867</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -941,7 +950,8 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1175,12 +1185,20 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1798,7 +1816,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = <span class="cstat-no" ti
 const SWIPE_THRESHOLD = <span class="cstat-no" title="statement not covered" >50;</span>
 &nbsp;
 const MatchAnimation = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span> visible, onClose, onSendMessage, profile, allMatches = <span class="branch-0 cbranch-no" title="branch not covered" >[],</span> navigation }) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >  console.log('MatchAnimation: Received profile:', profile?.name, profile?.id);</span>
+  // console.log('MatchAnimation: Received profile:', profile?.name, profile?.id, 'visible:', visible, 'allMatches length:', allMatches?.length);
+  
   const [currentMatchIndex, setCurrentMatchIndex] = <span class="cstat-no" title="statement not covered" >useState(0);</span>
   const slideX = <span class="cstat-no" title="statement not covered" >useRef(new Animated.Value(0)).current;</span>
   const scaleAnim = <span class="cstat-no" title="statement not covered" >useRef(new Animated.Value(0)).current;</span>
@@ -1815,23 +1834,23 @@ const MatchAnimation = <span class="cstat-no" title="statement not covered" ><sp
   const pulseAnim = <span class="cstat-no" title="statement not covered" >useRef(new Animated.Value(1)).current;</span>
 &nbsp;
   // Get all matches including current profile
-  const matches = <span class="cstat-no" title="statement not covered" >allMatches &amp;&amp; allMatches.length &gt; 0 </span>
+  const matches = <span class="cstat-no" title="statement not covered" >Array.isArray(allMatches) &amp;&amp; allMatches.length &gt; 0 </span>
     ? allMatches 
     : profile 
       ? [profile] 
       : [];
 &nbsp;
-  // Set current index when profile changes
+  // Set current index when profile changes - MUST be before early return
 <span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (profile &amp;&amp; matches.length &gt; 0) {</span>
-      const index = <span class="cstat-no" title="statement not covered" >matches.findIndex(<span class="fstat-no" title="function not covered" >m </span>=&gt; <span class="cstat-no" title="statement not covered" >m.id === profile.id)</span>;</span>
+<span class="cstat-no" title="statement not covered" >    if (profile &amp;&amp; Array.isArray(matches) &amp;&amp; matches.length &gt; 0) {</span>
+      const index = <span class="cstat-no" title="statement not covered" >matches.findIndex(<span class="fstat-no" title="function not covered" >m </span>=&gt; <span class="cstat-no" title="statement not covered" >m &amp;&amp; m.id === profile.id)</span>;</span>
 <span class="cstat-no" title="statement not covered" >      if (index &gt;= 0) {</span>
 <span class="cstat-no" title="statement not covered" >        setCurrentMatchIndex(index);</span>
       }
     }
   }, [profile, matches]);
 &nbsp;
-  // Pan responder for swipe gestures - improved for better touch handling
+  // Pan responder for swipe gestures - MUST be before early return (React Rules of Hooks)
   const panResponder = <span class="cstat-no" title="statement not covered" >useRef(</span>
     PanResponder.create({
       onStartShouldSetPanResponder: <span class="fstat-no" title="function not covered" >(e</span>vt, gestureState) =&gt; {
@@ -2036,8 +2055,16 @@ const MatchAnimation = <span class="cstat-no" title="statement not covered" ><sp
     }
   }, [visible]);
 &nbsp;
+  // Early return AFTER all hooks - React rules
+<span class="cstat-no" title="statement not covered" >  if (!visible || (!profile &amp;&amp; matches.length === 0)) {</span>
+<span class="cstat-no" title="statement not covered" >    return null;</span>
+  }
+&nbsp;
   const currentProfile = <span class="cstat-no" title="statement not covered" >matches[currentMatchIndex] || profile;</span>
-<span class="cstat-no" title="statement not covered" >  if (!currentProfile) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+<span class="cstat-no" title="statement not covered" >  if (!currentProfile || !currentProfile.id) {</span>
+<span class="cstat-no" title="statement not covered" >    console.log('MatchAnimation: No valid currentProfile, returning null');</span>
+<span class="cstat-no" title="statement not covered" >    return null;</span>
+  }
 &nbsp;
   const rotate = <span class="cstat-no" title="statement not covered" >rotateAnim.interpolate({</span>
     inputRange: [0, 1],
@@ -2641,7 +2668,7 @@ export default MatchAnimation;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

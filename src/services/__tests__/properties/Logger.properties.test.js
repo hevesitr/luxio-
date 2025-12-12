@@ -25,7 +25,7 @@ describe('Logger - PII Protection Properties', () => {
   let logger;
 
   beforeEach(() => {
-    logger = new Logger();
+    logger = require('../../Logger').default;
   });
 
   describe('PII Redaction from Strings', () => {

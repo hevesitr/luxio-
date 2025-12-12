@@ -31,7 +31,7 @@ describe('PaymentService - Duplicate Prevention Properties', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new PaymentService();
+    service = require('../../PaymentService').default;
     mockSupabase = require('../../supabaseClient').supabase;
   });
 

@@ -25,6 +25,31 @@ class VideoService {
   };
 
   /**
+   * Extract video metadata
+   * @param {string} videoUri - Local video file URI
+   * @returns {Promise<Object>} Video metadata
+   */
+  static async extractVideoMetadata(videoUri) {
+    try {
+      // In a real implementation, this would use expo-av or ffmpeg to extract metadata
+      // For now, return mock metadata for testing
+      const fileInfo = await FileSystem.getInfoAsync(videoUri);
+
+      return {
+        duration: 15, // mock duration in seconds
+        width: 1280,
+        height: 720,
+        resolution: '720p',
+        size: fileInfo.size,
+        format: 'mp4'
+      };
+    } catch (error) {
+      Logger.error('Video metadata extraction failed', error);
+      throw error;
+    }
+  }
+
+  /**
    * Validate video file
    * @param {string} videoUri - Local video file URI
    * @returns {Promise<Object>} Validation result

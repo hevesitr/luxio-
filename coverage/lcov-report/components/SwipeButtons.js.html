@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/18</span>
+                <span class='fraction'>0/15</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
@@ -250,7 +250,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -266,10 +265,11 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -407,7 +407,6 @@
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
 &nbsp;
 /**
  * SwipeButtons - Swipe akció gombok
@@ -435,13 +434,14 @@ const SwipeButtons = <span class="cstat-no" title="statement not covered" ><span
 &nbsp;
   const handlePress = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync (callback, hapticStyle) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (disabled) <span class="cstat-no" title="statement not covered" >return;</span></span>
-    
-<span class="cstat-no" title="statement not covered" >    try {</span>
-<span class="cstat-no" title="statement not covered" >      await Haptics.impactAsync(hapticStyle);</span>
-    } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.log('Haptics error:', error);</span>
-    }
-    
+&nbsp;
+    // try {
+    //   // Use string values directly for better compatibility
+    //   await Haptics.impactAsync(hapticStyle);
+    // } catch (error) {
+    //   // Haptics might not be available, ignore error
+    // } // DISABLED
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    if (callback) <span class="cstat-no" title="statement not covered" >callback();</span></span>
   };
 &nbsp;
@@ -450,7 +450,7 @@ const SwipeButtons = <span class="cstat-no" title="statement not covered" ><span
       {/* Undo Button */}
       &lt;TouchableOpacity
         style={[styles.button, styles.smallButton, !canUndo &amp;&amp; styles.buttonDisabled]}
-        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onUndo, Haptics.ImpactFeedbackStyle.Light)}</span>
+        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onUndo, 'light')}</span>
         disabled={!canUndo || disabled}
         activeOpacity={0.7}
       &gt;
@@ -464,7 +464,7 @@ const SwipeButtons = <span class="cstat-no" title="statement not covered" ><span
       {/* Dislike Button */}
       &lt;TouchableOpacity
         style={[styles.button, styles.largeButton, disabled &amp;&amp; styles.buttonDisabled]}
-        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onDislike, Haptics.ImpactFeedbackStyle.Medium)}</span>
+        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onDislike, 'medium')}</span>
         disabled={disabled}
         activeOpacity={0.7}
       &gt;
@@ -476,7 +476,7 @@ const SwipeButtons = <span class="cstat-no" title="statement not covered" ><span
       {/* Super Like Button */}
       &lt;TouchableOpacity
         style={[styles.button, styles.mediumButton, disabled &amp;&amp; styles.buttonDisabled]}
-        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onSuperLike, Haptics.ImpactFeedbackStyle.Heavy)}</span>
+        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onSuperLike, 'heavy')}</span>
         disabled={disabled}
         activeOpacity={0.7}
       &gt;
@@ -493,7 +493,7 @@ const SwipeButtons = <span class="cstat-no" title="statement not covered" ><span
       {/* Like Button */}
       &lt;TouchableOpacity
         style={[styles.button, styles.largeButton, disabled &amp;&amp; styles.buttonDisabled]}
-        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onLike, Haptics.ImpactFeedbackStyle.Heavy)}</span>
+        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onLike, 'heavy')}</span>
         disabled={disabled}
         activeOpacity={0.7}
       &gt;
@@ -505,7 +505,7 @@ const SwipeButtons = <span class="cstat-no" title="statement not covered" ><span
       {/* Boost Button */}
       &lt;TouchableOpacity
         style={[styles.button, styles.smallButton, disabled &amp;&amp; styles.buttonDisabled]}
-        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onBoost, Haptics.ImpactFeedbackStyle.Light)}</span>
+        onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >handlePress(onBoost, 'light')}</span>
         disabled={disabled}
         activeOpacity={0.7}
       &gt;
@@ -580,7 +580,7 @@ export default SwipeButtons;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

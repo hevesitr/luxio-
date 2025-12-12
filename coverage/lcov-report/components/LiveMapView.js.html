@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/166</span>
+                <span class='fraction'>0/168</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/201</span>
+                <span class='fraction'>0/222</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/160</span>
+                <span class='fraction'>0/162</span>
             </div>
         
             
@@ -1128,7 +1128,12 @@
 <a name='L1063'></a><a href='#L1063'>1063</a>
 <a name='L1064'></a><a href='#L1064'>1064</a>
 <a name='L1065'></a><a href='#L1065'>1065</a>
-<a name='L1066'></a><a href='#L1066'>1066</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1066'></a><a href='#L1066'>1066</a>
+<a name='L1067'></a><a href='#L1067'>1067</a>
+<a name='L1068'></a><a href='#L1068'>1068</a>
+<a name='L1069'></a><a href='#L1069'>1069</a>
+<a name='L1070'></a><a href='#L1070'>1070</a>
+<a name='L1071'></a><a href='#L1071'>1071</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1272,6 +1277,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1290,6 +1298,8 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2336,7 +2346,10 @@ const generateRouteCoordinates = <span class="cstat-no" title="statement not cov
 <span class="cstat-no" title="statement not covered" >  return coordinates;</span>
 };
 &nbsp;
-const LiveMapView = <span class="cstat-no" title="statement not covered" >React.forwardRef(<span class="fstat-no" title="function not covered" >({</span> profiles, onProfilePress, currentUserLocation, matchedProfiles = <span class="branch-0 cbranch-no" title="branch not covered" >new Set(),</span> likedProfiles = <span class="branch-0 cbranch-no" title="branch not covered" >new Set(),</span> showProfileImages = <span class="branch-0 cbranch-no" title="branch not covered" >true </span>}, ref) =&gt; {</span>
+const LiveMapView = <span class="cstat-no" title="statement not covered" >React.forwardRef(<span class="fstat-no" title="function not covered" >({</span> profiles: profilesProp, nearbyProfiles, onProfilePress, currentUserLocation, matchedProfiles = <span class="branch-0 cbranch-no" title="branch not covered" >new Set(),</span> likedProfiles = <span class="branch-0 cbranch-no" title="branch not covered" >new Set(),</span> showProfileImages = <span class="branch-0 cbranch-no" title="branch not covered" >true </span>}, ref) =&gt; {</span>
+  // Use nearbyProfiles if provided, otherwise use profiles prop
+  const profiles = <span class="cstat-no" title="statement not covered" >nearbyProfiles || profilesProp || [];</span>
+  
   const [userLocation, setUserLocation] = <span class="cstat-no" title="statement not covered" >useState(currentUserLocation);</span>
   const [isLocationEnabled, setIsLocationEnabled] = <span class="cstat-no" title="statement not covered" >useState(false);</span>
   const [mapRegion, setMapRegion] = <span class="cstat-no" title="statement not covered" >useState(null);</span> // Preserve map region
@@ -2352,21 +2365,23 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
   // Update profile locations when profiles prop changes
 <span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
     const locations = <span class="cstat-no" title="statement not covered" >new Map();</span>
-<span class="cstat-no" title="statement not covered" >    profiles.forEach(<span class="fstat-no" title="function not covered" >pr</span>ofile =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (profile &amp;&amp; profile.id &amp;&amp; profile.location) {</span>
-<span class="cstat-no" title="statement not covered" >        locations.set(profile.id, {</span>
-          latitude: profile.location.latitude,
-          longitude: profile.location.longitude,
-          timestamp: Date.now(),
-        });
-      }
-    });
+<span class="cstat-no" title="statement not covered" >    if (profiles &amp;&amp; Array.isArray(profiles)) {</span>
+<span class="cstat-no" title="statement not covered" >      profiles.forEach(<span class="fstat-no" title="function not covered" >pr</span>ofile =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >        if (profile &amp;&amp; profile.id &amp;&amp; profile.location) {</span>
+<span class="cstat-no" title="statement not covered" >          locations.set(profile.id, {</span>
+            latitude: profile.location.latitude,
+            longitude: profile.location.longitude,
+            timestamp: Date.now(),
+          });
+        }
+      });
+    }
 <span class="cstat-no" title="statement not covered" >    setProfileLocations(locations);</span>
   }, [profiles]);
 &nbsp;
   // Real-time location updates for online users (simulate with interval)
 <span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (profiles.length === 0) <span class="cstat-no" title="statement not covered" >return;</span></span>
+<span class="cstat-no" title="statement not covered" >    if (!profiles || profiles.length === 0) <span class="cstat-no" title="statement not covered" >return;</span></span>
 &nbsp;
     // Simulate real-time location updates for online users
     // In a real app, this would come from a WebSocket or polling API
@@ -2414,7 +2429,7 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
 &nbsp;
   // Use preserved region if available, otherwise calculate from user location or profiles
   // If there's only one profile, center on it with a tighter zoom
-  const region = <span class="cstat-no" title="statement not covered" >mapRegion || (profiles.length === 1 &amp;&amp; profiles[0].location</span>
+  const region = <span class="cstat-no" title="statement not covered" >mapRegion || (profiles &amp;&amp; profiles.length === 1 &amp;&amp; profiles[0] &amp;&amp; profiles[0].location</span>
     ? {
         latitude: profiles[0].location.latitude,
         longitude: profiles[0].location.longitude,
@@ -2428,7 +2443,7 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
         latitudeDelta: 0.1,
         longitudeDelta: 0.1,
       }
-    : profiles.length &gt; 0 &amp;&amp; profiles[0].location
+    : profiles &amp;&amp; profiles.length &gt; 0 &amp;&amp; profiles[0] &amp;&amp; profiles[0].location
     ? {
         latitude: profiles[0].location.latitude,
         longitude: profiles[0].location.longitude,
@@ -2528,7 +2543,7 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
           &lt;View style={styles.infoBox}&gt;
             &lt;Ionicons name="location" size={16} color="#FF3B75" /&gt;
             &lt;Text style={styles.infoText}&gt;
-              {profiles.filter(<span class="fstat-no" title="function not covered" >p </span>=&gt; {
+              {(profiles || []).filter(<span class="fstat-no" title="function not covered" >p </span>=&gt; {
 <span class="cstat-no" title="statement not covered" >                if (!p.location || !userLocation || </span>
                     typeof p.location.latitude !== 'number' || 
                     typeof p.location.longitude !== 'number') <span class="cstat-no" title="statement not covered" >return false;</span>
@@ -2569,7 +2584,7 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
             pinColor="#FF3B75"
           /&gt;
         )}
-                {profiles.map(<span class="fstat-no" title="function not covered" >(p</span>rofile) =&gt; {
+                {(profiles || []).map(<span class="fstat-no" title="function not covered" >(p</span>rofile) =&gt; {
 <span class="cstat-no" title="statement not covered" >                  if (!profile || !profile.id) {</span>
 <span class="cstat-no" title="statement not covered" >                    return null;</span>
                   }
@@ -2707,7 +2722,7 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
                   );
         })}
         {/* Draw routes from user location to matched/liked profiles */}
-        {userLocation &amp;&amp; Polyline &amp;&amp; profiles.map(<span class="fstat-no" title="function not covered" >(p</span>rofile) =&gt; {
+        {userLocation &amp;&amp; Polyline &amp;&amp; (profiles || []).map(<span class="fstat-no" title="function not covered" >(p</span>rofile) =&gt; {
 <span class="cstat-no" title="statement not covered" >          if (!profile || !profile.id) <span class="cstat-no" title="statement not covered" >return null;</span></span>
           
           const realTimeLocation = <span class="cstat-no" title="statement not covered" >profileLocations.get(profile.id);</span>
@@ -2802,7 +2817,7 @@ const LiveMapView = <span class="cstat-no" title="statement not covered" >React.
         &lt;View style={styles.infoBox}&gt;
           &lt;Ionicons name="location" size={16} color="#FF3B75" /&gt;
           &lt;Text style={styles.infoText}&gt;
-            {profiles.filter(<span class="fstat-no" title="function not covered" >p </span>=&gt; {
+            {(profiles || []).filter(<span class="fstat-no" title="function not covered" >p </span>=&gt; {
 <span class="cstat-no" title="statement not covered" >              if (!p.location || !userLocation || </span>
                   typeof p.location.latitude !== 'number' || 
                   typeof p.location.longitude !== 'number') <span class="cstat-no" title="statement not covered" >return false;</span>
@@ -3265,7 +3280,7 @@ export default LiveMapView;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

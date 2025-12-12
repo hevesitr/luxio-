@@ -64,10 +64,10 @@ jest.mock('../supabaseClient', () => ({
 describe('GDPR Compliance', () => {
   it('should export user data', async () => {
     const result = await AccountService.exportUserData('user123');
-    expect(result).toHaveProperty('userId');
-    expect(result).toHaveProperty('gdpr');
-    expect(result.gdpr).toHaveProperty('exportDate');
-    expect(result.gdpr).toHaveProperty('dataSubjectRights');
+    expect(result.data).toHaveProperty('userId');
+    expect(result.data).toHaveProperty('gdpr');
+    expect(result.data.gdpr).toHaveProperty('exportDate');
+    expect(result.data.gdpr).toHaveProperty('dataSubjectRights');
   });
 
   it('should update privacy settings', async () => {
@@ -79,15 +79,15 @@ describe('GDPR Compliance', () => {
 
   it('should get privacy settings', async () => {
     const settings = await AccountService.getPrivacySettings('user123');
-    expect(settings).toHaveProperty('analytics_consent');
-    expect(settings).toHaveProperty('marketing_consent');
-    expect(settings).toHaveProperty('necessary_cookies');
+    expect(settings.data).toHaveProperty('analytics_consent');
+    expect(settings.data).toHaveProperty('marketing_consent');
+    expect(settings.data).toHaveProperty('necessary_cookies');
   });
 
   it('should handle right to erasure', async () => {
     const result = await AccountService.requestRightToErasure('user123');
     expect(result.success).toBe(true);
-    expect(result).toHaveProperty('requestId');
-    expect(result).toHaveProperty('scheduledDeletionDate');
+    expect(result.data).toHaveProperty('requestId');
+    expect(result.data).toHaveProperty('scheduledDeletionDate');
   });
 });

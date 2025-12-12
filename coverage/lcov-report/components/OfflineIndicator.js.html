@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/69</span>
+                <span class='fraction'>0/61</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/39</span>
+                <span class='fraction'>0/31</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/68</span>
+                <span class='fraction'>0/60</span>
             </div>
         
             
@@ -311,18 +311,7 @@
 <a name='L246'></a><a href='#L246'>246</a>
 <a name='L247'></a><a href='#L247'>247</a>
 <a name='L248'></a><a href='#L248'>248</a>
-<a name='L249'></a><a href='#L249'>249</a>
-<a name='L250'></a><a href='#L250'>250</a>
-<a name='L251'></a><a href='#L251'>251</a>
-<a name='L252'></a><a href='#L252'>252</a>
-<a name='L253'></a><a href='#L253'>253</a>
-<a name='L254'></a><a href='#L254'>254</a>
-<a name='L255'></a><a href='#L255'>255</a>
-<a name='L256'></a><a href='#L256'>256</a>
-<a name='L257'></a><a href='#L257'>257</a>
-<a name='L258'></a><a href='#L258'>258</a>
-<a name='L259'></a><a href='#L259'>259</a>
-<a name='L260'></a><a href='#L260'>260</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L249'></a><a href='#L249'>249</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -344,28 +333,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -375,9 +355,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -600,31 +578,22 @@ const OfflineIndicator = <span class="cstat-no" title="statement not covered" ><
   const [syncStatus, setSyncStatus] = <span class="cstat-no" title="statement not covered" >useState('idle');</span> // idle, syncing, completed, error
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-    // Simple online/offline detection using browser/React Native events
-    const handleOnline = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-      const wasConnected = <span class="cstat-no" title="statement not covered" >isConnected;</span>
-<span class="cstat-no" title="statement not covered" >      setIsConnected(true);</span>
-&nbsp;
-      // Kapcsolódás visszaállítása esetén szinkronizálás indítása
-<span class="cstat-no" title="statement not covered" >      if (!wasConnected &amp;&amp; pendingOperations &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >        startSync();</span>
+    // Network állapot ellenőrzése NetInfo-val (React Native kompatibilis)
+    const checkNetworkStatus = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >      try {</span>
+        // React Native-ben nincs navigator.onLine, mindig online-nak tekintjük
+<span class="cstat-no" title="statement not covered" >        setIsConnected(true);</span>
+      } catch (error) {
+<span class="cstat-no" title="statement not covered" >        Logger.error('Failed to check network status', error);</span>
       }
     };
 &nbsp;
-    const handleOffline = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      setIsConnected(false);</span>
-    };
-&nbsp;
-    // Listen for online/offline events
-<span class="cstat-no" title="statement not covered" >    if (typeof window !== 'undefined') {</span>
-<span class="cstat-no" title="statement not covered" >      window.addEventListener('online', handleOnline);</span>
-<span class="cstat-no" title="statement not covered" >      window.addEventListener('offline', handleOffline);</span>
-    }
+    // Kezdeti ellenőrzés
+<span class="cstat-no" title="statement not covered" >    checkNetworkStatus();</span>
 &nbsp;
     // Offline queue állapotának figyelése
     const checkQueueStatus = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >      try {</span>
-        // Ez csak példa - a valódi implementációban az OfflineQueueService-ből kellene lekérni
         const queueLength = <span class="cstat-no" title="statement not covered" >await getPendingOperationsCount();</span>
 <span class="cstat-no" title="statement not covered" >        setPendingOperations(queueLength);</span>
       } catch (error) {
@@ -634,13 +603,11 @@ const OfflineIndicator = <span class="cstat-no" title="statement not covered" ><
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    checkQueueStatus();</span>
 &nbsp;
+    // Cleanup
 <span class="cstat-no" title="statement not covered" >    return <span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (typeof window !== 'undefined') {</span>
-<span class="cstat-no" title="statement not covered" >        window.removeEventListener('online', handleOnline);</span>
-<span class="cstat-no" title="statement not covered" >        window.removeEventListener('offline', handleOffline);</span>
-      }
+      // No cleanup needed
     };
-  }, [isConnected, pendingOperations]);
+  }, []);
 &nbsp;
   const getPendingOperationsCount = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
     // Placeholder - valódi implementációban lekérdezzük az offline queue-t
@@ -847,7 +814,7 @@ export default OfflineIndicator;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/149</span>
+                <span class='fraction'>0/156</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/115</span>
+                <span class='fraction'>0/129</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/28</span>
+                <span class='fraction'>0/29</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/140</span>
+                <span class='fraction'>0/147</span>
             </div>
         
             
@@ -714,7 +714,21 @@
 <a name='L649'></a><a href='#L649'>649</a>
 <a name='L650'></a><a href='#L650'>650</a>
 <a name='L651'></a><a href='#L651'>651</a>
-<a name='L652'></a><a href='#L652'>652</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L652'></a><a href='#L652'>652</a>
+<a name='L653'></a><a href='#L653'>653</a>
+<a name='L654'></a><a href='#L654'>654</a>
+<a name='L655'></a><a href='#L655'>655</a>
+<a name='L656'></a><a href='#L656'>656</a>
+<a name='L657'></a><a href='#L657'>657</a>
+<a name='L658'></a><a href='#L658'>658</a>
+<a name='L659'></a><a href='#L659'>659</a>
+<a name='L660'></a><a href='#L660'>660</a>
+<a name='L661'></a><a href='#L661'>661</a>
+<a name='L662'></a><a href='#L662'>662</a>
+<a name='L663'></a><a href='#L663'>663</a>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -762,6 +776,17 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -885,8 +910,10 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -932,6 +959,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1413,7 +1441,18 @@ const SwipeCard = <span class="cstat-no" title="statement not covered" >forwardR
   const superLikeTimeoutRef = <span class="cstat-no" title="statement not covered" >useRef(null);</span>
 &nbsp;
 &nbsp;
-  const compatibility = <span class="cstat-no" title="statement not covered" >userProfile </span>
+  // Képek kezelése - használjuk a photos tömböt vagy az avatarUrl-t
+  const allPhotos = <span class="cstat-no" title="statement not covered" >useMemo(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >    if (profile.photos &amp;&amp; profile.photos.length &gt; 0) {</span>
+<span class="cstat-no" title="statement not covered" >      return profile.photos;</span>
+    }
+<span class="cstat-no" title="statement not covered" >    if (profile.avatarUrl || profile.photo_url) {</span>
+<span class="cstat-no" title="statement not covered" >      return [profile.avatarUrl || profile.photo_url];</span>
+    }
+<span class="cstat-no" title="statement not covered" >    return [];</span>
+  }, [profile.photos, profile.avatarUrl, profile.photo_url]);
+&nbsp;
+  const compatibility = <span class="cstat-no" title="statement not covered" >userProfile</span>
     ? CompatibilityService.calculateCompatibility(userProfile, profile)
     : null;
 &nbsp;
@@ -1539,18 +1578,20 @@ const SwipeCard = <span class="cstat-no" title="statement not covered" >forwardR
             }
           } else {
             // Single tap vagy kép lapozás
-<span class="cstat-no" title="statement not covered" >            if (profile.photos &amp;&amp; profile.photos.length &gt; 1) {</span>
+            const allPhotos = <span class="cstat-no" title="statement not covered" >profile.photos &amp;&amp; profile.photos.length &gt; 0 ? profile.photos :</span>
+                             (profile.avatarUrl || profile.photo_url) ? [profile.avatarUrl || profile.photo_url] : [];
+<span class="cstat-no" title="statement not covered" >            if (allPhotos.length &gt; 1) {</span>
               // Kép lapozás ha több kép van - egyszerű logika
 <span class="cstat-no" title="statement not covered" >              if (touchX &lt; imageWidth / 2) {</span>
                 // Bal oldal - előző kép
 <span class="cstat-no" title="statement not covered" >                setCurrentPhotoIndex(<span class="fstat-no" title="function not covered" >pr</span>ev =&gt;</span>
-<span class="cstat-no" title="statement not covered" >                  prev &gt; 0 ? prev - 1 : profile.photos.length - 1</span>
+<span class="cstat-no" title="statement not covered" >                  prev &gt; 0 ? prev - 1 : allPhotos.length - 1</span>
                 );
 <span class="cstat-no" title="statement not covered" >                console.log('SwipeCard: Previous photo');</span>
               } else {
                 // Jobb oldal - következő kép
 <span class="cstat-no" title="statement not covered" >                setCurrentPhotoIndex(<span class="fstat-no" title="function not covered" >pr</span>ev =&gt;</span>
-<span class="cstat-no" title="statement not covered" >                  prev &lt; profile.photos.length - 1 ? prev + 1 : 0</span>
+<span class="cstat-no" title="statement not covered" >                  prev &lt; allPhotos.length - 1 ? prev + 1 : 0</span>
                 );
 <span class="cstat-no" title="statement not covered" >                console.log('SwipeCard: Next photo');</span>
               }
@@ -1605,14 +1646,15 @@ const SwipeCard = <span class="cstat-no" title="statement not covered" >forwardR
       {...panResponder.panHandlers}
     &gt;
       &lt;Image
-        source={{ uri: profile.photos &amp;&amp; profile.photos.length &gt; 0 ? profile.photos[currentPhotoIndex] : profile.photo }}
+        source={{ uri: allPhotos[currentPhotoIndex] || 'https://via.placeholder.com/400x600?text=No+Image' }}
         style={styles.image}
+        resizeMode="cover"
       /&gt;
 &nbsp;
       {/* Photo indicators */}
-      {profile.photos &amp;&amp; profile.photos.length &gt; 1 &amp;&amp; (
+      {allPhotos.length &gt; 1 &amp;&amp; (
         &lt;View style={styles.photoIndicators}&gt;
-          {profile.photos.map(<span class="fstat-no" title="function not covered" >(_</span>, index) =&gt; (
+          {allPhotos.map(<span class="fstat-no" title="function not covered" >(_</span>, index) =&gt; (
 <span class="cstat-no" title="statement not covered" >            &lt;View</span>
               key={index}
               style={[
@@ -1625,7 +1667,7 @@ const SwipeCard = <span class="cstat-no" title="statement not covered" >forwardR
       )}
 &nbsp;
       {/* Photo navigation hints */}
-      {profile.photos &amp;&amp; profile.photos.length &gt; 1 &amp;&amp; (
+      {allPhotos.length &gt; 1 &amp;&amp; (
         &lt;&gt;
           &lt;View style={[styles.photoNavHint, styles.leftHint]}&gt;
             &lt;Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" /&gt;
@@ -2023,7 +2065,7 @@ export default SwipeCard;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

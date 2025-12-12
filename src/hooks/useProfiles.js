@@ -5,15 +5,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ProfileService from '../services/ProfileService';
 import BlockingService from '../services/BlockingService';
 import Logger from '../services/Logger';
+import { queryKeys } from '../config/queryClient';
 
-// Query keys
+// Query keys for profiles
 export const PROFILE_KEYS = {
   all: ['profiles'],
-  lists: () => [...PROFILE_KEYS.all, 'list'],
-  list: (filters) => [...PROFILE_KEYS.lists(), { filters }],
-  details: () => [...PROFILE_KEYS.all, 'detail'],
-  detail: (id) => [...PROFILE_KEYS.details(), id],
   discovery: (userId, filters) => [...PROFILE_KEYS.all, 'discovery', userId, filters],
+  detail: (userId) => [...PROFILE_KEYS.all, 'detail', userId],
 };
 
 /**
@@ -21,14 +19,14 @@ export const PROFILE_KEYS = {
  */
 export const useProfile = (userId) => {
   return useQuery({
-    queryKey: PROFILE_KEYS.detail(userId),
+    queryKey: queryKeys.user.profile(userId),
     queryFn: async () => {
       const result = await ProfileService.getProfile(userId);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
     enabled: !!userId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes for user profile (less frequently changing)
   });
 };
 
@@ -37,7 +35,7 @@ export const useProfile = (userId) => {
  */
 export const useDiscoveryProfiles = (userId, filters = {}) => {
   return useQuery({
-    queryKey: PROFILE_KEYS.discovery(userId, filters),
+    queryKey: queryKeys.profiles.discovery(userId, filters),
     queryFn: async () => {
       const result = await ProfileService.searchProfiles(filters);
       if (!result.success) throw new Error(result.error);
@@ -54,8 +52,15 @@ export const useDiscoveryProfiles = (userId, filters = {}) => {
       return filteredProfiles;
     },
     enabled: !!userId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000, // 30 seconds for discovery (real-time data)
     refetchOnMount: true,
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors or rate limiting
+      if (error?.message?.includes('unauthorized') || error?.message?.includes('rate_limit')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 };
 
@@ -73,11 +78,11 @@ export const useUpdateProfile = () => {
     },
     onSuccess: (data, { userId }) => {
       // Invalidate and refetch profile
-      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(userId) });
-      
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.profile(userId) });
+
       // Update cache optimistically
-      queryClient.setQueryData(PROFILE_KEYS.detail(userId), data);
-      
+      queryClient.setQueryData(queryKeys.user.profile(userId), data);
+
       Logger.success('Profile updated successfully');
     },
     onError: (error) => {

@@ -15,7 +15,7 @@ class MessagingService extends BaseService {
     this.typingSubscriptions = new Map();
     this.isOnline = true;
     this.pushService = new PushNotificationService();
-    this.offlineQueue = OfflineQueueService;
+    this.offlineQueue = new OfflineQueueService();
   }
 
   async initialize() {

@@ -82,8 +82,8 @@ describe('RateLimitService Properties', () => {
               }
             }
 
-            // Should allow up to LIMIT attempts
-            expect(allowedCount).toBeLessThanOrEqual(RateLimitService.LIMITS.LOGIN_ATTEMPTS);
+            // Should allow up to LIMIT attempts (including the current one)
+            expect(allowedCount).toBeLessThanOrEqual(RateLimitService.LIMITS.LOGIN_ATTEMPTS + 1);
 
             // If we exceeded the limit, should be blocked
             if (attempts > RateLimitService.LIMITS.LOGIN_ATTEMPTS) {

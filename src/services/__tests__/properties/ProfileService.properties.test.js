@@ -42,7 +42,7 @@ describe('ProfileService Properties', () => {
           profileGenerator,
           async (userId, profile) => {
             const updates = {
-              name: profile.name,
+              full_name: profile.name,
               age: profile.age,
               bio: profile.bio,
               interests: profile.interests,

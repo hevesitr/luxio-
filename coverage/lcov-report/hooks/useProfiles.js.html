@@ -32,14 +32,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>0/18</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/24</span>
+                <span class='fraction'>0/22</span>
             </div>
         
             
@@ -217,38 +217,25 @@
 <a name='L152'></a><a href='#L152'>152</a>
 <a name='L153'></a><a href='#L153'>153</a>
 <a name='L154'></a><a href='#L154'>154</a>
-<a name='L155'></a><a href='#L155'>155</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -260,6 +247,22 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -274,6 +277,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -378,15 +388,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ProfileService from '../services/ProfileService';
 import BlockingService from '../services/BlockingService';
 import Logger from '../services/Logger';
+import { queryKeys } from '../config/queryClient';
 &nbsp;
-// Query keys
+// Query keys for profiles
 export const PROFILE_KEYS = <span class="cstat-no" title="statement not covered" >{</span>
   all: ['profiles'],
-  lists: <span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >[...PROFILE_KEYS.all, 'list'],</span>
-  list: <span class="fstat-no" title="function not covered" >(f</span>ilters) =&gt; <span class="cstat-no" title="statement not covered" >[...PROFILE_KEYS.lists(), { filters }],</span>
-  details: <span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >[...PROFILE_KEYS.all, 'detail'],</span>
-  detail: <span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >[...PROFILE_KEYS.details(), id],</span>
   discovery: <span class="fstat-no" title="function not covered" >(u</span>serId, filters) =&gt; <span class="cstat-no" title="statement not covered" >[...PROFILE_KEYS.all, 'discovery', userId, filters],</span>
+  detail: <span class="fstat-no" title="function not covered" >(u</span>serId) =&gt; <span class="cstat-no" title="statement not covered" >[...PROFILE_KEYS.all, 'detail', userId],</span>
 };
 &nbsp;
 /**
@@ -394,14 +402,14 @@ export const PROFILE_KEYS = <span class="cstat-no" title="statement not covered"
  */
 export const useProfile = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(u</span>serId) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  return useQuery({</span>
-    queryKey: PROFILE_KEYS.detail(userId),
+    queryKey: queryKeys.user.profile(userId),
     queryFn: <span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {
       const result = <span class="cstat-no" title="statement not covered" >await ProfileService.getProfile(userId);</span>
 <span class="cstat-no" title="statement not covered" >      if (!result.success) <span class="cstat-no" title="statement not covered" >throw new Error(result.error);</span></span>
 <span class="cstat-no" title="statement not covered" >      return result.data;</span>
     },
     enabled: !!userId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes for user profile (less frequently changing)
   });
 };
 &nbsp;
@@ -410,7 +418,7 @@ export const useProfile = <span class="cstat-no" title="statement not covered" >
  */
 export const useDiscoveryProfiles = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(u</span>serId, filters = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  return useQuery({</span>
-    queryKey: PROFILE_KEYS.discovery(userId, filters),
+    queryKey: queryKeys.profiles.discovery(userId, filters),
     queryFn: <span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {
       const result = <span class="cstat-no" title="statement not covered" >await ProfileService.searchProfiles(filters);</span>
 <span class="cstat-no" title="statement not covered" >      if (!result.success) <span class="cstat-no" title="statement not covered" >throw new Error(result.error);</span></span>
@@ -427,8 +435,15 @@ export const useDiscoveryProfiles = <span class="cstat-no" title="statement not 
 <span class="cstat-no" title="statement not covered" >      return filteredProfiles;</span>
     },
     enabled: !!userId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000, // 30 seconds for discovery (real-time data)
     refetchOnMount: true,
+    retry: <span class="fstat-no" title="function not covered" >(f</span>ailureCount, error) =&gt; {
+      // Don't retry on auth errors or rate limiting
+<span class="cstat-no" title="statement not covered" >      if (error?.message?.includes('unauthorized') || error?.message?.includes('rate_limit')) {</span>
+<span class="cstat-no" title="statement not covered" >        return false;</span>
+      }
+<span class="cstat-no" title="statement not covered" >      return failureCount &lt; 2;</span>
+    },
   });
 };
 &nbsp;
@@ -446,11 +461,11 @@ export const useUpdateProfile = <span class="cstat-no" title="statement not cove
     },
     onSuccess: <span class="fstat-no" title="function not covered" >(d</span>ata, { userId }) =&gt; {
       // Invalidate and refetch profile
-<span class="cstat-no" title="statement not covered" >      queryClient.invalidateQueries({ queryKey: PROFILE_KEYS.detail(userId) });</span>
-      
+<span class="cstat-no" title="statement not covered" >      queryClient.invalidateQueries({ queryKey: queryKeys.user.profile(userId) });</span>
+&nbsp;
       // Update cache optimistically
-<span class="cstat-no" title="statement not covered" >      queryClient.setQueryData(PROFILE_KEYS.detail(userId), data);</span>
-      
+<span class="cstat-no" title="statement not covered" >      queryClient.setQueryData(queryKeys.user.profile(userId), data);</span>
+&nbsp;
 <span class="cstat-no" title="statement not covered" >      Logger.success('Profile updated successfully');</span>
     },
     onError: <span class="fstat-no" title="function not covered" >(e</span>rror) =&gt; {
@@ -532,7 +547,7 @@ export const usePrefetchDiscovery = <span class="cstat-no" title="statement not 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

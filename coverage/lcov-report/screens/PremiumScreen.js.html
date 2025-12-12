@@ -32,7 +32,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/63</span>
+                <span class='fraction'>0/67</span>
             </div>
         
             
@@ -1409,7 +1409,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    Alert.alert(</span>
       '✨ Előfizetés',
-      `Szeretnéd aktiválni a ${plan.name}-t $${plan.price}/${plan.duration} napért?`,
+      `Szeretnéd aktiválni a ${plan.name}-t ${plan.price.toLocaleString('hu-HU')} Ft-ért ${plan.duration} napra?`,
       [
         { text: 'Mégsem', style: 'cancel' },
         {
@@ -1516,12 +1516,12 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
           style={styles.tierHeader}
         &gt;
           &lt;Text style={styles.tierName}&gt;{plan.name}&lt;/Text&gt;
-          &lt;Text style={styles.tierPrice}&gt;${plan.price}&lt;/Text&gt;
+          &lt;Text style={styles.tierPrice}&gt;{plan.price.toLocaleString('hu-HU')} Ft&lt;/Text&gt;
           &lt;Text style={styles.tierPeriod}&gt;/ {plan.duration} nap&lt;/Text&gt;
         &lt;/LinearGradient&gt;
 &nbsp;
         &lt;View style={styles.benefitsList}&gt;
-          {plan.features.map(<span class="fstat-no" title="function not covered" >(f</span>eature, index) =&gt; (
+          {(plan.features || []).map(<span class="fstat-no" title="function not covered" >(f</span>eature, index) =&gt; (
 <span class="cstat-no" title="statement not covered" >            &lt;View key={index} style={styles.benefitItem}&gt;</span>
               &lt;Ionicons name="checkmark-circle" size={20} color="#4CAF50" /&gt;
               &lt;Text style={styles.benefitText}&gt;
@@ -1596,7 +1596,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
             style={styles.heroGradient}
           &gt;
             &lt;Ionicons name="sparkles" size={60} color="#FFF" /&gt;
-            &lt;Text style={styles.heroTitle}&gt;Upgrade Your Experience&lt;/Text&gt;
+            &lt;Text style={styles.heroTitle}&gt;Fejleszd fel az élményedet&lt;/Text&gt;
             &lt;Text style={styles.heroSubtitle}&gt;
               Szerezz több matchet és éld meg a teljes prémium élményt
             &lt;/Text&gt;
@@ -1604,7 +1604,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
         &lt;/View&gt;
 &nbsp;
         &lt;View style={styles.pricingContainer}&gt;
-          {plans.map(<span class="fstat-no" title="function not covered" >(p</span>lan, index) =&gt; (
+          {(plans || []).map(<span class="fstat-no" title="function not covered" >(p</span>lan, index) =&gt; (
 <span class="cstat-no" title="statement not covered" >            &lt;PricingCard </span>
               key={plan.id} 
               plan={plan} 
@@ -1639,7 +1639,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
           &lt;View style={styles.featureCard}&gt;
             &lt;Ionicons name="heart" size={32} color="#FF3B75" /&gt;
             &lt;View style={styles.featureContent}&gt;
-              &lt;Text style={styles.featureTitle}&gt;Likes You&lt;/Text&gt;
+              &lt;Text style={styles.featureTitle}&gt;Kedvelések&lt;/Text&gt;
               &lt;Text style={styles.featureDesc}&gt;
                 Lásd azonnal ki lájkolt téged
               &lt;/Text&gt;
@@ -1649,7 +1649,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
           &lt;View style={styles.featureCard}&gt;
             &lt;Ionicons name="earth" size={32} color="#FF3B75" /&gt;
             &lt;View style={styles.featureContent}&gt;
-              &lt;Text style={styles.featureTitle}&gt;Passport&lt;/Text&gt;
+              &lt;Text style={styles.featureTitle}&gt;Útlevél&lt;/Text&gt;
               &lt;Text style={styles.featureDesc}&gt;
                 Swipelj bárhol a világon
               &lt;/Text&gt;
@@ -1659,7 +1659,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
           &lt;View style={styles.featureCard}&gt;
             &lt;Ionicons name="diamond" size={32} color="#FF3B75" /&gt;
             &lt;View style={styles.featureContent}&gt;
-              &lt;Text style={styles.featureTitle}&gt;Top Picks&lt;/Text&gt;
+              &lt;Text style={styles.featureTitle}&gt;Kiemelt ajánlások&lt;/Text&gt;
               &lt;Text style={styles.featureDesc}&gt;
                 Extra prémium ajánlások minden nap
               &lt;/Text&gt;
@@ -1689,7 +1689,7 @@ const PremiumScreen = <span class="cstat-no" title="statement not covered" ><spa
                 &lt;ActivityIndicator color="#FFF" /&gt;
               ) : (
                 &lt;Text style={styles.purchaseText}&gt;
-                  Előfizetés - ${plans.find(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.id === selectedPlan)</span>?.price || 0}
+                  Előfizetés - {(plans.find(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.id === selectedPlan)</span>?.price || 0).toLocaleString('hu-HU')} Ft
                 &lt;/Text&gt;
               )}
             &lt;/LinearGradient&gt;
@@ -1918,7 +1918,7 @@ export default PremiumScreen;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-06T14:24:53.503Z
+                at 2025-12-12T16:50:08.364Z
             </div>
         <script src="../prettify.js"></script>
         <script>

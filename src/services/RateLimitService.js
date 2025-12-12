@@ -370,16 +370,15 @@ class RateLimitService {
     const attempts = await this.getAttempts(key, RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES);
 
     const allowed = attempts.length < RateLimitService.LIMITS.SWIPE_ACTIONS;
-    let remaining = Math.max(0, RateLimitService.LIMITS.SWIPE_ACTIONS - attempts.length);
+    const remaining = Math.max(0, RateLimitService.LIMITS.SWIPE_ACTIONS - attempts.length);
 
     if (allowed) {
       await this.addAttempt(key, RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES);
-      remaining = Math.max(0, remaining - 1); // Update remaining after adding attempt
     }
 
     return {
       allowed,
-      remaining,
+      remaining: allowed ? remaining - 1 : remaining, // Show remaining after consumption if allowed
       attempts: attempts.length,
       resetAt: Date.now() + (RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES * 60 * 1000),
     };
@@ -393,16 +392,15 @@ class RateLimitService {
     const attempts = await this.getAttempts(key, RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES);
 
     const allowed = attempts.length < RateLimitService.LIMITS.MESSAGES_SENT;
-    let remaining = Math.max(0, RateLimitService.LIMITS.MESSAGES_SENT - attempts.length);
+    const remaining = Math.max(0, RateLimitService.LIMITS.MESSAGES_SENT - attempts.length);
 
     if (allowed) {
       await this.addAttempt(key, RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES);
-      remaining = Math.max(0, remaining - 1); // Update remaining after adding attempt
     }
 
     return {
       allowed,
-      remaining,
+      remaining: allowed ? remaining - 1 : remaining, // Show remaining after consumption if allowed
       attempts: attempts.length,
       resetAt: Date.now() + (RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES * 60 * 1000),
     };

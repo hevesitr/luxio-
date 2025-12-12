@@ -84,7 +84,14 @@ class PremiumService {
    * @returns {object} Features object for the tier
    */
   getTierFeatures(tier) {
-    return this.FEATURES[tier] || this.FEATURES[this.TIERS.FREE];
+    const features = this.FEATURES[tier] || this.FEATURES[this.TIERS.FREE];
+    // Map property names for backward compatibility
+    return {
+      ...features,
+      superLikes: features.superLikesPerDay,
+      boosts: features.boostsPerMonth,
+      seeWhoLiked: features.likesYou,
+    };
   }
 
   async getUserTier(userId = null) {
