@@ -70,7 +70,7 @@ describe('RateLimitService', () => {
 
       // Should increment the attempts counter
       const attempts = await RateLimitService.getAttempts('login_attempts_user@example.com', 15);
-      expect(attempts).toBe(1);
+      expect(attempts.length).toBe(1);
     });
 
     it('should reset login attempts after successful login', async () => {
@@ -80,7 +80,7 @@ describe('RateLimitService', () => {
       await RateLimitService.recordSuccessfulLogin('user@example.com');
 
       const attempts = await RateLimitService.getAttempts('login_attempts_user@example.com', 15);
-      expect(attempts).toBe(0);
+      expect(attempts.length).toBe(0);
     });
   });
 
@@ -90,7 +90,7 @@ describe('RateLimitService', () => {
 
       const result = await RateLimitService.checkSwipeAction('user123');
       expect(result.allowed).toBe(true);
-      expect(result.remaining).toBe(99); // 100 - 1
+      expect(result.remaining).toBe(99); // 100 - 1 after consumption
     });
 
     it('should block swipe actions after daily limit exceeded', async () => {
@@ -140,7 +140,7 @@ describe('RateLimitService', () => {
 
       const isBlocked = await RateLimitService.isUserBlocked('user123');
       expect(isBlocked.blocked).toBe(true);
-      expect(isBlocked.remainingTime).toBeLessThanOrEqual(60);
+      expect(isBlocked.remainingMinutes).toBeLessThanOrEqual(60);
     });
 
     it('should allow unblocking users', async () => {
@@ -168,7 +168,7 @@ describe('RateLimitService', () => {
 
       await RateLimitService.saveLocalCache();
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        'rate_limit_cache',
+        '@rate_limits',
         expect.any(String)
       );
     });
