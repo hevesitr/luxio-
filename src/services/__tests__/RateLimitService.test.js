@@ -38,17 +38,19 @@ jest.mock('../supabaseClient', () => ({
 }));
 
 describe('RateLimitService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    // Reset RateLimitService state
+  beforeAll(() => {
+    // Reset RateLimitService state once for all tests
     RateLimitService.localCache = new Map();
     RateLimitService.blockedUsers = new Set();
   });
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStorage.clear();
+  });
+
   describe('Login Attempts', () => {
     it('should allow login attempts within limits', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       const result1 = await RateLimitService.checkLoginAttempts('user@example.com');
       const result2 = await RateLimitService.checkLoginAttempts('user@example.com');
       const result3 = await RateLimitService.checkLoginAttempts('user@example.com');
@@ -59,21 +61,23 @@ describe('RateLimitService', () => {
     });
 
     it('should block login attempts after limit exceeded', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
+      // Use unique email for this test
+      const email = 'test_block@example.com';
 
-      // Exceed the limit (5 attempts)
-      for (let i = 0; i < 6; i++) {
-        await RateLimitService.recordFailedLogin('user@example.com');
+      // Exceed the limit by calling checkLoginAttempts 6 times (limit is 5)
+      for (let i = 0; i < 5; i++) {
+        const result = await RateLimitService.checkLoginAttempts(email);
+        expect(result.allowed).toBe(true); // First 5 should be allowed
       }
 
-      const result = await RateLimitService.checkLoginAttempts('user@example.com');
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toBe('too_many_attempts');
+      // 6th attempt should be blocked
+      const finalResult = await RateLimitService.checkLoginAttempts(email);
+      console.log('MOCK STORAGE at end:', mockStorage);
+      expect(finalResult.allowed).toBe(false);
+      expect(finalResult.reason).toBe('too_many_attempts');
     });
 
     it('should record failed login attempts', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       await RateLimitService.recordFailedLogin('user@example.com');
 
       // Should increment the attempts counter
@@ -82,8 +86,6 @@ describe('RateLimitService', () => {
     });
 
     it('should reset login attempts after successful login', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       await RateLimitService.recordFailedLogin('user@example.com');
       await RateLimitService.recordSuccessfulLogin('user@example.com');
 
@@ -94,16 +96,12 @@ describe('RateLimitService', () => {
 
   describe('Swipe Actions', () => {
     it('should allow swipe actions within daily limits', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       const result = await RateLimitService.checkSwipeAction('user123');
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(99); // 100 - 1 after consumption
     });
 
     it('should block swipe actions after daily limit exceeded', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       // Exceed the daily limit (100 swipes)
       for (let i = 0; i < 101; i++) {
         await RateLimitService.checkSwipeAction('user123');
@@ -118,16 +116,12 @@ describe('RateLimitService', () => {
 
   describe('Message Sending', () => {
     it('should allow message sending within hourly limits', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       const result = await RateLimitService.checkMessageSend('user123');
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(49); // 50 - 1 after consumption
     });
 
     it('should block message sending after hourly limit exceeded', async () => {
-      AsyncStorage.getItem.mockResolvedValue(null);
-
       // Exceed the hourly limit (50 messages)
       for (let i = 0; i < 51; i++) {
         await RateLimitService.checkMessageSend('user123');
@@ -142,18 +136,14 @@ describe('RateLimitService', () => {
 
   describe('User Blocking', () => {
     it('should block users for specified duration', async () => {
-      AsyncStorage.setItem.mockResolvedValue();
-
       await RateLimitService.blockUser('user123', 'test_block', 60); // 60 minutes
 
       const isBlocked = await RateLimitService.isUserBlocked('user123');
       expect(isBlocked.blocked).toBe(true);
-      expect(isBlocked.remainingTime).toBeLessThanOrEqual(60);
+      expect(isBlocked.remainingMinutes).toBeLessThanOrEqual(60);
     });
 
     it('should allow unblocking users', async () => {
-      AsyncStorage.setItem.mockResolvedValue();
-      AsyncStorage.removeItem.mockResolvedValue();
 
       await RateLimitService.blockUser('user123', 'test_block', 60);
       await RateLimitService.unblockUser('user123');

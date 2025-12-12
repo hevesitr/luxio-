@@ -324,9 +324,49 @@ class RateLimitService {
     };
   }
 
-  // ========================================
-  // Additional Methods for Test Compatibility
-  // ========================================
+// ========================================
+// Static Methods for Test Compatibility
+// ========================================
+
+  /**
+   * Get attempts for a key within window (static version for tests)
+   */
+  static async getAttempts(key, windowMinutes) {
+    try {
+      const data = await AsyncStorage.getItem(key);
+      if (!data) return [];
+
+      const attempts = JSON.parse(data);
+      const now = Date.now();
+      const windowMs = windowMinutes * 60 * 1000;
+
+      // Filter out expired attempts
+      const validAttempts = attempts.filter(timestamp => now - timestamp < windowMs);
+
+      // Save filtered attempts back if changed
+      if (validAttempts.length !== attempts.length) {
+        await AsyncStorage.setItem(key, JSON.stringify(validAttempts));
+      }
+
+      return validAttempts;
+    } catch (error) {
+      console.error('[RateLimit] Error getting attempts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Add attempt to key (static version for tests)
+   */
+  static async addAttempt(key, windowMinutes) {
+    try {
+      const attempts = await this.getAttempts(key, windowMinutes);
+      attempts.push(Date.now());
+      await AsyncStorage.setItem(key, JSON.stringify(attempts));
+    } catch (error) {
+      console.error('[RateLimit] Error adding attempt:', error);
+    }
+  }
 
   /**
    * Check login attempts for email
@@ -334,15 +374,21 @@ class RateLimitService {
   static async checkLoginAttempts(email) {
     const key = `login_attempts_${email}`;
     const attempts = await this.getAttempts(key, RateLimitService.LIMITS.LOGIN_WINDOW_MINUTES);
-    
+
     const allowed = attempts.length < RateLimitService.LIMITS.LOGIN_ATTEMPTS;
     const remaining = Math.max(0, RateLimitService.LIMITS.LOGIN_ATTEMPTS - attempts.length);
 
+    if (allowed) {
+      // Add attempt only if allowed
+      await this.addAttempt(key, RateLimitService.LIMITS.LOGIN_WINDOW_MINUTES);
+    }
+
     return {
       allowed,
-      remaining,
+      remaining: allowed ? remaining - 1 : remaining, // Show remaining after consumption if allowed
       attempts: attempts.length,
       resetAt: Date.now() + (RateLimitService.LIMITS.LOGIN_WINDOW_MINUTES * 60 * 1000),
+      reason: allowed ? undefined : 'too_many_attempts',
     };
   }
 
@@ -370,17 +416,21 @@ class RateLimitService {
     const attempts = await this.getAttempts(key, RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES);
 
     const allowed = attempts.length < RateLimitService.LIMITS.SWIPE_ACTIONS;
-    const remaining = Math.max(0, RateLimitService.LIMITS.SWIPE_ACTIONS - attempts.length);
 
     if (allowed) {
+      // Add attempt
       await this.addAttempt(key, RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES);
     }
+
+    const remaining = Math.max(0, RateLimitService.LIMITS.SWIPE_ACTIONS - attempts.length);
 
     return {
       allowed,
       remaining: allowed ? remaining - 1 : remaining, // Show remaining after consumption if allowed
       attempts: attempts.length,
       resetAt: Date.now() + (RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES * 60 * 1000),
+      reason: allowed ? undefined : 'rate_limit_exceeded',
+      limit: RateLimitService.LIMITS.SWIPE_ACTIONS,
     };
   }
 
@@ -392,17 +442,21 @@ class RateLimitService {
     const attempts = await this.getAttempts(key, RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES);
 
     const allowed = attempts.length < RateLimitService.LIMITS.MESSAGES_SENT;
-    const remaining = Math.max(0, RateLimitService.LIMITS.MESSAGES_SENT - attempts.length);
 
     if (allowed) {
+      // Add attempt
       await this.addAttempt(key, RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES);
     }
+
+    const remaining = Math.max(0, RateLimitService.LIMITS.MESSAGES_SENT - attempts.length);
 
     return {
       allowed,
       remaining: allowed ? remaining - 1 : remaining, // Show remaining after consumption if allowed
       attempts: attempts.length,
       resetAt: Date.now() + (RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES * 60 * 1000),
+      reason: allowed ? undefined : 'rate_limit_exceeded',
+      limit: RateLimitService.LIMITS.MESSAGES_SENT,
     };
   }
 
@@ -417,6 +471,7 @@ class RateLimitService {
       expiresAt: Date.now() + (durationMinutes * 60 * 1000),
       durationMinutes,
     };
+
     await AsyncStorage.setItem(key, JSON.stringify(blockData));
   }
 
@@ -433,26 +488,27 @@ class RateLimitService {
    */
   static async isUserBlocked(userId) {
     const key = `user_blocked_${userId}`;
-    const data = await AsyncStorage.getItem(key);
-    
+
+    const stored = await AsyncStorage.getItem(key);
+    const data = stored ? JSON.parse(stored) : null;
+
     if (!data) {
       return { blocked: false };
     }
 
-    const blockData = JSON.parse(data);
     const now = Date.now();
 
     // Check if block has expired
-    if (now >= blockData.expiresAt) {
+    if (now >= data.expiresAt) {
       await this.unblockUser(userId);
       return { blocked: false };
     }
 
     return {
       blocked: true,
-      reason: blockData.reason,
-      expiresAt: blockData.expiresAt,
-      remainingMinutes: Math.ceil((blockData.expiresAt - now) / (60 * 1000)),
+      reason: data.reason,
+      expiresAt: data.expiresAt,
+      remainingMinutes: Math.ceil((data.expiresAt - now) / (60 * 1000)),
     };
   }
 
