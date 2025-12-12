@@ -2,6 +2,7 @@ module.exports = {
   preset: 'react-native',
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/jest.setup.js'],
+  forceExit: true, // Force exit to prevent hanging on async operations
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },

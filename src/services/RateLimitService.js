@@ -324,49 +324,6 @@ class RateLimitService {
     };
   }
 
-// ========================================
-// Static Methods for Test Compatibility
-// ========================================
-
-  /**
-   * Get attempts for a key within window (static version for tests)
-   */
-  static async getAttempts(key, windowMinutes) {
-    try {
-      const data = await AsyncStorage.getItem(key);
-      if (!data) return [];
-
-      const attempts = JSON.parse(data);
-      const now = Date.now();
-      const windowMs = windowMinutes * 60 * 1000;
-
-      // Filter out expired attempts
-      const validAttempts = attempts.filter(timestamp => now - timestamp < windowMs);
-
-      // Save filtered attempts back if changed
-      if (validAttempts.length !== attempts.length) {
-        await AsyncStorage.setItem(key, JSON.stringify(validAttempts));
-      }
-
-      return validAttempts;
-    } catch (error) {
-      console.error('[RateLimit] Error getting attempts:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Add attempt to key (static version for tests)
-   */
-  static async addAttempt(key, windowMinutes) {
-    try {
-      const attempts = await this.getAttempts(key, windowMinutes);
-      attempts.push(Date.now());
-      await AsyncStorage.setItem(key, JSON.stringify(attempts));
-    } catch (error) {
-      console.error('[RateLimit] Error adding attempt:', error);
-    }
-  }
 
   /**
    * Check login attempts for email

@@ -20,28 +20,29 @@ class Logger {
       'full_name',
       'first_name',
       'last_name',
+      'name',
       'address',
       'credit_card',
       'ssn',
       'password'
     ];
 
-    // PII minták, amiket regex-szel kell keresni
+    // PII minták, amiket regex-szel kell keresni - sorrend fontos (specifikusabb elől)
     this.piiPatterns = [
-      {
-        name: 'email',
-        pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-        replacement: '[EMAIL_REDACTED]'
-      },
-      {
-        name: 'phone',
-        pattern: /(\+?\d{1,3}[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})\b/g,
-        replacement: '[PHONE_REDACTED]'
-      },
       {
         name: 'credit_card',
         pattern: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
         replacement: '[CARD_REDACTED]'
+      },
+      {
+        name: 'email',
+        pattern: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,
+        replacement: '[EMAIL_REDACTED]'
+      },
+      {
+        name: 'phone',
+        pattern: /(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
+        replacement: '[PHONE_REDACTED]'
       }
     ];
   }
@@ -152,7 +153,7 @@ class Logger {
 
     // PII mezők redakciója mező név alapján
     this.piiFields.forEach(field => {
-      if (sanitized[field] !== undefined) {
+      if (field in sanitized) {
         sanitized[field] = '[REDACTED]';
       }
     });
