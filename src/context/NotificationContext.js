@@ -34,18 +34,22 @@ export const NotificationProvider = ({ children }) => {
 
   // Értesítések betöltése amikor a user bejelentkezik
   useEffect(() => {
-    if (user?.id) {
-      loadNotifications();
-      subscribeToNotifications();
-    } else {
-      // User kijelentkezésekor tisztítás
-      setNotifications([]);
-      setUnreadCount(0);
-      if (subscription) {
-        subscription.unsubscribe();
-        setSubscription(null);
+    const setupNotifications = async () => {
+      if (user?.id) {
+        await loadNotifications();
+        await subscribeToNotifications();
+      } else {
+        // User kijelentkezésekor tisztítás
+        setNotifications([]);
+        setUnreadCount(0);
+        if (subscription) {
+          subscription.unsubscribe();
+          setSubscription(null);
+        }
       }
-    }
+    };
+
+    setupNotifications();
 
     // Cleanup
     return () => {

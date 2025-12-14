@@ -50,6 +50,14 @@ class DiscoveryService {
    * Discovery profiles lekérése Supabase-ból valódi adatokkal
    */
   async getDiscoveryProfiles(filters = {}, excludeIds = []) {
+    // Check if we should use demo mode
+    const isDemoMode = __DEV__ && (!supabase || typeof supabase.from !== 'function' || !supabase.from('profiles').select);
+
+    if (isDemoMode) {
+      console.log('DiscoveryService: Using demo mode for profiles');
+      return this.getMockProfiles(filters, excludeIds);
+    }
+
     try {
       // Real Supabase query for profiles
       let query = supabase
@@ -187,9 +195,9 @@ class DiscoveryService {
   /**
    * Mock profiles fallback (only used when Supabase fails)
    */
-  getMockProfiles(filters = {}, excludeIds = []) {
-      const mockProfiles = [
-        {
+  async getMockProfiles(filters = {}, excludeIds = []) {
+    const mockProfiles = [
+      {
           id: 1,
           name: 'Anna',
           age: 24,
@@ -604,7 +612,6 @@ class DiscoveryService {
       return filtered.sort(() => Math.random() - 0.5);
     }
   }
-}
 
 const discoveryService = new DiscoveryService();
 

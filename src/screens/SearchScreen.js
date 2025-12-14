@@ -493,7 +493,7 @@ const SearchScreen = ({ navigation, route }) => {
               { value: 'Aquarius', label: 'Vízöntő' },
               { value: 'Pisces', label: 'Halak' },
             ]}
-            onSelect={setZodiacSign}
+            onSelect={(value) => setFilterState(prev => ({ ...prev, zodiacSign: value }))}
             theme={theme}
           />
 

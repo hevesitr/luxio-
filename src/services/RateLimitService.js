@@ -33,6 +33,11 @@ class RateLimitService {
     this.localCache = new Map();
     this.initialized = false;
 
+    // Auto-clear demo rate limits in development
+    if (__DEV__) {
+      RateLimitService.autoClearDemoRateLimits();
+    }
+
     // Default rate limits per endpoint
     this.defaultLimits = {
       // Free tier limits
@@ -346,6 +351,8 @@ class RateLimitService {
       attempts: attempts.length,
       resetAt: Date.now() + (RateLimitService.LIMITS.LOGIN_WINDOW_MINUTES * 60 * 1000),
       reason: allowed ? undefined : 'too_many_attempts',
+      blockDuration: RateLimitService.LIMITS.LOGIN_WINDOW_MINUTES,
+      remainingTime: RateLimitService.LIMITS.LOGIN_WINDOW_MINUTES,
     };
   }
 
@@ -363,6 +370,108 @@ class RateLimitService {
   static async recordSuccessfulLogin(email) {
     const key = `login_attempts_${email}`;
     await AsyncStorage.removeItem(key);
+  }
+
+  /**
+   * Clear all rate limiting data for a user (admin function)
+   * @param {string} identifier - Email address or user ID
+   */
+  static async clearAllRateLimits(identifier) {
+    try {
+      const keysToRemove = [
+        `login_attempts_${identifier}`,
+        `swipe_actions_${identifier}`,
+        `message_sends_${identifier}`,
+        `user_blocked_${identifier}`
+      ];
+
+      console.log(`[RateLimit] Clearing rate limits for: ${identifier}`);
+      console.log(`[RateLimit] Keys to remove:`, keysToRemove);
+
+      for (const key of keysToRemove) {
+        const existingData = await AsyncStorage.getItem(key);
+        if (existingData) {
+          console.log(`[RateLimit] Removing key: ${key} (had data: ${existingData.length} chars)`);
+        } else {
+          console.log(`[RateLimit] Key not found: ${key}`);
+        }
+        await AsyncStorage.removeItem(key);
+      }
+
+      console.log(`[RateLimit] ✅ Successfully cleared all rate limiting data for: ${identifier}`);
+      return { success: true };
+    } catch (error) {
+      console.error('[RateLimit] ❌ Error clearing rate limits:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Check current rate limiting status for a user
+   * @param {string} identifier - Email address or user ID
+   */
+  static async checkRateLimitStatus(identifier) {
+    try {
+      const keysToCheck = [
+        `login_attempts_${identifier}`,
+        `swipe_actions_${identifier}`,
+        `message_sends_${identifier}`,
+        `user_blocked_${identifier}`
+      ];
+
+      const status = {};
+
+      for (const key of keysToCheck) {
+        const data = await AsyncStorage.getItem(key);
+        if (data) {
+          const parsed = JSON.parse(data);
+          status[key] = {
+            exists: true,
+            length: Array.isArray(parsed) ? parsed.length : 'not-array',
+            data: parsed
+          };
+        } else {
+          status[key] = { exists: false };
+        }
+      }
+
+      console.log(`[RateLimit] Status for ${identifier}:`, status);
+      return status;
+    } catch (error) {
+      console.error('[RateLimit] Error checking status:', error);
+      return { error: error.message };
+    }
+  }
+
+  /**
+   * Admin utility: Clear rate limits for demo user (development only)
+   */
+  static async clearDemoUserRateLimits() {
+    console.log('[RateLimit] 🔧 Starting demo user rate limit clearance...');
+    const result = await this.clearAllRateLimits('demo@luxio.app');
+    if (result.success) {
+      console.log('[RateLimit] 🎉 Demo user rate limits cleared successfully!');
+    }
+    return result;
+  }
+
+  /**
+   * Admin utility: Check demo user rate limit status
+   */
+  static async checkDemoUserStatus() {
+    console.log('[RateLimit] 📊 Checking demo user rate limit status...');
+    return this.checkRateLimitStatus('demo@luxio.app');
+  }
+
+  /**
+   * Development utility: Auto-clear demo rate limits on service init (development only)
+   */
+  static async autoClearDemoRateLimits() {
+    if (__DEV__) {
+      console.log('[RateLimit] 🚀 Auto-clearing demo user rate limits for development...');
+      await this.clearDemoUserRateLimits();
+      console.log('[RateLimit] ✅ Demo rate limits auto-cleared');
+    }
   }
 
   /**
@@ -388,6 +497,8 @@ class RateLimitService {
       resetAt: Date.now() + (RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES * 60 * 1000),
       reason: allowed ? undefined : 'rate_limit_exceeded',
       limit: RateLimitService.LIMITS.SWIPE_ACTIONS,
+      blockDuration: RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES,
+      remainingTime: RateLimitService.LIMITS.SWIPE_WINDOW_MINUTES,
     };
   }
 
@@ -414,6 +525,8 @@ class RateLimitService {
       resetAt: Date.now() + (RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES * 60 * 1000),
       reason: allowed ? undefined : 'rate_limit_exceeded',
       limit: RateLimitService.LIMITS.MESSAGES_SENT,
+      blockDuration: RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES,
+      remainingTime: RateLimitService.LIMITS.MESSAGES_WINDOW_MINUTES,
     };
   }
 

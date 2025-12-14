@@ -82,12 +82,106 @@ const HomeScreen = ({ navigation }) => {
       distance: 7,
       is_verified: true,
       gender: 'female'
+    },
+    {
+      id: 'mock-4',
+      name: 'Dóra',
+      age: 26,
+      city: 'Győr',
+      photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop'],
+      bio: 'Szeretek olvasni és jó kávé mellett beszélgetni ☕📚',
+      interests: ['olvasás', 'kávé', 'beszélgetés', 'utazás'],
+      distance: 12,
+      is_verified: true,
+      gender: 'female'
+    },
+    {
+      id: 'mock-5',
+      name: 'Erik',
+      age: 30,
+      city: 'Pécs',
+      photo_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop'],
+      bio: 'Fotós vagyok, szeretem a természetet és az új helyeket 📸🌿',
+      interests: ['fotózás', 'természet', 'utazás', 'művészet'],
+      distance: 18,
+      is_verified: false,
+      gender: 'male'
+    },
+    {
+      id: 'mock-6',
+      name: 'Fanni',
+      age: 22,
+      city: 'Miskolc',
+      photo_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=800&fit=crop'],
+      bio: 'Egyetemista vagyok, szeretek bulizni és új embereket megismerni 🎉🎓',
+      interests: ['buli', 'egyetem', 'új emberek', 'zene'],
+      distance: 25,
+      is_verified: true,
+      gender: 'female'
+    },
+    {
+      id: 'mock-7',
+      name: 'Gábor',
+      age: 32,
+      city: 'Kecskemét',
+      photo_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&h=800&fit=crop'],
+      bio: 'Programozó vagyok, szeretek sakkozni és kirándulni ♟️🏔️',
+      interests: ['programozás', 'sakk', 'kirándulás', 'technológia'],
+      distance: 15,
+      is_verified: false,
+      gender: 'male'
+    },
+    {
+      id: 'mock-8',
+      name: 'Hanna',
+      age: 25,
+      city: 'Nyíregyháza',
+      photo_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&h=800&fit=crop'],
+      bio: 'Szeretek főzni és jó ételeket kipróbálni 👩‍🍳🍽️',
+      interests: ['főzés', 'ételek', 'konyha', 'bor'],
+      distance: 28,
+      is_verified: true,
+      gender: 'female'
+    },
+    {
+      id: 'mock-9',
+      name: 'István',
+      age: 27,
+      city: 'Szombathely',
+      photo_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&h=800&fit=crop'],
+      bio: 'Szeretek motorozni és adrenalint keresni 🏍️⚡',
+      interests: ['motor', 'adrenalin', 'utazás', 'sport'],
+      distance: 22,
+      is_verified: false,
+      gender: 'male'
+    },
+    {
+      id: 'mock-10',
+      name: 'Júlia',
+      age: 23,
+      city: 'Veszprém',
+      photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop',
+      photos: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop'],
+      bio: 'Diák vagyok, szeretek tanulni és fejlődni 📖🌱',
+      interests: ['tanulás', 'fejlesztés', 'olvasás', 'zene'],
+      distance: 14,
+      is_verified: true,
+      gender: 'female'
     }
   ];
 
   // Használjuk a Supabase adatokat, vagy fallback-ként a mock adatokat
   const displayProfiles = profiles && profiles.length > 0 ? profiles : mockProfiles;
-  const currentProfile = displayProfiles?.[currentIndex];
+
+  // Biztosítjuk hogy currentIndex ne legyen túl nagy
+  const safeCurrentIndex = Math.min(currentIndex, (displayProfiles?.length || 1) - 1);
+  const currentProfile = displayProfiles?.[safeCurrentIndex];
 
   // Debug információ
   console.log('=== HOMESCREEN DEBUG ===');
@@ -104,11 +198,15 @@ const HomeScreen = ({ navigation }) => {
     // Swipe history-ba mentjük az előző profilt
     setSwipeHistory(prev => [...prev, { profile: currentProfile, action, index: currentIndex }]);
 
-    // Egyszerűen csak léptetjük az indexet (mock mód)
-    setCurrentIndex(prev => (prev + 1) % displayProfiles.length);
+    // Léptetjük az indexet, de nem megyünk körbe (nem ismétlődnek a profilok)
+    setCurrentIndex(prev => {
+      const nextIndex = prev + 1;
+      // Ha elfogytak a profilok, maradunk az utolsó indexnél
+      return nextIndex >= displayProfiles.length ? prev : nextIndex;
+    });
 
-    // Opcionális: Supabase hívás háttérben
-    if (user?.id && profiles?.length > 0) {
+    // Supabase hívás háttérben
+    if (user?.id) {
       try {
         const result = await swipeMutation.mutateAsync({
           userId: user.id,
@@ -123,6 +221,14 @@ const HomeScreen = ({ navigation }) => {
       } catch (error) {
         // Supabase hívás sikertelen, de nem zavarjuk meg a felhasználót
         console.log('Swipe saved locally:', action, currentProfile.name);
+
+        // Demo mode fallback: véletlenszerű match generálás
+        if (action === 'like' && Math.random() < 0.3) { // 30% match esély
+          setTimeout(() => {
+            setMatchedProfile(currentProfile);
+            setShowMatchModal(true);
+          }, 500);
+        }
       }
     }
   }, [currentProfile, user?.id, swipeMutation, profiles, displayProfiles.length, currentIndex]);
@@ -134,11 +240,15 @@ const HomeScreen = ({ navigation }) => {
     // Swipe history-ba mentjük az előző profilt
     setSwipeHistory(prev => [...prev, { profile: currentProfile, action: 'super_like', index: currentIndex }]);
 
-    // Egyszerűen csak léptetjük az indexet (mock mód)
-    setCurrentIndex(prev => (prev + 1) % displayProfiles.length);
+    // Léptetjük az indexet, de nem megyünk körbe (nem ismétlődnek a profilok)
+    setCurrentIndex(prev => {
+      const nextIndex = prev + 1;
+      // Ha elfogytak a profilok, maradunk az utolsó indexnél
+      return nextIndex >= displayProfiles.length ? prev : nextIndex;
+    });
 
-    // Opcionális: Supabase hívás háttérben
-    if (user?.id && profiles?.length > 0) {
+    // Supabase hívás háttérben
+    if (user?.id) {
       try {
         const result = await superLikeMutation.mutateAsync({
           userId: user.id,
@@ -152,10 +262,14 @@ const HomeScreen = ({ navigation }) => {
       } catch (error) {
         // Supabase hívás sikertelen, de nem zavarjuk meg a felhasználót
         console.log('Super like saved locally:', currentProfile.name);
+
+        // Demo mode fallback: super like mindig match
+        setMatchedProfile(currentProfile);
+        setShowMatchModal(true);
       }
     }
   }, [currentProfile, user?.id, superLikeMutation, profiles, displayProfiles.length, currentIndex]);
-  
+
   // Handle rewind
   const handleRewind = useCallback(() => {
     if (!canRewind || swipeHistory.length === 0) {
@@ -177,7 +291,8 @@ const HomeScreen = ({ navigation }) => {
     );
   }
   
-  if (isError || (displayProfiles && displayProfiles.length === 0) || (displayProfiles && currentIndex >= displayProfiles.length)) {
+  // Empty state csak akkor ha valóban nincs több profil
+  if (isError || !displayProfiles || displayProfiles.length === 0 || !currentProfile) {
     return (
       <SafeAreaView style={styles.container}>
         <EmptyState

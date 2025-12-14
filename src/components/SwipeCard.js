@@ -34,7 +34,24 @@ const getActivityStyle = (lastActive) => {
   return { backgroundColor: '#999' };
 };
 
-const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike, isFirst, userProfile, onDoubleTap, onProfilePress, fullScreen = false }, ref) => {
+const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike, isFirst, userProfile, onDoubleTap, onProfilePress, fullScreen = false, theme }, ref) => {
+  // Ultimate fallback theme
+  const ultimateFallback = {
+    colors: {
+      text: '#00D4FF',
+      success: '#00FF88',
+      error: '#FF0080',
+      info: '#06B6D4',
+      gradient: ['#00D4FF', '#8B5CF6']
+    }
+  };
+
+  const safeTheme = theme || ultimateFallback;
+
+  // Debug theme object - temporarily disabled
+  // console.log('SwipeCard theme:', safeTheme);
+  // console.log('SwipeCard theme.colors:', safeTheme?.colors);
+
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [showLike, setShowLike] = useState(false);
@@ -264,7 +281,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
               key={index}
               style={[
                 styles.photoIndicator,
-                { backgroundColor: index === currentPhotoIndex ? '#fff' : 'rgba(255,255,255,0.5)' }
+                { backgroundColor: index === currentPhotoIndex ? safeTheme.colors.text : 'rgba(255,255,255,0.5)' }
               ]}
             />
           ))}
@@ -297,20 +314,20 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
       
       {showLike && (
         <View style={[styles.stamp, styles.likeStamp, { opacity: swipeStrength }]}>
-          <Text style={[styles.stampText, { color: '#4CAF50' }]}>LIKE</Text>
+          <Text style={[styles.stampText, { color: '#00FF88' }]}>LIKE</Text>
         </View>
       )}
 
       {showNope && (
         <View style={[styles.stamp, styles.nopeStamp, { opacity: swipeStrength }]}>
-          <Text style={[styles.stampText, { color: '#F44336' }]}>NOPE</Text>
+          <Text style={[styles.stampText, { color: '#FF0080' }]}>NOPE</Text>
         </View>
       )}
 
       {showSuperLike && (
         <View style={styles.superLikeBadge}>
           <LinearGradient
-            colors={['#4f9df7', '#5fd4ff']}
+            colors={['#00D4FF', '#8B5CF6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.superLikeGradient}
@@ -333,7 +350,7 @@ const SwipeCard = forwardRef(({ profile, onSwipeLeft, onSwipeRight, onSuperLike,
               </Text>
               {profile.isVerified && (
                 <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={24} color="#2196F3" />
+                  <Ionicons name="checkmark-circle" size={24} color="#06B6D4" />
                 </View>
               )}
             </View>

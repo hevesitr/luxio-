@@ -100,7 +100,6 @@ jobs:
       - name: Setup Expo CLI
         uses: expo/expo-github-action@v8
         with:
-          expo-cli: ${{ env.EXPO_CLI_VERSION }}
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Configure EAS Build
@@ -127,7 +126,6 @@ jobs:
     needs: [test, build]
     if: github.ref == 'refs/heads/develop' && needs.test.result == 'success' && needs.build.result == 'success'
     timeout-minutes: 10
-    environment: staging
 
     steps:
       - name: Checkout code
@@ -141,7 +139,6 @@ jobs:
       - name: Setup Expo CLI
         uses: expo/expo-github-action@v8
         with:
-          expo-cli: ${{ env.EXPO_CLI_VERSION }}
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Submit to TestFlight (iOS)
@@ -170,7 +167,6 @@ jobs:
     needs: [test, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.test.result == 'success' && needs.build.result == 'success'
     timeout-minutes: 15
-    environment: production
 
     steps:
       - name: Checkout code
@@ -184,7 +180,6 @@ jobs:
       - name: Setup Expo CLI
         uses: expo/expo-github-action@v8
         with:
-          expo-cli: ${{ env.EXPO_CLI_VERSION }}
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Submit to App Store (iOS)
@@ -205,6 +200,7 @@ jobs:
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Note: This action is deprecated, consider using softprops/action-gh-release for future updates
         with:
           tag_name: v${{ github.run_number }}
           release_name: Release v${{ github.run_number }}
@@ -248,7 +244,6 @@ jobs:
       - name: Setup Expo CLI
         uses: expo/expo-github-action@v8
         with:
-          expo-cli: ${{ env.EXPO_CLI_VERSION }}
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Deploy to ${{ github.event.inputs.environment }}

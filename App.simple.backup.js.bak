@@ -27,8 +27,6 @@ import PremiumScreen from './src/screens/PremiumScreen';
 import PassportScreen from './src/screens/PassportScreen';
 import ProfileDetailScreen from './src/screens/ProfileDetailScreen';
 import SocialMediaScreen from './src/screens/SocialMediaScreen';
-import SpotifyScreen from './src/screens/SpotifyScreen';
-import GhostModeScreen from './src/screens/GhostModeScreen';
 import GiftsScreen from './src/screens/GiftsScreen';
 import CreditsScreen from './src/screens/CreditsScreen';
 import ProfileViewsScreen from './src/screens/ProfileViewsScreen';
@@ -102,8 +100,6 @@ function ProfileStack({ addMatch, matches, removeMatch, navigation: tabNavigatio
     >
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="SocialMedia" component={SocialMediaScreen} />
-      <Stack.Screen name="Spotify" component={SpotifyScreen} />
-      <Stack.Screen name="GhostMode" component={GhostModeScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} />
       <Stack.Screen name="Verification" component={VerificationScreen} />

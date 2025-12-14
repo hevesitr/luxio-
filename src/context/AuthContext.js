@@ -87,13 +87,47 @@ export const AuthProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      if (data.session?.user) {
-        await loadProfile(data.session.user);
-      }
+    // #region agent log - AuthProvider init start
+    console.log('[AuthProvider] Initializing auth...');
+    fetch('http://127.0.0.1:7242/ingest/022fb2c2-86a2-4f93-ba8d-988a08e55344',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/context/AuthContext.js:89',message:'AuthProvider init start',data:{loading:loading},timestamp:Date.now(),sessionId:'debug-session',runId:'loading-stuck-run',hypothesisId:'L2'})}).catch(()=>{});
+    // #endregion
+
+    // Check if we're in demo mode (no Supabase credentials)
+    const isDemoMode = !supabase || typeof supabase.auth?.getSession !== 'function';
+
+    if (isDemoMode) {
+      console.log('🔒 Demo mode: Auth initialization');
+      // In demo mode, simulate successful auth
+      setSession({ user: { id: 'demo-user', email: 'demo@luxio.app' } });
       setLoading(false);
+      // #region agent log - Demo mode complete
+      fetch('http://127.0.0.1:7242/ingest/022fb2c2-86a2-4f93-ba8d-988a08e55344',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/context/AuthContext.js:89',message:'Demo mode auth complete',data:{demoMode:true,loading:false},timestamp:Date.now(),sessionId:'debug-session',runId:'loading-stuck-run',hypothesisId:'L6'})}).catch(()=>{});
+      // #endregion
+      return; // Exit early, no need for real auth listener
+    }
+
+    const init = async () => {
+      try {
+        console.log('[AuthProvider] Getting session...');
+        const { data } = await supabase.auth.getSession();
+        console.log('[AuthProvider] Session result:', !!data.session);
+        setSession(data.session);
+        if (data.session?.user) {
+          console.log('[AuthProvider] Loading profile...');
+          await loadProfile(data.session.user);
+        }
+        console.log('[AuthProvider] Setting loading to false');
+        setLoading(false);
+        // #region agent log - AuthProvider init complete
+        fetch('http://127.0.0.1:7242/ingest/022fb2c2-86a2-4f93-ba8d-988a08e55344',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/context/AuthContext.js:89',message:'AuthProvider init complete',data:{hasSession:!!data.session,loading:false},timestamp:Date.now(),sessionId:'debug-session',runId:'loading-stuck-run',hypothesisId:'L3'})}).catch(()=>{});
+        // #endregion
+      } catch (error) {
+        console.error('[AuthProvider] Init error:', error);
+        setLoading(false);
+        // #region agent log - AuthProvider init error
+        fetch('http://127.0.0.1:7242/ingest/022fb2c2-86a2-4f93-ba8d-988a08e55344',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/context/AuthContext.js:89',message:'AuthProvider init error',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'loading-stuck-run',hypothesisId:'L4'})}).catch(()=>{});
+        // #endregion
+      }
     };
 
     init();

@@ -37,8 +37,8 @@ const LoginScreen = ({ navigation }) => {
   
   const { refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(__DEV__ ? 'demo@luxio.app' : ''); // Auto-fill demo email in development
+  const [password, setPassword] = useState(__DEV__ ? 'demo123' : ''); // Auto-fill demo password in development
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 

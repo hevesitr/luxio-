@@ -215,7 +215,7 @@ const PremiumScreen = ({ navigation }) => {
         )}
 
         <LinearGradient
-          colors={colors[plan.id] || ['#2196F3', '#42A5F5']}
+          colors={Array.isArray(colors[plan.id]) ? colors[plan.id] : ['#2196F3', '#42A5F5']}
           style={styles.tierHeader}
         >
           <Text style={styles.tierName}>{plan.name}</Text>

@@ -25,8 +25,8 @@ import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { currentUser } from '../data/userProfile';
 
-// ✅ PERFORMANCE: Memoizált MessageItem komponens
-const MessageItem = memo(({ item, match, theme, formatTime }) => (
+// ✅ PERFORMANCE: Memoizált MessageItem komponens (moved inside ChatScreen)
+const MessageItem = memo(({ item, match, theme, formatTime, styles }) => (
   <View
     style={[
       styles.messageContainer,
@@ -176,6 +176,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
   const [showIceBreakers, setShowIceBreakers] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
 
   useEffect(() => {
@@ -446,6 +447,8 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     return `${hours}:${minutes}`;
   };
 
+  const styles = createStyles(safeTheme);
+
   // ✅ PERFORMANCE: Memoizált renderMessage callback
   const renderMessage = useCallback(({ item }) => (
     <MessageItem
@@ -453,10 +456,9 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
       match={match}
       theme={theme}
       formatTime={formatTime}
+      styles={styles}
     />
-  ), [match, theme, formatTime]);
-
-  const styles = createStyles(safeTheme);
+  ), [match, theme, formatTime, styles]);
 
   return (
     <KeyboardAvoidingView
@@ -552,6 +554,12 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
               </TouchableOpacity>
             ) : (
               <View style={styles.mediaButtons}>
+                <TouchableOpacity
+                  style={styles.mediaButton}
+                  onPress={() => setShowGifPicker(true)}
+                >
+                  <Ionicons name="happy" size={24} color="#FF3B75" />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.mediaButton}
                   onPress={() => setIsRecording(true)}

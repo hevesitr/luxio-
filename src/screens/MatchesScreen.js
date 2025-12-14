@@ -299,6 +299,44 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
     );
   };
 
+  const handleRematch = (match) => {
+    Alert.alert(
+      'Rematch',
+      `Szeretnél újra kapcsolatba lépni ${match.name}-nal? Ez újraindítja a beszélgetést.`,
+      [
+        { text: 'Mégse', style: 'cancel' },
+        {
+          text: 'Rematch',
+          style: 'default',
+          onPress: async () => {
+            try {
+              // Küldjünk egy rematch üzenetet
+              const rematchMessage = {
+                text: "👋 Szia! Rég láttalak, gondoltam újra próbálkozom. Hogy vagy?",
+                timestamp: new Date().toISOString(),
+                sender: 'me',
+                type: 'text',
+                id: `rematch_${Date.now()}`
+              };
+
+              // Mentjük az új üzenetet
+              setLastMessages(prev => ({
+                ...prev,
+                [match.id]: rematchMessage
+              }));
+
+              Logger.info('Rematch initiated', { matchId: match.id });
+              Alert.alert('Rematch elküldve!', `${match.name} újra látni fogja a profilod a match-ek között.`);
+            } catch (error) {
+              Logger.error('Error sending rematch', error);
+              Alert.alert('Hiba', 'Nem sikerült elküldeni a rematch üzenetet.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ✅ PERFORMANCE: Memoizált render függvény re-render csökkentéshez
   const renderMatch = useCallback(({ item }) => {
     const lastMessage = lastMessages[item.id];
@@ -352,6 +390,14 @@ const MatchesScreen = ({ matches, navigation, removeMatch }) => {
           >
             <Ionicons name="trash-outline" size={18} color={theme.colors.error || "#FF3B30"} />
             <Text style={styles.deleteButtonText}>Törlés</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.rematchButton}
+            onPress={() => handleRematch(item)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={18} color="#FF3B75" />
+            <Text style={styles.rematchButtonText}>Rematch</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -605,6 +651,21 @@ const createStyles = (theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.error || '#FF3B30',
+  },
+  rematchButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 59, 117, 0.1)',
+    gap: 6,
+  },
+  rematchButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF3B75',
   },
 });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -44,6 +45,84 @@ const ProfileScreen = ({ navigation }) => {
   const { profile, signOut } = useAuth();
   const navService = useNavigation();
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [discoverySettings, setDiscoverySettings] = useState({
+    // Megjelenítési beállítások
+    showTopButtons: true,
+    showStories: true,
+    showTopIcons: true,
+    showRightActions: true,
+    showBackButton: true,
+    showActionButtons: true,
+    showBottomNav: true,
+
+    // Premium funkciók
+    boostEnabled: false,
+    superLikeEnabled: true,
+    rewindEnabled: false,
+    spotlightEnabled: false,
+
+    // Kommunikációs funkciók
+    voiceNotesEnabled: false,
+    typingIndicatorEnabled: true,
+    readReceiptsEnabled: true,
+    videoChatEnabled: false,
+
+    // Intelligens egyeztetés
+    compatibilityQuestionsEnabled: false,
+    personalityTestEnabled: false,
+    zodiacCompatibilityEnabled: false,
+    aiMatchPredictionEnabled: false,
+
+    // Média és tartalom
+    storiesEnabled: true,
+    liveStreamingEnabled: false,
+    photoVerificationEnabled: false,
+    videoProfilesEnabled: false,
+
+    // Események és találkozók
+    datePlanningEnabled: false,
+    eventsEnabled: false,
+    coffeeMeetsBagelEnabled: false,
+    ghostModeEnabled: false,
+
+    // Extra funkciók
+    giftsEnabled: false,
+    icebreakersEnabled: true,
+    stickersEnabled: true,
+    emergencyContactsEnabled: false,
+
+    // Biztonság és adatvédelem
+    reportBlockEnabled: true,
+    locationSharingEnabled: false,
+    ageVerificationEnabled: false,
+    privacyControlsEnabled: true
+  });
+
+  // Betöltjük a felfedezés oldal beállításait
+  useEffect(() => {
+    const loadDiscoverySettings = async () => {
+      try {
+        const savedSettings = await AsyncStorage.getItem('discoverySettings');
+        if (savedSettings) {
+          setDiscoverySettings(JSON.parse(savedSettings));
+        }
+      } catch (error) {
+        console.warn('Failed to load discovery settings:', error);
+      }
+    };
+    loadDiscoverySettings();
+  }, []);
+
+  // Felfedezés oldal beállításainak mentése
+  const updateDiscoverySetting = async (key, value) => {
+    const newSettings = { ...discoverySettings, [key]: value };
+    setDiscoverySettings(newSettings);
+    try {
+      await AsyncStorage.setItem('discoverySettings', JSON.stringify(newSettings));
+    } catch (error) {
+      console.warn('Failed to save discovery settings:', error);
+    }
+  };
   const [userProfile, setUserProfile] = useState({
     name: 'Te',
     age: 25,
@@ -270,6 +349,9 @@ const ProfileScreen = ({ navigation }) => {
   }, [profile?.id, userProfile.photos]); // ✅ Add missing useCallback dependency array
 
   const mainOptions = [
+    { icon: 'eye-off-outline', title: 'Ghost Mode', subtitle: 'Legyél láthatatlan mások számára', color: '#9C27B0', screen: 'GhostMode' },
+    { icon: 'chatbubble-ellipses-outline', title: 'Chat Szobák', subtitle: 'Csatlakozz közösségi csevegésekhez', color: '#FF3B75', screen: 'ChatRooms' },
+    { icon: 'musical-notes-outline', title: 'Spotify Zene', subtitle: 'Oszd meg a kedvenc zenéidet', color: '#1DB954', screen: 'Spotify' },
     { icon: 'rocket-outline', title: 'Boost', subtitle: 'Profil kiemelés 30 percre', color: '#FF3B75', screen: 'Boost' },
     { icon: 'heart-outline', title: 'Ki lájkolt téged', subtitle: 'Lásd azonnal', color: '#E91E63', screen: 'LikesYou' },
     { icon: 'diamond-outline', title: 'Top Picks', subtitle: 'AI napi ajánlások', color: '#9C27B0', screen: 'TopPicks' },
@@ -592,6 +674,397 @@ const ProfileScreen = ({ navigation }) => {
         ))}
       </View>
 
+      {/* Új fejlett funkciók */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🏆 Premium Funkciók</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Boost - Kiemelés a keresésben (Hinge/Tinder)</Text>
+            <Switch
+              value={discoverySettings.boostEnabled}
+              onValueChange={(value) => updateDiscoverySetting('boostEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FFD700' }}
+              thumbColor={discoverySettings.boostEnabled ? '#FFD700' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Super Like - Kiemelt figyelem (Tinder)</Text>
+            <Switch
+              value={discoverySettings.superLikeEnabled}
+              onValueChange={(value) => updateDiscoverySetting('superLikeEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FF69B4' }}
+              thumbColor={discoverySettings.superLikeEnabled ? '#FF69B4' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Rewind - Utolsó akció visszavonása (Tinder)</Text>
+            <Switch
+              value={discoverySettings.rewindEnabled}
+              onValueChange={(value) => updateDiscoverySetting('rewindEnabled', value)}
+              trackColor={{ false: '#767577', true: '#00D4FF' }}
+              thumbColor={discoverySettings.rewindEnabled ? '#00D4FF' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Spotlight - Fényképek gyűjteménye (Bumble)</Text>
+            <Switch
+              value={discoverySettings.spotlightEnabled}
+              onValueChange={(value) => updateDiscoverySetting('spotlightEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FF6B9D' }}
+              thumbColor={discoverySettings.spotlightEnabled ? '#FF6B9D' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>💬 Kommunikációs Funkciók</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Voice Notes - Hangüzenetek (Bumble)</Text>
+            <Switch
+              value={discoverySettings.voiceNotesEnabled}
+              onValueChange={(value) => updateDiscoverySetting('voiceNotesEnabled', value)}
+              trackColor={{ false: '#767577', true: '#9B59B6' }}
+              thumbColor={discoverySettings.voiceNotesEnabled ? '#9B59B6' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Typing Indicator - Gépelés jelzése (WhatsApp)</Text>
+            <Switch
+              value={discoverySettings.typingIndicatorEnabled}
+              onValueChange={(value) => updateDiscoverySetting('typingIndicatorEnabled', value)}
+              trackColor={{ false: '#767577', true: '#25D366' }}
+              thumbColor={discoverySettings.typingIndicatorEnabled ? '#25D366' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Read Receipts - Olvasási visszaigazolás (WhatsApp)</Text>
+            <Switch
+              value={discoverySettings.readReceiptsEnabled}
+              onValueChange={(value) => updateDiscoverySetting('readReceiptsEnabled', value)}
+              trackColor={{ false: '#767577', true: '#25D366' }}
+              thumbColor={discoverySettings.readReceiptsEnabled ? '#25D366' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Video Chat - Videó hívás (Zoom/FaceTime)</Text>
+            <Switch
+              value={discoverySettings.videoChatEnabled}
+              onValueChange={(value) => updateDiscoverySetting('videoChatEnabled', value)}
+              trackColor={{ false: '#767577', true: '#E74C3C' }}
+              thumbColor={discoverySettings.videoChatEnabled ? '#E74C3C' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🎯 Intelligens Egyeztetés</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Kompatibilitási Kérdések (OkCupid/eHarmony)</Text>
+            <Switch
+              value={discoverySettings.compatibilityQuestionsEnabled}
+              onValueChange={(value) => updateDiscoverySetting('compatibilityQuestionsEnabled', value)}
+              trackColor={{ false: '#767577', true: '#8E44AD' }}
+              thumbColor={discoverySettings.compatibilityQuestionsEnabled ? '#8E44AD' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Personality Test - Személyiség teszt (16Personalities)</Text>
+            <Switch
+              value={discoverySettings.personalityTestEnabled}
+              onValueChange={(value) => updateDiscoverySetting('personalityTestEnabled', value)}
+              trackColor={{ false: '#767577', true: '#F39C12' }}
+              thumbColor={discoverySettings.personalityTestEnabled ? '#F39C12' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Zodiákus Kompatibilitás (Co-Star)</Text>
+            <Switch
+              value={discoverySettings.zodiacCompatibilityEnabled}
+              onValueChange={(value) => updateDiscoverySetting('zodiacCompatibilityEnabled', value)}
+              trackColor={{ false: '#767577', true: '#9B59B6' }}
+              thumbColor={discoverySettings.zodiacCompatibilityEnabled ? '#9B59B6' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>AI Match Prediction - MI egyezés előrejelzés</Text>
+            <Switch
+              value={discoverySettings.aiMatchPredictionEnabled}
+              onValueChange={(value) => updateDiscoverySetting('aiMatchPredictionEnabled', value)}
+              trackColor={{ false: '#767577', true: '#00D4FF' }}
+              thumbColor={discoverySettings.aiMatchPredictionEnabled ? '#00D4FF' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📸 Média & Tartalom</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Stories - Pillanatképek (Instagram/Snapchat)</Text>
+            <Switch
+              value={discoverySettings.storiesEnabled}
+              onValueChange={(value) => updateDiscoverySetting('storiesEnabled', value)}
+              trackColor={{ false: '#767577', true: '#E91E63' }}
+              thumbColor={discoverySettings.storiesEnabled ? '#E91E63' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Live Streaming - Élő közvetítés (TikTok/Instagram)</Text>
+            <Switch
+              value={discoverySettings.liveStreamingEnabled}
+              onValueChange={(value) => updateDiscoverySetting('liveStreamingEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FF0000' }}
+              thumbColor={discoverySettings.liveStreamingEnabled ? '#FF0000' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Photo Verification - Kép ellenőrzés (Tinder)</Text>
+            <Switch
+              value={discoverySettings.photoVerificationEnabled}
+              onValueChange={(value) => updateDiscoverySetting('photoVerificationEnabled', value)}
+              trackColor={{ false: '#767577', true: '#4CAF50' }}
+              thumbColor={discoverySettings.photoVerificationEnabled ? '#4CAF50' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Video Profiles - Videó profilok (Bumble)</Text>
+            <Switch
+              value={discoverySettings.videoProfilesEnabled}
+              onValueChange={(value) => updateDiscoverySetting('videoProfilesEnabled', value)}
+              trackColor={{ false: '#767577', true: '#2196F3' }}
+              thumbColor={discoverySettings.videoProfilesEnabled ? '#2196F3' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📅 Események & Találkozók</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Date Planning - Randi tervezés (Hinge)</Text>
+            <Switch
+              value={discoverySettings.datePlanningEnabled}
+              onValueChange={(value) => updateDiscoverySetting('datePlanningEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FF9800' }}
+              thumbColor={discoverySettings.datePlanningEnabled ? '#FF9800' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Events - Események és meetup-ok (Meetup)</Text>
+            <Switch
+              value={discoverySettings.eventsEnabled}
+              onValueChange={(value) => updateDiscoverySetting('eventsEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FF5722' }}
+              thumbColor={discoverySettings.eventsEnabled ? '#FF5722' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Coffee Meets Bagel - Napi párosítások</Text>
+            <Switch
+              value={discoverySettings.coffeeMeetsBagelEnabled}
+              onValueChange={(value) => updateDiscoverySetting('coffeeMeetsBagelEnabled', value)}
+              trackColor={{ false: '#767577', true: '#795548' }}
+              thumbColor={discoverySettings.coffeeMeetsBagelEnabled ? '#795548' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Ghost Mode - Rejtett mód (Snapchat)</Text>
+            <Switch
+              value={discoverySettings.ghostModeEnabled}
+              onValueChange={(value) => updateDiscoverySetting('ghostModeEnabled', value)}
+              trackColor={{ false: '#767577', true: '#607D8B' }}
+              thumbColor={discoverySettings.ghostModeEnabled ? '#607D8B' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🎁 Extra Funkciók</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Gifts - Ajándék küldés (Tinder Gold)</Text>
+            <Switch
+              value={discoverySettings.giftsEnabled}
+              onValueChange={(value) => updateDiscoverySetting('giftsEnabled', value)}
+              trackColor={{ false: '#767577', true: '#E91E63' }}
+              thumbColor={discoverySettings.giftsEnabled ? '#E91E63' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Icebreakers - Jégtörő kérdések (Hinge)</Text>
+            <Switch
+              value={discoverySettings.icebreakersEnabled}
+              onValueChange={(value) => updateDiscoverySetting('icebreakersEnabled', value)}
+              trackColor={{ false: '#767577', true: '#00BCD4' }}
+              thumbColor={discoverySettings.icebreakersEnabled ? '#00BCD4' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Stickers & Reactions - Matricák és reakciók</Text>
+            <Switch
+              value={discoverySettings.stickersEnabled}
+              onValueChange={(value) => updateDiscoverySetting('stickersEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FFC107' }}
+              thumbColor={discoverySettings.stickersEnabled ? '#FFC107' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Emergency Contacts - Vészhelyzeti kapcsolatok</Text>
+            <Switch
+              value={discoverySettings.emergencyContactsEnabled}
+              onValueChange={(value) => updateDiscoverySetting('emergencyContactsEnabled', value)}
+              trackColor={{ false: '#767577', true: '#F44336' }}
+              thumbColor={discoverySettings.emergencyContactsEnabled ? '#F44336' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🔒 Biztonság & Adatvédelem</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Report & Block - Jelentés és blokkolás</Text>
+            <Switch
+              value={discoverySettings.reportBlockEnabled}
+              onValueChange={(value) => updateDiscoverySetting('reportBlockEnabled', value)}
+              trackColor={{ false: '#767577', true: '#FF5722' }}
+              thumbColor={discoverySettings.reportBlockEnabled ? '#FF5722' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Location Sharing - Helyzetmegosztás</Text>
+            <Switch
+              value={discoverySettings.locationSharingEnabled}
+              onValueChange={(value) => updateDiscoverySetting('locationSharingEnabled', value)}
+              trackColor={{ false: '#767577', true: '#4CAF50' }}
+              thumbColor={discoverySettings.locationSharingEnabled ? '#4CAF50' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Age Verification - Kor ellenőrzés</Text>
+            <Switch
+              value={discoverySettings.ageVerificationEnabled}
+              onValueChange={(value) => updateDiscoverySetting('ageVerificationEnabled', value)}
+              trackColor={{ false: '#767577', true: '#2196F3' }}
+              thumbColor={discoverySettings.ageVerificationEnabled ? '#2196F3' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Privacy Controls - Adatvédelmi beállítások</Text>
+            <Switch
+              value={discoverySettings.privacyControlsEnabled}
+              onValueChange={(value) => updateDiscoverySetting('privacyControlsEnabled', value)}
+              trackColor={{ false: '#767577', true: '#9C27B0' }}
+              thumbColor={discoverySettings.privacyControlsEnabled ? '#9C27B0' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Felfedezés oldal megjelenítése</Text>
+        <View style={styles.discoverySettingsContainer}>
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Felső gombok (szűrők, térkép)</Text>
+            <Switch
+              value={discoverySettings.showTopButtons}
+              onValueChange={(value) => updateDiscoverySetting('showTopButtons', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showTopButtons ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Stories</Text>
+            <Switch
+              value={discoverySettings.showStories}
+              onValueChange={(value) => updateDiscoverySetting('showStories', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showStories ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Felső ikonsor (7 ikon)</Text>
+            <Switch
+              value={discoverySettings.showTopIcons}
+              onValueChange={(value) => updateDiscoverySetting('showTopIcons', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showTopIcons ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Jobb oldali akciók</Text>
+            <Switch
+              value={discoverySettings.showRightActions}
+              onValueChange={(value) => updateDiscoverySetting('showRightActions', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showRightActions ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Vissza gomb</Text>
+            <Switch
+              value={discoverySettings.showBackButton}
+              onValueChange={(value) => updateDiscoverySetting('showBackButton', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showBackButton ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Alsó akció gombok (pass/like)</Text>
+            <Switch
+              value={discoverySettings.showActionButtons}
+              onValueChange={(value) => updateDiscoverySetting('showActionButtons', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showActionButtons ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.discoverySettingItem}>
+            <Text style={styles.discoverySettingText}>Alsó navigációs sáv</Text>
+            <Switch
+              value={discoverySettings.showBottomNav}
+              onValueChange={(value) => updateDiscoverySetting('showBottomNav', value)}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={discoverySettings.showBottomNav ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+        </View>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Beállítások</Text>
         {settingsOptions.map((option, index) => (
@@ -894,6 +1367,24 @@ const createStyles = (theme) => StyleSheet.create({
   footerText: {
     fontSize: 12,
     color: theme.colors.textTertiary,
+  },
+  discoverySettingsContainer: {
+    marginTop: 10,
+  },
+  discoverySettingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  discoverySettingText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 15,
   },
 });
 

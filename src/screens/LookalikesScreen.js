@@ -13,9 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { profiles } from '../data/profiles';
 import { currentUser } from '../data/userProfile';
 import SwipeCard from '../components/SwipeCard';
+import { useTheme } from '../context/ThemeContext';
 import withErrorBoundary from '../components/withErrorBoundary';
 
 const LookalikesScreen = ({ navigation, route }) => {
+  const { theme } = useTheme();
   const { onMatch } = route.params || { onMatch: () => {} };
   const [lookalikes, setLookalikes] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -105,6 +107,7 @@ const LookalikesScreen = ({ navigation, route }) => {
               onSwipeRight={handleSwipeRight}
               isFirst={false}
               userProfile={currentUser}
+              theme={theme}
             />
           </View>
         )}
@@ -114,6 +117,7 @@ const LookalikesScreen = ({ navigation, route }) => {
           onSwipeRight={handleSwipeRight}
           isFirst={true}
           userProfile={currentUser}
+          theme={theme}
         />
       </View>
 

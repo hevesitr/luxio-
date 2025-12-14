@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -12,7 +12,6 @@ import { PreferencesProvider } from './src/context/PreferencesContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import CookieConsentManager from './src/components/CookieConsentManager';
 import MatchService from './src/services/MatchService';
-import NavigationService from './src/services/NavigationService';
 import { queryClient } from './src/config/queryClient';
 
 // Phase 1: Critical Security Services
@@ -40,6 +39,8 @@ import PremiumScreen from './src/screens/PremiumScreen';
 import PassportScreen from './src/screens/PassportScreen';
 import ProfileDetailScreen from './src/screens/ProfileDetailScreen';
 import SocialMediaScreen from './src/screens/SocialMediaScreen';
+import SpotifyScreen from './src/screens/SpotifyScreen';
+import GhostModeScreen from './src/screens/GhostModeScreen';
 import GiftsScreen from './src/screens/GiftsScreen';
 import CreditsScreen from './src/screens/CreditsScreen';
 import ProfileViewsScreen from './src/screens/ProfileViewsScreen';
@@ -128,6 +129,8 @@ function ProfileStack({ addMatch, matches, removeMatch }) {
     >
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="SocialMedia" component={SocialMediaScreen} />
+      <Stack.Screen name="Spotify" component={SpotifyScreen} />
+      <Stack.Screen name="GhostMode" component={GhostModeScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} />
       <Stack.Screen name="Verification" component={VerificationScreen} />
@@ -239,7 +242,24 @@ function TabNavigator({ matches, addMatch, removeMatch }) {
       />
       <Tab.Screen
         name="Profil"
-        options={{ unmountOnBlur: false }}
+        options={{ unmountOnBlur: true }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            // Force remount of the Profile stack so it always opens on ProfileMain
+            setProfileStackKey(prev => prev + 1);
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: 'Profil',
+                params: {
+                  screen: 'ProfileMain',
+                  params: {
+                    resetTimestamp: Date.now(),
+                  },
+                },
+              })
+            );
+          },
+        })}
       >
         {(props) => (
           <ProfileStack
@@ -278,7 +298,6 @@ function RootNavigator({ matches, addMatch, removeMatch }) {
 // ✅ Styles removed - screens now use their own styles
 
 export default function App() {
-  const navigationRef = useRef(null);
   const [matches, setMatches] = useState([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
   const [servicesInitialized, setServicesInitialized] = useState(false);
@@ -398,12 +417,7 @@ export default function App() {
             <NotificationProvider>
               <NetworkProvider>
                 <SafeAreaProvider>
-                  <NavigationContainer
-                    ref={navigationRef}
-                    onReady={() => {
-                      NavigationService.setTopLevelNavigator(navigationRef.current);
-                    }}
-                  >
+                  <NavigationContainer>
                     <RootNavigator matches={matches} addMatch={addMatch} removeMatch={removeMatch} />
                     <OfflineModeIndicator />
                     <CookieConsentManager />

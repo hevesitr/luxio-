@@ -163,7 +163,7 @@ const PrivacySettingsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: safeTheme.colors.background }]}>
       <LinearGradient
-        colors={[safeTheme.colors.primary, safeTheme.colors.primary + '80']}
+        colors={[safeTheme.colors.primary, 'rgba(255, 59, 117, 0.8)']}
         style={styles.header}
       >
         <View style={styles.headerContent}>

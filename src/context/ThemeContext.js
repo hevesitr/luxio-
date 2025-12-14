@@ -2,50 +2,89 @@ import React, { createContext, useState, useEffect, useContext, useMemo } from '
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Global fallback theme for runtime not ready scenarios
+export const FALLBACK_THEME = {
+  colors: {
+    background: '#0F0F23',
+    surface: '#1A1A2E',
+    card: '#334155',
+    text: '#00D4FF',
+    textSecondary: '#06B6D4',
+    textTertiary: '#00FF88',
+    border: '#475569',
+    primary: '#00D4FF',
+    primaryLight: '#4ADE80',
+    primaryDark: '#06B6D4',
+    secondary: '#8B5CF6',
+    accent: '#00FF88',
+    success: '#00FF88',
+    warning: '#FF6B35',
+    error: '#FF0080',
+    info: '#06B6D4',
+    purple: '#8B5CF6',
+    overlay: 'rgba(15, 15, 35, 0.8)',
+    shadow: 'rgba(0, 212, 255, 0.3)',
+    gradient: ['#00D4FF', '#8B5CF6'],
+  },
+  sizes: {
+    small: 12,
+    medium: 16,
+    large: 20,
+    xlarge: 24
+  }
+};
+
 const THEME_STORAGE_KEY = '@app_theme';
 const ACCENT_STORAGE_KEY = '@app_accent';
 
 const lightTheme = {
   mode: 'light',
   colors: {
-    background: '#FFFFFF',
-    surface: '#F5F5F5',
-    card: '#FFFFFF',
-    text: '#000000',
-    textSecondary: '#666666',
-    textTertiary: '#999999',
-    border: '#E0E0E0',
-    primary: '#FF3B75',
-    primaryLight: '#FF6B9D',
-    success: '#4CAF50',
-    warning: '#FFC107',
-    error: '#F44336',
-    info: '#2196F3',
-    purple: '#9C27B0',
-    overlay: 'rgba(0, 0, 0, 0.5)',
-    shadow: 'rgba(0, 0, 0, 0.1)',
+    background: '#0F0F23', // Deep Space
+    surface: '#1A1A2E', // Dark Charcoal
+    card: '#16213E', // Navy Blue
+    text: '#00D4FF', // Electric Blue
+    textSecondary: '#06B6D4', // Bright Cyan
+    textTertiary: '#00FF88', // Cyber Green
+    border: '#0F3460', // Dark Blue
+    primary: '#00D4FF', // Electric Blue
+    primaryLight: '#4ADE80',
+    primaryDark: '#06B6D4',
+    secondary: '#8B5CF6', // Neon Purple
+    accent: '#00FF88', // Cyber Green
+    success: '#00FF88', // Cyber Green
+    warning: '#FF6B35', // Orange Glow
+    error: '#FF0080', // Magenta
+    info: '#06B6D4', // Bright Cyan
+    purple: '#8B5CF6',
+    overlay: 'rgba(15, 15, 35, 0.8)',
+    shadow: 'rgba(0, 212, 255, 0.3)',
+    gradient: ['#00D4FF', '#8B5CF6'], // Futurisztikus gradient
   },
 };
 
 const darkTheme = {
   mode: 'dark',
   colors: {
-    background: '#0a0a0a',
-    surface: '#1a1a1a',
-    card: '#1f1f1f',
-    text: '#FFFFFF',
-    textSecondary: 'rgba(255, 255, 255, 0.7)',
-    textTertiary: 'rgba(255, 255, 255, 0.5)',
-    border: 'rgba(255, 255, 255, 0.1)',
-    primary: '#FF3B75',
-    primaryLight: '#FF6B9D',
-    success: '#4CAF50',
-    warning: '#FFC107',
-    error: '#F44336',
-    info: '#2196F3',
-    purple: '#9C27B0',
-    overlay: 'rgba(0, 0, 0, 0.8)',
-    shadow: 'rgba(0, 0, 0, 0.3)',
+    background: '#0A0A1E', // Ultra Dark Space
+    surface: '#0F0F23', // Deep Space
+    card: '#1A1A2E', // Dark Charcoal
+    text: '#00D4FF', // Electric Blue
+    textSecondary: '#06B6D4', // Bright Cyan
+    textTertiary: '#00FF88', // Cyber Green
+    border: '#0F3460', // Dark Blue
+    primary: '#00D4FF', // Electric Blue
+    primaryLight: '#4ADE80',
+    primaryDark: '#06B6D4',
+    secondary: '#8B5CF6', // Neon Purple
+    accent: '#00FF88', // Cyber Green
+    success: '#00FF88', // Cyber Green
+    warning: '#FF6B35', // Orange Glow
+    error: '#FF0080', // Magenta
+    info: '#06B6D4', // Bright Cyan
+    purple: '#8B5CF6',
+    overlay: 'rgba(10, 10, 30, 0.9)',
+    shadow: 'rgba(0, 212, 255, 0.4)',
   },
 };
 
@@ -79,8 +118,16 @@ const ThemeContext = createContext({
 
 export const ThemeProvider = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', 'system'
+  const [themeMode, setThemeMode] = useState('dark'); // 'light', 'dark', 'system'
   const [isDark, setIsDark] = useState(true);
+
+  // Set global theme fallback immediately
+  useEffect(() => {
+    if (typeof global !== 'undefined') {
+      global.theme = FALLBACK_THEME;
+      global.themeContext = { theme: FALLBACK_THEME };
+    }
+  }, []);
   const [accentMode, setAccentModeState] = useState('classic'); // 'classic', 'luxio'
 
   useEffect(() => {
@@ -186,7 +233,18 @@ export const ThemeProvider = ({ children }) => {
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
+    // Fallback theme for runtime not ready scenarios
+    console.log('ThemeContext not available, using fallback theme');
+    return {
+      theme: FALLBACK_THEME,
+      isDark: true,
+      themeMode: 'dark',
+      toggleTheme: () => {},
+      setTheme: () => {},
+      accentMode: 'classic',
+      toggleAccent: () => {},
+      setAccentMode: () => {},
+    };
   }
   return context;
 };

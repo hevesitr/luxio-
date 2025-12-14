@@ -1,10 +1,10 @@
-# 💕 Lovex - Modern Társkereső Alkalmazás
+# 🚀 NexusLink - Futurisztikus Társkereső Alkalmazás
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![React Native](https://img.shields.io/badge/React%20Native-0.77.0-blue.svg)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo-54.0.0-black.svg)](https://expo.dev/)
 
-Modern, biztonságos társkereső alkalmazás AI-alapú ajánlásokkal, videó profilokkal és fejlett biztonsági funkciókkal.
+Egyedi, modern társkereső alkalmazás AI-alapú ajánlásokkal, videó profilokkal, Spotify integrációval és fejlett prémium funkciókkal. Indigo és violet színsémával, egyedi UX dizájnnal.
 
 ---
 

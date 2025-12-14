@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   StyleSheet,
@@ -7,18 +8,28 @@ import {
   Alert,
   ActivityIndicator,
   Text,
+  Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import SwipeCard from '../components/SwipeCard';
 import MatchAnimation from '../components/MatchAnimation';
+import ChatScreen from './ChatScreen';
+import VideoProfile from '../components/VideoProfile';
+import StoryCircle from '../components/StoryCircle';
+import StoryViewer from '../components/StoryViewer';
+import ProfileDetailScreen from './ProfileDetailScreen';
 import AISearchModal from '../components/discovery/AISearchModal';
 import { profiles as initialProfiles } from '../data/profiles';
 import { currentUser } from '../data/userProfile';
 import MatchService from '../services/MatchService';
 import DiscoveryService from '../services/DiscoveryService';
 import CompatibilityService from '../services/CompatibilityService';
+import StoryService from '../services/StoryService';
+import AIRecommendationService from '../services/AIRecommendationService';
 import Logger from '../services/Logger';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -55,8 +66,28 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
  * - Jobb nyíl - Like
  */
 
+// Global theme safety function
+const getSafeTheme = (theme) => {
+  if (!theme || !theme.colors) {
+    console.log('Using global theme safety fallback');
+    return {
+      colors: {
+        primary: '#00D4FF',
+        text: '#00D4FF',
+        success: '#00FF88',
+        error: '#FF0080',
+        info: '#06B6D4',
+        background: '#0F0F23',
+        surface: '#1A1A2E',
+        border: '#475569',
+        gradient: ['#00D4FF', '#8B5CF6']
+      }
+    };
+  }
+  return theme;
+};
+
 const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
-  const { theme } = useTheme();
   const { user } = useAuth();
 
   const [profiles, setProfiles] = useState([]);
@@ -66,11 +97,66 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
   const [matchAnimVisible, setMatchAnimVisible] = useState(false);
   const [matchedProfile, setMatchedProfile] = useState(null);
   const [compatibility, setCompatibility] = useState(null);
+  const [chatVisible, setChatVisible] = useState(false);
+  const [chatProfile, setChatProfile] = useState(null);
+  const [returnToMatchPopup, setReturnToMatchPopup] = useState(false);
+
+  // Felfedezés oldal megjelenítési beállítások
+  const [discoverySettings, setDiscoverySettings] = useState({
+    showTopButtons: true,        // Felső gombok (verifikáció, AI, térkép)
+    showStories: true,          // Stories container
+    showTopIcons: true,         // Felső ikonsor (7 ikon)
+    showRightActions: true,     // Jobb oldali akciók
+    showBackButton: true,       // Bal alsó vissza gomb
+    showActionButtons: true,    // Alsó akció gombok (pass/superlike/like)
+    showBottomNav: true         // Alsó navigációs sáv
+  });
+  const [videoProfileVisible, setVideoProfileVisible] = useState(false);
+  const [videoProfile, setVideoProfile] = useState(null);
+  const [stories, setStories] = useState([]);
+  const [storyViewerVisible, setStoryViewerVisible] = useState(false);
+  const [storyViewerIndex, setStoryViewerIndex] = useState(0);
+  const [storiesVisible, setStoriesVisible] = useState(true);
+  const [showOnlyVerified, setShowOnlyVerified] = useState(false);
+  const [searchFilters, setSearchFilters] = useState(null);
+  const [aiModeEnabled, setAiModeEnabled] = useState(false);
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [sugarDatingMode, setSugarDatingMode] = useState(false);
+  const [sugarDatingIntroShown, setSugarDatingIntroShown] = useState(false);
+  const [profileDetailVisible, setProfileDetailVisible] = useState(false);
+  const [detailProfile, setDetailProfile] = useState(null);
   const [aiSearchModalVisible, setAiSearchModalVisible] = useState(false);
+  const [lastAction, setLastAction] = useState(null);
 
   const currentProfile = useMemo(() => 
     profiles[currentIndex],
     [profiles, currentIndex]
+  );
+
+  // Betöltjük a felfedezés oldal beállításait
+  const loadDiscoverySettings = useCallback(async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('discoverySettings');
+      if (savedSettings) {
+        setDiscoverySettings(JSON.parse(savedSettings));
+      }
+    } catch (error) {
+      console.warn('Failed to load discovery settings:', error);
+    }
+  }, []);
+
+  // Betöltjük a beállításokat komponens mount és fókusz esetén
+  useEffect(() => {
+    loadDiscoverySettings();
+  }, [loadDiscoverySettings]);
+
+  // Frissítjük a beállításokat minden alkalommal, amikor a képernyő fókuszba kerül
+  useFocusEffect(
+    useCallback(() => {
+      loadDiscoverySettings();
+    }, [loadDiscoverySettings])
   );
 
   // Load profiles
@@ -97,6 +183,33 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
       setCompatibility(comp);
     }
   }, [currentProfile, user]);
+
+  // Load stories on component mount
+  useEffect(() => {
+    const loadStories = async () => {
+      try {
+        const testStories = await StoryService.generateTestStories(initialProfiles);
+
+        // Transform stories for display
+        const storiesWithProfile = testStories.map(userStory => {
+          const profile = initialProfiles.find(p => p.id === userStory.userId);
+          return {
+            ...profile,
+            stories: userStory.stories.map(story => ({
+              ...story,
+              timeAgo: StoryService.getTimeAgo(story.createdAt),
+            })),
+          };
+        });
+
+        setStories(storiesWithProfile);
+      } catch (error) {
+        console.error('HomeScreen: Error loading stories:', error);
+      }
+    };
+
+    loadStories();
+  }, []);
 
   const loadProfiles = async () => {
     console.log('HomeScreen: loadProfiles started');
@@ -158,6 +271,14 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
 
     setSwipeLoading(true);
     try {
+      // Save last action for rewind
+      setLastAction({
+        type: 'pass',
+        profile: profile,
+        index: currentIndex,
+        timestamp: Date.now()
+      });
+
       const result = await MatchService.processSwipe(user.id, profile.id, 'pass');
 
       if (result?.success) {
@@ -189,6 +310,14 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
 
     setSwipeLoading(true);
     try {
+      // Save last action for rewind
+      setLastAction({
+        type: 'like',
+        profile: profile,
+        index: currentIndex,
+        timestamp: Date.now()
+      });
+
       const result = await MatchService.processSwipe(user.id, profile.id, 'like');
 
       if (result?.success) {
@@ -379,6 +508,108 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
     }
   }, []);
 
+  // Chat functions (restored from December 2)
+  const handleOpenChatFromMatch = useCallback((profile) => {
+    setMatchAnimVisible(false);
+    const profileToUse = profile || matchedProfile;
+    console.log('HomeScreen: handleOpenChatFromMatch - profile:', profileToUse?.name, profileToUse?.id);
+    setChatProfile(profileToUse);
+    setReturnToMatchPopup(true);
+    setChatVisible(true);
+  }, [matchedProfile]);
+
+  const handleCloseChat = useCallback(() => {
+    setChatVisible(false);
+    const shouldReturnToMatch = returnToMatchPopup && matchedProfile;
+    setChatProfile(null);
+
+    if (shouldReturnToMatch) {
+      setTimeout(() => {
+        setMatchAnimVisible(true);
+      }, 300);
+    }
+
+    setReturnToMatchPopup(false);
+  }, [returnToMatchPopup, matchedProfile]);
+
+  const handleChatLastMessageUpdate = useCallback((message) => {
+    const targetId = chatProfile?.id || matchedProfile?.id;
+    if (!targetId || !message) {
+      return;
+    }
+    // Update last message in matches
+    if (onMatch) {
+      const updatedMatches = matches.map(match =>
+        match.id === targetId ? { ...match, lastMessage: message, lastMessageTime: new Date().toISOString() } : match
+      );
+      // This would typically be handled by parent component or service
+      console.log('HomeScreen: Last message updated for match:', targetId, message);
+    }
+  }, [chatProfile, matchedProfile, matches, onMatch]);
+
+  // Story functions
+  const handleStoryPress = useCallback((index) => {
+    setStoryViewerIndex(index);
+    setStoryViewerVisible(true);
+  }, []);
+
+  // Verified filter functions
+  const handleToggleVerifiedFilter = useCallback(() => {
+    setShowOnlyVerified(!showOnlyVerified);
+    // Filter profiles immediately
+    let filtered = initialProfiles;
+    if (!showOnlyVerified) {
+      filtered = filtered.filter(p => p.isVerified === true);
+    }
+    setProfiles(filtered);
+    setCurrentIndex(0);
+  }, [showOnlyVerified]);
+
+  // Profile detail functions
+  const handleOpenProfileDetail = useCallback((profile) => {
+    setDetailProfile(profile);
+    setProfileDetailVisible(true);
+  }, []);
+
+  const handleCloseProfileDetail = useCallback(() => {
+    setProfileDetailVisible(false);
+    setDetailProfile(null);
+  }, []);
+
+  // Rewind function (undo last swipe)
+  const handleRewind = useCallback(async () => {
+    if (!lastAction || !user?.id) return;
+
+    // Check if within 5 seconds
+    const timeDiff = Date.now() - lastAction.timestamp;
+    if (timeDiff > 5000) {
+      Alert.alert('Nem lehet visszacsinálni', 'Az utolsó művelet több mint 5 másodperce történt.');
+      return;
+    }
+
+    try {
+      // Go back to previous profile
+      setCurrentIndex(lastAction.index);
+
+      // Clear last action
+      setLastAction(null);
+
+      Alert.alert('Visszavonva', 'Az utolsó swipe visszavonva.');
+    } catch (error) {
+      console.error('HomeScreen: Rewind error:', error);
+      Alert.alert('Hiba', 'Nem sikerült visszavonni az utolsó műveletet.');
+    }
+  }, [lastAction, user?.id]);
+
+  // Video profile functions (restored from December 2)
+  const handleOpenVideoProfile = useCallback(() => {
+    if (currentIndex < profiles.length) {
+      const currentProfile = profiles[currentIndex];
+      // Temporary disable video profiles due to Pexels 403 errors
+      Alert.alert('Videó funkció', 'A videóprofilok jelenleg karbantartás alatt vannak. Hamarosan visszatérnek! 🎬');
+    }
+  }, [currentIndex, profiles]);
+
   const handleTopIconPress = useCallback((iconName) => {
     console.log('HomeScreen: Top icon pressed:', iconName);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -390,10 +621,16 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
         }
         break;
       case 'verified':
-        Alert.alert('Hitelesített Profilok', 'Csak hitelesített felhasználók megjelenítése');
+        handleToggleVerifiedFilter();
         break;
       case 'sparkles':
-        setAiSearchModalVisible(true);
+        if (navigation) {
+          // Navigate to live stream (Tinder Party feature)
+          navigation.navigate('ChatRooms', {
+            screen: 'LiveStream',
+            params: { isHost: false, hostName: 'Community' }
+          });
+        }
         break;
       case 'chart':
         if (navigation) {
@@ -422,9 +659,9 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#0F0F23' }]}>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ActivityIndicator size="large" color="#00D4FF" />
         </View>
       </SafeAreaView>
     );
@@ -432,9 +669,9 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
 
   if (!currentProfile) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#0F0F23' }]}>
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.text }]}>
+          <Text style={[styles.emptyText, { color: '#00D4FF' }]}>
             Nincs több profil
           </Text>
         </View>
@@ -443,15 +680,97 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <LinearGradient
+      colors={['#0F0F23', '#1A1A2E', '#0F0F23']}
+      style={styles.gradientContainer}
+    >
+      <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]} edges={[]}>
+      {/* Verifikációs szűrő és térkép gombok */}
+      {discoverySettings.showTopButtons && (
+        <View style={styles.topButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.verifiedFilterButton, showOnlyVerified && styles.verifiedFilterButtonActive]}
+            onPress={handleToggleVerifiedFilter}
+          >
+            <Ionicons
+              name={showOnlyVerified ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={20}
+              color={showOnlyVerified ? '#00D4FF' : '#00D4FF'}
+            />
+            <Text style={[styles.verifiedFilterText, showOnlyVerified && styles.verifiedFilterTextActive]}>
+              {showOnlyVerified ? 'Csak verifikált' : 'Összes'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.mapButton, aiModeEnabled && styles.aiButtonActive]}
+            onPress={() => {
+              if (!aiModeEnabled) {
+                setAiSearchModalVisible(true);
+              } else {
+                setAiDescription('');
+                setAiModeEnabled(false);
+              }
+            }}
+          >
+            <Ionicons
+              name={aiModeEnabled ? "sparkles" : "sparkles-outline"}
+              size={20}
+              color={aiModeEnabled ? '#00FF88' : '#00D4FF'}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={() => {
+              if (navigation) {
+                navigation.navigate('Profil', { screen: 'Map' });
+              }
+            }}
+          >
+            <Ionicons name="map-outline" size={20} color={'#00D4FF'} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Stories Container */}
+      {discoverySettings.showStories && stories.length > 0 && storiesVisible && (
+        <View style={styles.storiesContainer}>
+          <TouchableOpacity
+            style={styles.storiesToggleButton}
+            onPress={() => setStoriesVisible(false)}
+          >
+            <Ionicons name="chevron-up" size={24} color={'#00D4FF'} />
+          </TouchableOpacity>
+          <StoryCircle
+            key="own-story"
+            user={{
+              name: user?.name || 'Te',
+              photo: user?.photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop',
+              isOwn: true
+            }}
+            onPress={() => handleStoryPress(0)}
+          />
+          {stories.slice(0, 5).map((story, index) => (
+            <StoryCircle
+              key={`story-${story.id}-${index}`}
+              user={story}
+              isViewed={false}
+              onPress={() => handleStoryPress(index + 1)}
+            />
+          ))}
+        </View>
+      )}
+
       {/* Felső ikonsor - 7 ikon */}
-      <View style={styles.topIconBar} pointerEvents="box-none">
+      {discoverySettings.showTopIcons && (
+        <View style={styles.topIconBar} pointerEvents="box-none">
         <TouchableOpacity 
           style={styles.topIcon}
           onPress={() => handleTopIconPress('passport')}
           activeOpacity={0.7}
         >
-          <Ionicons name="airplane" size={24} color="#fff" />
+          <Ionicons name="airplane" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -459,7 +778,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           onPress={() => handleTopIconPress('verified')}
           activeOpacity={0.7}
         >
-          <Ionicons name="checkmark-circle" size={24} color="#fff" />
+          <Ionicons name="checkmark-circle" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -467,7 +786,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           onPress={() => handleTopIconPress('sparkles')}
           activeOpacity={0.7}
         >
-          <Ionicons name="sparkles" size={24} color="#fff" />
+          <Ionicons name="sparkles" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -475,7 +794,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           onPress={() => handleTopIconPress('chart')}
           activeOpacity={0.7}
         >
-          <Ionicons name="bar-chart" size={24} color="#fff" />
+          <Ionicons name="bar-chart" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -483,7 +802,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           onPress={() => handleTopIconPress('search')}
           activeOpacity={0.7}
         >
-          <Ionicons name="search" size={24} color="#fff" />
+          <Ionicons name="search" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -491,7 +810,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           onPress={() => handleTopIconPress('diamond')}
           activeOpacity={0.7}
         >
-          <Ionicons name="diamond" size={24} color="#fff" />
+          <Ionicons name="diamond" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -499,43 +818,113 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           onPress={() => handleTopIconPress('lightning')}
           activeOpacity={0.7}
         >
-          <Ionicons name="flash" size={24} color="#fff" />
+          <Ionicons name="flash" size={24} color={'#00D4FF'} />
         </TouchableOpacity>
-      </View>
+        </View>
+      )}
+
+      {/* Hidden Stories Toggle */}
+      {stories.length > 0 && !storiesVisible && (
+        <TouchableOpacity
+          style={styles.storiesToggleButtonHidden}
+          onPress={() => setStoriesVisible(true)}
+        >
+          <Ionicons name="chevron-down" size={24} color={'#00D4FF'} />
+        </TouchableOpacity>
+      )}
 
       {/* Profil kártya */}
-      <View style={styles.cardContainer} pointerEvents="box-none">
+      <View style={[styles.cardContainer, !storiesVisible && styles.cardContainerFullScreen]} pointerEvents="box-none">
         <SwipeCard
           key={currentProfile.id}
           profile={currentProfile}
           onSwipeLeft={handleSwipeLeft}
           onSwipeRight={handleSwipeRight}
           onSuperLike={handleSuperLike}
-          onProfilePress={() => {
-            console.log('HomeScreen: Opening profile detail');
-            if (navigation) {
-              navigation.navigate('Profil', { 
-                screen: 'ProfileDetail', 
-                params: { profile: currentProfile } 
-              });
-            }
-          }}
+          onProfilePress={() => handleOpenProfileDetail(currentProfile)}
           isFirst={true}
           userProfile={user || currentUser}
+          theme={theme}
+          fullScreen={true}
         />
 
+        {/* Premium funkciók megjelenítése */}
+        {discoverySettings.boostEnabled && (
+          <View style={[styles.premiumBadge, { top: 100, right: 20 }]}>
+            <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.premiumBadgeGradient}>
+              <Ionicons name="flash" size={16} color="#000" />
+              <Text style={styles.premiumBadgeText}>BOOST</Text>
+            </LinearGradient>
+          </View>
+        )}
+
+        {discoverySettings.spotlightEnabled && (
+          <View style={[styles.premiumBadge, { top: 140, right: 20 }]}>
+            <LinearGradient colors={['#FF6B9D', '#C44569']} style={styles.premiumBadgeGradient}>
+              <Ionicons name="sparkles" size={16} color="#fff" />
+              <Text style={styles.premiumBadgeText}>SPOTLIGHT</Text>
+            </LinearGradient>
+          </View>
+        )}
+
+        {/* Stories megjelenítése */}
+        {discoverySettings.storiesEnabled && stories.length > 0 && storiesVisible && (
+          <View style={styles.storiesContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {stories.map((story, index) => (
+                <StoryCircle
+                  key={story.id}
+                  story={story}
+                  onPress={() => handleStoryPress(index)}
+                  size={60}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Jobb oldali akciók */}
-        <View style={styles.rightActions} pointerEvents="box-none">
+        {discoverySettings.showRightActions && (
+          <View style={styles.rightActions} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.rightActionButton}
+            onPress={handleRewind}
+            activeOpacity={0.7}
+            disabled={!lastAction || (Date.now() - lastAction.timestamp) > 5000}
+          >
+            <Ionicons
+              name="refresh"
+              size={24}
+              color={(!lastAction || (Date.now() - lastAction.timestamp) > 5000) ? '#64748B' : '#00D4FF'}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={styles.rightActionButton}
             onPress={() => {
               console.log('HomeScreen: Refresh pressed');
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              // Safe Haptics call - prevent crashes if expo-haptics is not available
+              try {
+                if (Haptics && typeof Haptics.impactAsync === 'function') {
+                  Haptics.impactAsync('medium');
+                }
+              } catch (error) {
+                console.warn('Haptics not available:', error.message);
+              }
               loadProfiles();
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="refresh" size={24} color="#333" />
+            <Ionicons name="refresh-circle" size={24} color={'#00D4FF'} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.rightActionButton}
+            onPress={handleOpenVideoProfile}
+            activeOpacity={0.7}
+            disabled={currentIndex >= profiles.length}
+          >
+            <Ionicons name="videocam" size={24} color={'#8B5CF6'} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -547,26 +936,30 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="ellipsis-vertical" size={24} color="#333" />
+            <Ionicons name="ellipsis-vertical" size={24} color={'#00D4FF'} />
           </TouchableOpacity>
-        </View>
+          </View>
+        )}
 
         {/* Bal alsó vissza gomb */}
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => {
-            console.log('HomeScreen: Back pressed');
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setCurrentIndex(prev => Math.max(0, prev - 1));
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+        {discoverySettings.showBackButton && (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              console.log('HomeScreen: Back pressed');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setCurrentIndex(prev => Math.max(0, prev - 1));
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color={'#00D4FF'} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Alsó akció gombok - 3 gomb */}
-      <View style={styles.actionButtons} pointerEvents="box-none">
+      {discoverySettings.showActionButtons && (
+        <View style={styles.actionButtons} pointerEvents="box-none">
         <TouchableOpacity
           style={[styles.actionButton, styles.passButton]}
           onPress={() => {
@@ -576,7 +969,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={32} color="#FF4444" />
+          <Ionicons name="close" size={32} color={'#FF0080'} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -588,7 +981,7 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="star" size={28} color="#4A90E2" />
+          <Ionicons name="star" size={28} color={'#06B6D4'} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -600,23 +993,17 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="heart" size={32} color="#FF4444" />
+          <Ionicons name="heart" size={32} color={'#FF0080'} />
         </TouchableOpacity>
-      </View>
+        </View>
+      )}
 
       {/* Match Animation */}
       <MatchAnimation
         visible={matchAnimVisible}
         profile={matchedProfile}
         onClose={() => setMatchAnimVisible(false)}
-        onSendMessage={(profile) => {
-          console.log('HomeScreen: onSendMessage called with profile:', profile?.name);
-          setMatchAnimVisible(false);
-          navigation.navigate('Matchek', {
-            screen: 'Chat',
-            params: { match: profile }
-          });
-        }}
+        onSendMessage={handleOpenChatFromMatch}
         navigation={navigation}
         allMatches={matches}
       />
@@ -628,11 +1015,108 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
         onClose={() => setAiSearchModalVisible(false)}
         onSearch={handleAISearch}
       />
+
+      {/* Video Profile Modal - Restored from December 2 */}
+      <VideoProfile
+        visible={videoProfileVisible}
+        profile={videoProfile}
+        allProfiles={profiles}
+        userProfile={user}
+        onClose={() => setVideoProfileVisible(false)}
+        onLike={(profile) => {
+          handleSwipeRight(profile);
+          setVideoProfileVisible(false);
+        }}
+        onSkip={(profile) => {
+          handleSwipeLeft(profile);
+          setVideoProfileVisible(false);
+        }}
+        onQuickLike={(profile) => {
+          // Handle match but don't close video profile
+          const isMatch = Math.random() < 0.3; // 30% chance of match for demo
+          if (isMatch) {
+            setMatchedProfile(profile);
+            if (onMatch) onMatch(profile);
+            // Don't show match animation in video profile, just add to matches
+          }
+          // Update history but keep video profile open
+          setHistory((prev) => [...prev, { profile, action: 'right', index: currentIndex, isMatch }]);
+        }}
+      />
+
+      {/* Chat Modal - Restored from December 2 */}
+      <Modal
+        visible={chatVisible}
+        animationType="slide"
+        onRequestClose={handleCloseChat}
+      >
+        {chatProfile && (
+          <ChatScreen
+            match={chatProfile}
+            onClose={handleCloseChat}
+            onUpdateLastMessage={handleChatLastMessageUpdate}
+          />
+        )}
+      </Modal>
+
+      {/* Story Viewer Modal - Restored from December 2 */}
+      <StoryViewer
+        visible={storyViewerVisible}
+        stories={stories}
+        initialIndex={storyViewerIndex}
+        onClose={() => setStoryViewerVisible(false)}
+        onUserPress={(user) => {
+          setStoryViewerVisible(false);
+          // Optionally navigate to user profile
+        }}
+      />
+
+      {/* Profile Detail Modal - Restored from December 2 */}
+      <Modal
+        visible={profileDetailVisible}
+        animationType="slide"
+        onRequestClose={handleCloseProfileDetail}
+      >
+        {detailProfile && (
+          <ProfileDetailScreen
+            profile={detailProfile}
+            onClose={handleCloseProfileDetail}
+            onLike={() => handleSwipeRight(detailProfile)}
+            onPass={() => handleSwipeLeft(detailProfile)}
+          />
+        )}
+      </Modal>
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
+// Global theme safety function
+const safeTheme = (theme) => {
+  if (!theme || !theme.colors) {
+    console.log('Using global theme fallback');
+    return {
+      colors: {
+        primary: '#00D4FF',
+        text: '#00D4FF',
+        success: '#00FF88',
+        error: '#FF0080',
+        info: '#06B6D4',
+        background: '#0F0F23',
+        surface: '#1A1A2E',
+        border: '#475569',
+        gradient: ['#00D4FF', '#8B5CF6']
+      }
+    };
+  }
+  return theme;
+};
+
 const styles = StyleSheet.create({
+  gradientContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   container: {
     flex: 1,
   },
@@ -645,6 +1129,86 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
   },
+
+  // Verifikációs és térkép gombok
+  topButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+  },
+  verifiedFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  verifiedFilterButtonActive: {
+    borderColor: '#00D4FF',
+    backgroundColor: 'rgba(255, 59, 117, 0.1)',
+  },
+  verifiedFilterText: {
+    color: '#00D4FF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  verifiedFilterTextActive: {
+    color: '#00D4FF',
+  },
+  mapButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiButtonActive: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  },
+
+  // Stories
+  storiesContainer: {
+    position: 'absolute',
+    top: 70,
+    left: 0,
+    right: 0,
+    height: 100,
+    zIndex: 40,
+  },
+  storiesToggleButton: {
+    position: 'absolute',
+    top: -10,
+    right: 20,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 60,
+  },
+  storiesToggleButtonHidden: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 60,
+  },
   
   // Felső ikonsor
   topIconBar: {
@@ -654,11 +1218,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 12,
     position: 'absolute',
-    top: 0,
+    top: 170,
     left: 0,
     right: 0,
-    zIndex: 100,
-    backgroundColor: 'transparent',
+    zIndex: 50,
+    backgroundColor: 'rgba(15, 15, 35, 0.8)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: 25,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.3)',
+    shadowColor: '#00D4FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
   },
   topIcon: {
     width: 44,
@@ -676,13 +1250,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
 
-  // Profil kártya
+  // Profil kártya - teljes képernyő
   cardContainer: {
-    flex: 1,
-    marginTop: 60,
-    marginBottom: 140,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  cardContainerFullScreen: {
+    // Már alapértelmezetten teljes képernyő
   },
 
   // Match % badge
@@ -719,13 +1298,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(26, 26, 46, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 255, 0.5)',
+    shadowColor: '#00D4FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
     elevation: 8,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.05)',
@@ -752,6 +1333,39 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
 
+  // Premium badge-ek
+  premiumBadge: {
+    position: 'absolute',
+    zIndex: 100,
+  },
+  premiumBadgeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  premiumBadgeText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+
+  // Stories container
+  storiesContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 16,
+    right: 16,
+    zIndex: 40,
+  },
+
   // Alsó akció gombok
   actionButtons: {
     flexDirection: 'row',
@@ -769,16 +1383,16 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(26, 26, 46, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(0, 212, 255, 0.6)',
+    shadowColor: '#00D4FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 15,
   },
   passButton: {
     width: 56,

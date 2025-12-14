@@ -45,9 +45,18 @@ class PushNotificationService extends BaseService {
         return;
       }
 
-      // Expo push token lekérése
-      const token = await Notifications.getExpoPushTokenAsync();
-      this.expoPushToken = token.data;
+      // Expo push token lekérése - biztonságos hívás
+      try {
+        const token = await Notifications.getExpoPushTokenAsync();
+        this.expoPushToken = token.data;
+      } catch (tokenError) {
+        this.log.error('PushNotificationService: Failed to get push token', {
+          message: tokenError?.message || 'Token retrieval failed',
+          context: { existingStatus, finalStatus }
+        });
+        // Ne állítsuk le a folyamatot, csak logoljuk a hibát
+        return;
+      }
 
       // Token mentése lokálisan és Supabase-be
       await this.savePushToken(this.expoPushToken);

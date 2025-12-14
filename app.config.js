@@ -26,22 +26,22 @@ if (!EXPO_PUBLIC_SUPABASE_URL || !EXPO_PUBLIC_SUPABASE_ANON_KEY) {
 
 module.exports = {
   expo: {
-    name: 'LoveX',
-    slug: 'lovex-dating',
+    name: 'NexusLink',
+    slug: 'nexuslink-dating',
     version: '1.0.0',
     orientation: 'portrait',
     userInterfaceStyle: 'light',
     icon: './assets/icon.png',
     splash: {
       image: './assets/splash.png',
-      backgroundColor: '#FF3B75',
+      backgroundColor: '#0F0F23',
       resizeMode: 'contain'
     },
     assetBundlePatterns: [
       '**/*'
     ],
     ios: {
-      bundleIdentifier: 'com.lovex.dating',
+      bundleIdentifier: 'com.nexuslink.dating',
       buildNumber: '1',
       supportsTablet: false,
       infoPlist: {
@@ -51,11 +51,11 @@ module.exports = {
       }
     },
     android: {
-      package: 'com.lovex.dating',
+      package: 'com.nexuslink.dating',
       versionCode: 1,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#FF3B75'
+        backgroundColor: '#0F0F23'
       },
       permissions: [
         'CAMERA',

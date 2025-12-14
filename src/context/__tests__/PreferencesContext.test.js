@@ -3,13 +3,15 @@
  */
 import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PreferencesProvider, usePreferences } from '../PreferencesContext';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
+  getItem: jest.fn(() => Promise.resolve(null)),
+  setItem: jest.fn(() => Promise.resolve()),
+  removeItem: jest.fn(() => Promise.resolve()),
+  multiRemove: jest.fn(() => Promise.resolve()),
 }));
 
 // Mock Supabase
@@ -49,24 +51,23 @@ describe('PreferencesContext', () => {
       showOnlyVerified: false,
     });
 
-    expect(result.current.preferences).toEqual({
-      notifications: {
-        newMatches: true,
-        newMessages: true,
-        likes: true,
-        superLikes: true,
-        promotions: false,
-      },
-      privacy: {
-        showOnlineStatus: true,
-        showDistance: true,
-        showAge: true,
-      },
-      theme: 'light',
-      language: 'hu',
+    expect(result.current.notificationSettings).toEqual({
+      newMatches: true,
+      newMessages: true,
+      likes: true,
+      superLikes: true,
+      promotions: false,
     });
 
-    expect(result.current.isLoading).toBe(false);
+    expect(result.current.privacySettings).toEqual({
+      showOnlineStatus: true,
+      showDistance: true,
+      showAge: true,
+      allowMessageRequests: true,
+    });
+
+    expect(result.current.theme).toBe('light');
+    expect(result.current.language).toBe('hu');
   });
 
   it('should update filters', async () => {
@@ -102,14 +103,12 @@ describe('PreferencesContext', () => {
     });
 
     await act(async () => {
-      await result.current.updatePreferences({
-        notifications: { newMatches: false },
-        theme: 'dark',
-      });
+      await result.current.updateNotificationSettings({ newMatches: false });
+      await result.current.changeLanguage('en');
     });
 
-    expect(result.current.preferences.notifications.newMatches).toBe(false);
-    expect(result.current.preferences.theme).toBe('dark');
+    expect(result.current.notificationSettings.newMatches).toBe(false);
+    expect(result.current.language).toBe('en');
   });
 
   it('should reset preferences to defaults', async () => {
@@ -118,10 +117,12 @@ describe('PreferencesContext', () => {
     });
 
     await act(async () => {
-      await result.current.updatePreferences({ theme: 'dark' });
-      await result.current.resetPreferences();
+      await result.current.updateNotificationSettings({ newMatches: false });
+      await result.current.changeLanguage('en');
+      await result.current.resetAllPreferences();
     });
 
-    expect(result.current.preferences.theme).toBe('light');
+    expect(result.current.notificationSettings.newMatches).toBe(true);
+    expect(result.current.language).toBe('hu');
   });
 });
