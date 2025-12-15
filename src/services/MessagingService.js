@@ -2,6 +2,7 @@
  * MessagingService - Real-time üzenetek kezelése
  * Követelmény: 4.1 - Real-time messaging rendszer
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BaseService from './BaseService';
 import { supabase } from './supabaseClient';
 import Logger from './Logger';
@@ -85,37 +86,48 @@ class MessagingService extends BaseService {
    */
   async sendMessageOnline(message) {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert([message])
-        .select()
-        .single();
+      // Check if we're in demo mode (__DEV__ environment or missing Supabase)
+      const isDemoMode = __DEV__ || !supabase || typeof supabase.from !== 'function';
+      console.log('MessagingService: sendMessageOnline - isDemoMode:', isDemoMode, '__DEV__:', __DEV__, 'supabase exists:', !!supabase);
 
-      if (error) {
-        this.log.error('Failed to send message online', { error });
-        return { success: false, error };
+      if (isDemoMode) {
+        this.log.debug('sendMessageOnline skipped in demo mode', { messageId: message.id });
+        // Simulate successful send in demo mode
+        await this.updateMessageLocally({ ...message, status: 'sent' });
+        return { success: true, message };
       }
 
-      // Lokális cache frissítés a Supabase ID-vel
-      await this.updateMessageLocally({ ...message, id: data.id, status: 'sent' });
+        const { data, error } = await supabase
+          .from('messages')
+          .insert([message])
+          .select()
+          .single();
 
-      // Push értesítés küldése (háttérben)
-      this.sendPushNotificationForMessage({
-        conversationId: message.conversation_id,
-        senderId: message.sender_id,
-        receiverId: message.receiver_id,
-        content: message.content,
-        type: message.type
-      }).catch(error => {
-        this.log.warn('Failed to send push notification for message', error);
-      });
+        if (error) {
+          this.log.error('Failed to send message online', { error });
+          return { success: false, error };
+        }
 
-      return { success: true, message: data };
+        // Lokális cache frissítés a Supabase ID-vel
+        await this.updateMessageLocally({ ...message, id: data.id, status: 'sent' });
 
-    } catch (error) {
-      this.log.error('Exception in sendMessageOnline', error);
-      return { success: false, error };
-    }
+        // Push értesítés küldése (háttérben)
+        this.sendPushNotificationForMessage({
+          conversationId: message.conversation_id,
+          senderId: message.sender_id,
+          receiverId: message.receiver_id,
+          content: message.content,
+          type: message.type
+        }).catch(error => {
+          this.log.warn('Failed to send push notification for message', error);
+        });
+
+        return { success: true, message: data };
+
+      } catch (supabaseError) {
+        this.log.error('Exception in sendMessageOnline Supabase call', supabaseError);
+        return { success: false, error: supabaseError };
+      }
   }
 
   /**
@@ -139,7 +151,7 @@ class MessagingService extends BaseService {
       // Ha nincs cache, Supabase-ből
       const result = await this.loadMessagesOnline(conversationId, options);
 
-      if (result.success) {
+      if (result.success && result.messages) {
         // Cache mentése
         await this.saveMessagesLocally(result.messages);
         return result.messages;
@@ -155,6 +167,13 @@ class MessagingService extends BaseService {
    */
   async loadMessagesOnline(conversationId, options = {}) {
     try {
+      // Check if we're in demo mode (__DEV__ environment or missing Supabase)
+      const isDemoMode = __DEV__ || !supabase || typeof supabase.from !== 'function';
+      if (isDemoMode) {
+        this.log.debug('loadMessagesOnline skipped in demo mode', { conversationId });
+        return { success: true, messages: [] };
+      }
+
       const { limit = 50, offset = 0, before, after } = options;
 
       let query = supabase
@@ -259,6 +278,13 @@ class MessagingService extends BaseService {
    */
   async setTypingStatus(conversationId, userId, isTyping) {
     try {
+      // Skip typing status updates in demo mode
+      const isDemoMode = !supabase || typeof supabase.from !== 'function';
+      if (isDemoMode) {
+        this.log.debug('Typing status skipped in demo mode', { conversationId, userId, isTyping });
+        return;
+      }
+
       if (isTyping) {
         await supabase
           .from('typing_indicators')
@@ -290,6 +316,18 @@ class MessagingService extends BaseService {
   subscribeToTyping(conversationId, callback) {
     if (this.typingSubscriptions.has(conversationId)) {
       this.unsubscribeFromTyping(conversationId);
+    }
+
+    // Skip subscription in demo mode
+    const isDemoMode = !supabase || typeof supabase.from !== 'function';
+    if (isDemoMode) {
+      this.log.debug('Typing subscription skipped in demo mode', { conversationId });
+      // Create a mock subscription object
+      const mockSubscription = {
+        unsubscribe: () => this.log.debug('Mock typing subscription unsubscribed', { conversationId })
+      };
+      this.typingSubscriptions.set(conversationId, mockSubscription);
+      return;
     }
 
     const subscription = supabase
@@ -328,6 +366,13 @@ class MessagingService extends BaseService {
    */
   async getActiveTypingUsers(conversationId) {
     try {
+      // Return empty array in demo mode
+      const isDemoMode = !supabase || typeof supabase.from !== 'function';
+      if (isDemoMode) {
+        this.log.debug('getActiveTypingUsers skipped in demo mode', { conversationId });
+        return [];
+      }
+
       const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
 
       const { data, error } = await supabase
@@ -445,6 +490,41 @@ class MessagingService extends BaseService {
       await AsyncStorage.setItem(key, JSON.stringify(messages));
     } catch (error) {
       this.log.error('Failed to save message locally', error);
+    }
+  }
+
+  async saveMessagesLocally(messages) {
+    try {
+      if (!messages || messages.length === 0) return;
+
+      // Csoportosítás conversation_id szerint
+      const messagesByConversation = messages.reduce((acc, message) => {
+        const key = message.conversation_id;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(message);
+        return acc;
+      }, {});
+
+      // Minden conversation-hez mentés
+      for (const [conversationId, conversationMessages] of Object.entries(messagesByConversation)) {
+        const key = `messages_${conversationId}`;
+        const existingMessages = await this.loadMessagesLocally(conversationId);
+
+        // Összefésülés és duplikáció eltávolítás
+        const mergedMessages = [...existingMessages];
+        conversationMessages.forEach(newMessage => {
+          const existingIndex = mergedMessages.findIndex(m => m.id === newMessage.id);
+          if (existingIndex >= 0) {
+            mergedMessages[existingIndex] = newMessage;
+          } else {
+            mergedMessages.push(newMessage);
+          }
+        });
+
+        await AsyncStorage.setItem(key, JSON.stringify(mergedMessages));
+      }
+    } catch (error) {
+      this.log.error('Failed to save messages locally', error);
     }
   }
 

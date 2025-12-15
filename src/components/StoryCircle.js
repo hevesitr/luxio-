@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const StoryCircle = ({ user, onPress, isViewed = false, isOwnStory = false }) => {
+  const defaultPhoto = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop';
+
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={[styles.avatarContainer, !isViewed && styles.avatarGlow]}>
@@ -14,13 +16,13 @@ const StoryCircle = ({ user, onPress, isViewed = false, isOwnStory = false }) =>
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.avatarInner}>
-              <Image source={{ uri: user.photo }} style={styles.avatar} />
+              <Image source={{ uri: user?.photo || defaultPhoto }} style={styles.avatar} />
               <View style={styles.shine} />
             </View>
           </LinearGradient>
         ) : (
           <View style={styles.viewedBorder}>
-            <Image source={{ uri: user.photo }} style={styles.avatar} />
+            <Image source={{ uri: user?.photo || defaultPhoto }} style={styles.avatar} />
           </View>
         )}
         {isOwnStory && (

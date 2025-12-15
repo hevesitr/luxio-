@@ -245,17 +245,22 @@ function TabNavigator({ matches, addMatch, removeMatch }) {
         options={{ unmountOnBlur: true }}
         listeners={({ navigation }) => ({
           tabPress: () => {
-            // Force remount of the Profile stack so it always opens on ProfileMain
+            // Always force navigation to ProfileMain and remount the stack
             setProfileStackKey(prev => prev + 1);
             navigation.dispatch(
-              CommonActions.navigate({
-                name: 'Profil',
-                params: {
-                  screen: 'ProfileMain',
-                  params: {
-                    resetTimestamp: Date.now(),
+              CommonActions.reset({
+                index: 0,
+                routes: [{
+                  name: 'Profil',
+                  state: {
+                    routes: [{
+                      name: 'ProfileMain',
+                      params: {
+                        resetTimestamp: Date.now(),
+                      },
+                    }],
                   },
-                },
+                }],
               })
             );
           },

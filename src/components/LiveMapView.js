@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image, PanResponder, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 
@@ -63,6 +63,12 @@ const LiveMapView = React.forwardRef(({ profiles: profilesProp, nearbyProfiles, 
   // Animation for user location pulse
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Zoom and pan state for mock map
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const lastGesture = useRef({ x: 0, y: 0, zoom: 1 });
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
   useEffect(() => {
     if (gpsEnabled) {
       const pulse = Animated.loop(
@@ -83,6 +89,20 @@ const LiveMapView = React.forwardRef(({ profiles: profilesProp, nearbyProfiles, 
       return () => pulse.stop();
     }
   }, [gpsEnabled]);
+
+  // Simple zoom controls (removed complex PanResponder for now)
+  const handleZoomIn = () => {
+    setZoom(Math.min(3, zoom + 0.3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(Math.max(0.5, zoom - 0.3));
+  };
+
+  const resetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
 
   // Use real Google Maps if available, otherwise fallback to mock
   if (MapView) {
@@ -171,11 +191,22 @@ const LiveMapView = React.forwardRef(({ profiles: profilesProp, nearbyProfiles, 
   console.log('LiveMapView: Using fallback mock map');
   return (
     <View style={styles.container}>
-      {/* Mock map background */}
+      {/* Mock map background with zoom and pan */}
       <View style={styles.mapBackground}>
-        <View style={styles.mapGrid}>
+        <Animated.View
+          style={[
+            styles.mapGrid,
+            {
+              transform: [
+                { scale: zoom },
+                { translateX: pan.x },
+                { translateY: pan.y },
+              ],
+            },
+          ]}
+        >
           {/* Profile markers on the map */}
-          {profiles.length > 0 ? profiles.slice(0, 6).map((profile, index) => {
+        {profiles.length > 0 ? profiles.slice(0, 6).map((profile, index) => {
             // Calculate position based on coordinates if available
             const lat = profile.location?.latitude || 47.4979;
             const lng = profile.location?.longitude || 19.0402;
@@ -262,10 +293,17 @@ const LiveMapView = React.forwardRef(({ profiles: profilesProp, nearbyProfiles, 
               </Animated.View>
             </View>
           )}
-        </View>
+        </Animated.View>
       </View>
 
       <View style={styles.mapControls}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={handleZoomIn}
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.controlButton, gpsEnabled && styles.controlButtonActive]}
           onPress={() => {
@@ -278,6 +316,20 @@ const LiveMapView = React.forwardRef(({ profiles: profilesProp, nearbyProfiles, 
             size={20}
             color={gpsEnabled ? "#FF3B75" : "#fff"}
           />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={resetView}
+        >
+          <Ionicons name="refresh" size={20} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={handleZoomOut}
+        >
+          <Ionicons name="remove" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -313,6 +365,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     position: 'relative',
     borderRadius: 12,
+    // Chessboard pattern for better visual
+    backgroundImage: `
+      linear-gradient(45deg, #E8F4FD 25%, transparent 25%),
+      linear-gradient(-45deg, #E8F4FD 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #E8F4FD 75%),
+      linear-gradient(-45deg, transparent 75%, #E8F4FD 75%)
+    `,
+    backgroundSize: '20px 20px',
+    backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
   },
   profileMarker: {
     position: 'absolute',

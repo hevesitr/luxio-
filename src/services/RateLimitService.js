@@ -7,6 +7,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 const RATE_LIMIT_KEY = '@rate_limits';
 const WINDOW_SIZE = 60000; // 1 minute in milliseconds
@@ -33,9 +34,18 @@ class RateLimitService {
     this.localCache = new Map();
     this.initialized = false;
 
-    // Auto-clear demo rate limits in development
-    if (__DEV__) {
+    // Rate limiting behavior based on environment configuration
+    // Check app config for rate limiting settings
+    const extra = Constants?.expoConfig?.extra || Constants?.manifest?.extra || {};
+    const disableRateLimits = extra.DISABLE_RATE_LIMITS === 'true' ||
+                              process.env.EXPO_PUBLIC_DISABLE_RATE_LIMITS === 'true';
+
+    // Only auto-clear demo rate limits if explicitly disabled
+    if (disableRateLimits) {
+      console.log('[RateLimit] ⚠️ Rate limiting disabled via configuration');
       RateLimitService.autoClearDemoRateLimits();
+    } else {
+      console.log('[RateLimit] ✅ Rate limiting enabled (production mode)');
     }
 
     // Default rate limits per endpoint

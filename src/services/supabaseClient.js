@@ -109,6 +109,18 @@ if (FORCE_DEMO_MODE || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
         };
       },
     },
+    channel: (channelName) => ({
+      on: (event, config, callback) => ({
+        subscribe: (callback2) => {
+          console.log(`🔒 Demo mode: Subscribe to ${channelName}`);
+          // Mock subscription - no real-time updates in demo mode
+          if (callback2) callback2();
+          return {
+            unsubscribe: () => console.log(`🔒 Demo mode: Unsubscribe from ${channelName}`)
+          };
+        }
+      })
+    }),
     from: (table) => ({
       select: (columns) => ({
         eq: (column, value) => ({
@@ -242,6 +254,161 @@ if (FORCE_DEMO_MODE || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
                         order_index: 0
                       }
                     ]
+                  },
+                  {
+                    id: '4',
+                    user_id: 'user-4',
+                    bio: 'Fitness enthusiast and food lover 🍎💪',
+                    interests: ['Fitness', 'Cooking', 'Yoga'],
+                    relationship_goal: 'long_term',
+                    location_latitude: 47.4779,
+                    location_longitude: 19.0602,
+                    location_city: 'Budapest',
+                    location_country: 'Hungary',
+                    is_verified: true,
+                    is_premium: false,
+                    is_sugar_dating: false,
+                    users: {
+                      id: 'user-4',
+                      name: 'Kata',
+                      birth_date: '1996-11-08',
+                      last_active: new Date().toISOString(),
+                      gender: 'female',
+                      looking_for: ['male']
+                    },
+                    profile_photos: [
+                      {
+                        url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&h=800&fit=crop',
+                        thumbnail_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&h=200&fit=crop',
+                        is_primary: true,
+                        is_private: false,
+                        order_index: 0
+                      }
+                    ]
+                  },
+                  {
+                    id: '5',
+                    user_id: 'user-5',
+                    bio: 'Artist and dreamer 🎨✨',
+                    interests: ['Art', 'Music', 'Travel'],
+                    relationship_goal: 'casual',
+                    location_latitude: 47.4679,
+                    location_longitude: 19.0702,
+                    location_city: 'Budapest',
+                    location_country: 'Hungary',
+                    is_verified: false,
+                    is_premium: true,
+                    is_sugar_dating: false,
+                    users: {
+                      id: 'user-5',
+                      name: 'Zsófia',
+                      birth_date: '1994-03-25',
+                      last_active: new Date().toISOString(),
+                      gender: 'female',
+                      looking_for: ['male']
+                    },
+                    profile_photos: [
+                      {
+                        url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=800&fit=crop',
+                        thumbnail_url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=150&h=200&fit=crop',
+                        is_primary: true,
+                        is_private: false,
+                        order_index: 0
+                      }
+                    ]
+                  },
+                  {
+                    id: '6',
+                    user_id: 'user-6',
+                    bio: 'Tech lover and gamer 🎮💻',
+                    interests: ['Gaming', 'Technology', 'Movies'],
+                    relationship_goal: 'long_term',
+                    location_latitude: 47.4579,
+                    location_longitude: 19.0802,
+                    location_city: 'Budapest',
+                    location_country: 'Hungary',
+                    is_verified: true,
+                    is_premium: false,
+                    is_sugar_dating: false,
+                    users: {
+                      id: 'user-6',
+                      name: 'Béla',
+                      birth_date: '1992-07-14',
+                      last_active: new Date().toISOString(),
+                      gender: 'male',
+                      looking_for: ['female']
+                    },
+                    profile_photos: [
+                      {
+                        url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop',
+                        thumbnail_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=200&fit=crop',
+                        is_primary: true,
+                        is_private: false,
+                        order_index: 0
+                      }
+                    ]
+                  },
+                  {
+                    id: '7',
+                    user_id: 'user-7',
+                    bio: 'Nature lover and photographer 📸🌿',
+                    interests: ['Photography', 'Hiking', 'Nature'],
+                    relationship_goal: 'long_term',
+                    location_latitude: 47.4479,
+                    location_longitude: 19.0902,
+                    location_city: 'Budapest',
+                    location_country: 'Hungary',
+                    is_verified: false,
+                    is_premium: false,
+                    is_sugar_dating: false,
+                    users: {
+                      id: 'user-7',
+                      name: 'Gábor',
+                      birth_date: '1990-12-01',
+                      last_active: new Date().toISOString(),
+                      gender: 'male',
+                      looking_for: ['female']
+                    },
+                    profile_photos: [
+                      {
+                        url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&fit=crop',
+                        thumbnail_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=200&fit=crop',
+                        is_primary: true,
+                        is_private: false,
+                        order_index: 0
+                      }
+                    ]
+                  },
+                  {
+                    id: '8',
+                    user_id: 'user-8',
+                    bio: 'Bookworm and coffee addict 📖☕',
+                    interests: ['Reading', 'Writing', 'Coffee'],
+                    relationship_goal: 'casual',
+                    location_latitude: 47.4379,
+                    location_longitude: 19.1002,
+                    location_city: 'Budapest',
+                    location_country: 'Hungary',
+                    is_verified: true,
+                    is_premium: true,
+                    is_sugar_dating: false,
+                    users: {
+                      id: 'user-8',
+                      name: 'Eszter',
+                      birth_date: '1993-09-18',
+                      last_active: new Date().toISOString(),
+                      gender: 'female',
+                      looking_for: ['male']
+                    },
+                    profile_photos: [
+                      {
+                        url: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=600&h=800&fit=crop',
+                        thumbnail_url: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=150&h=200&fit=crop',
+                        is_primary: true,
+                        is_private: false,
+                        order_index: 0
+                      }
+                    ]
                   }
                 ] : [],
                 error: null
@@ -295,10 +462,13 @@ if (FORCE_DEMO_MODE || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
             })
           })
         }),
-        insert: (data) => Promise.resolve({
-          data: { ...data, id: 'demo-id' },
-          error: null
-        }),
+        insert: (data) => {
+          console.log(`🔒 Demo mode: Insert into ${table}`, data);
+          return Promise.resolve({
+            data: { ...data, id: Date.now().toString() },
+            error: null
+          });
+        },
         update: (data) => Promise.resolve({
           data: data,
           error: null

@@ -7,10 +7,33 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 
 const QUEUE_KEY = '@offline_queue';
 const PROCESSED_KEY = '@processed_actions';
+
+/**
+ * Generate a simple UUID-like string using Expo Crypto
+ */
+function generateId() {
+  try {
+    const array = new Uint8Array(16);
+    Crypto.getRandomValues(array);
+
+    // Convert to hex string in UUID format
+    let result = '';
+    for (let i = 0; i < array.length; i++) {
+      if (i === 4 || i === 6 || i === 8 || i === 10) result += '-';
+      const hex = array[i].toString(16).padStart(2, '0');
+      result += hex;
+    }
+
+    return result;
+  } catch (error) {
+    // Fallback to timestamp + random
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+}
 
 class OfflineQueueService {
   constructor() {
@@ -59,7 +82,7 @@ class OfflineQueueService {
    */
   async enqueue(action, data, userId) {
     try {
-      const actionId = uuidv4();
+      const actionId = generateId();
       const queuedAction = {
         id: actionId,
         action,
@@ -357,7 +380,7 @@ class OfflineQueueService {
     try {
       // Ensure message has an ID
       if (!message.id) {
-        message.id = uuidv4();
+        message.id = generateId();
       }
 
       const actionId = await this.enqueue('message', {

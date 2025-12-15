@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Text,
   Modal,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +26,7 @@ import ProfileDetailScreen from './ProfileDetailScreen';
 import AISearchModal from '../components/discovery/AISearchModal';
 import { profiles as initialProfiles } from '../data/profiles';
 import { currentUser } from '../data/userProfile';
+import { supabase } from '../services/supabaseClient';
 import MatchService from '../services/MatchService';
 import DiscoveryService from '../services/DiscoveryService';
 import CompatibilityService from '../services/CompatibilityService';
@@ -163,17 +165,6 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
   useEffect(() => {
     console.log('HomeScreen: useEffect triggered, calling loadProfiles');
     loadProfiles();
-    
-    // Timeout fallback - ha 5 másodperc után még mindig loading, használjuk az initialProfiles-t
-    const timeout = setTimeout(() => {
-      console.log('HomeScreen: Timeout reached, using initialProfiles');
-      if (loading) {
-        setProfiles(initialProfiles);
-        setLoading(false);
-      }
-    }, 5000);
-    
-    return () => clearTimeout(timeout);
   }, []);
 
   // Calculate compatibility for current profile
@@ -226,6 +217,22 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
 
       const userId = user.id;
       console.log('HomeScreen: Loading profiles for user:', userId);
+
+      // Check if we're in demo mode (no Supabase connection)
+      const isDemoMode = __DEV__ && (!supabase || typeof supabase.from !== 'function' || !supabase.from('profiles').select);
+
+      if (isDemoMode) {
+        console.log('HomeScreen: Demo mode detected, using mock profiles');
+        // Use DiscoveryService mock profiles instead of initialProfiles
+        const mockProfiles = await DiscoveryService.getDiscoveryProfiles(
+          { userId },
+          []
+        );
+        console.log('HomeScreen: mock profiles loaded:', mockProfiles.length);
+        setProfiles(mockProfiles);
+        setLoading(false);
+        return;
+      }
 
       const history = await MatchService.loadHistory(userId).catch(() => []);
       console.log('HomeScreen: history loaded:', history.length);
@@ -513,7 +520,22 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
     setMatchAnimVisible(false);
     const profileToUse = profile || matchedProfile;
     console.log('HomeScreen: handleOpenChatFromMatch - profile:', profileToUse?.name, profileToUse?.id);
-    setChatProfile(profileToUse);
+    console.log('HomeScreen: currentUser:', currentUser);
+
+    // Add matchId to the profile object for messaging
+    const matchId = `match_${currentUser.id}_${profileToUse.id}`;
+    console.log('HomeScreen: Generated matchId:', matchId);
+
+    const profileWithMatchId = {
+      ...profileToUse,
+      matchId: matchId
+    };
+
+    console.log('HomeScreen: profileWithMatchId:', profileWithMatchId);
+
+    // Set chat profile and open chat immediately
+    console.log('HomeScreen: Setting chatProfile:', profileWithMatchId);
+    setChatProfile(profileWithMatchId);
     setReturnToMatchPopup(true);
     setChatVisible(true);
   }, [matchedProfile]);
@@ -617,7 +639,12 @@ const HomeScreen = ({ navigation, onMatch, matches = [] }) => {
     switch(iconName) {
       case 'passport':
         if (navigation) {
-          navigation.navigate('Profil', { screen: 'Map' });
+          navigation.navigate('Profil', {
+            screen: 'Map',
+            params: {
+              nearbyProfiles: profiles.slice(0, 20) // Pass current profiles to map
+            }
+          });
         }
         break;
       case 'verified':

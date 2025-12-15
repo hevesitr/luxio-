@@ -11,6 +11,7 @@ import {
   Animated,
   ScrollView
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -117,7 +118,9 @@ const MapScreen = ({ navigation, route }) => {
   const slideAnim = new Animated.Value(0);
 
   // Mock profil adatok
-  const allProfiles = route?.params?.nearbyProfiles || [
+  // Get profiles from navigation params or use demo profiles
+  const navigationProfiles = route?.params?.nearbyProfiles;
+  const allProfiles = navigationProfiles && navigationProfiles.length > 0 ? navigationProfiles : [
     {
       id: 1,
       name: 'Anna',
@@ -212,27 +215,16 @@ const MapScreen = ({ navigation, route }) => {
 
   // Nézet váltás animáció
   const switchView = (newView) => {
-    // Különböző animációk különböző nézetekhez
-    let slideValue = 0;
-    if (newView === VIEW_TYPES.LIST) slideValue = -width;
-    else if (newView === VIEW_TYPES.CARDS) slideValue = -width * 2;
-
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: slideValue,
-        duration: 0,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    // Egyszerű fade animáció
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
       saveCurrentView(newView);
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
       }).start();
     });
@@ -419,17 +411,18 @@ const MapScreen = ({ navigation, route }) => {
       </View>
 
       {/* Main Content */}
-      <Animated.View
-        style={[
-          styles.contentContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateX: slideAnim }]
-          }
-        ]}
-      >
-        {renderCurrentView()}
-      </Animated.View>
+      <View style={styles.contentContainer}>
+        <Animated.View
+          style={[
+            styles.animatedContent,
+            {
+              opacity: fadeAnim,
+            }
+          ]}
+        >
+          {renderCurrentView()}
+        </Animated.View>
+      </View>
 
       {/* Profile Modal */}
       <Modal
@@ -677,6 +670,10 @@ const styles = StyleSheet.create({
 
   // Content container
   contentContainer: {
+    flex: 1,
+    backgroundColor: '#0F0F23',
+  },
+  animatedContent: {
     flex: 1,
   },
 

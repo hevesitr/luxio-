@@ -147,6 +147,20 @@ const MessageItem = memo(({ item, match, theme, formatTime, styles }) => (
 ));
 
 const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
+  console.log('ChatScreen: Received match prop:', match);
+  console.log('ChatScreen: match?.matchId:', match?.matchId);
+  console.log('ChatScreen: match?.id:', match?.id);
+
+  // Ensure matchId exists - add it if missing
+  const matchWithId = useMemo(() => {
+    if (match && !match.matchId && match.id) {
+      const matchId = `match_${currentUser.id}_${match.id}`;
+      console.log('ChatScreen: Adding matchId to match object:', matchId);
+      return { ...match, matchId };
+    }
+    return match;
+  }, [match]);
+
   const { theme } = useTheme();
   
   // Fallback theme protection
@@ -190,8 +204,19 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
 
   // Üzenetek betöltése és real-time figyelés
   useEffect(() => {
+    console.log('ChatScreen: useEffect triggered, match:', match);
+    console.log('ChatScreen: matchId:', match?.matchId);
+
     if (!match?.matchId) {
       Logger.warn('No matchId available for loading messages');
+      return;
+    }
+
+    loadMessagesAndSubscribe();
+  }, [match?.matchId]);
+
+  const loadMessagesAndSubscribe = useCallback(async () => {
+    if (!matchWithId?.matchId) {
       return;
     }
 
@@ -200,7 +225,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     // Üzenetek betöltése
     const loadMessages = async () => {
       try {
-        const messages = await messagingService.loadMessages(match.matchId);
+        const messages = await messagingService.loadMessages(matchWithId.matchId);
         if (messages && messages.length > 0) {
           const formattedMessages = messages.map(msg => ({
             id: msg.id,
@@ -220,7 +245,7 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     loadMessages();
 
     // Real-time üzenetek figyelése
-    messagingService.subscribeToMessages(match.matchId, (newMessage) => {
+    messagingService.subscribeToMessages(matchWithId.matchId, (newMessage) => {
       // Csak akkor adjuk hozzá, ha nem mi küldtük
       if (newMessage.sender_id !== currentUser.id) {
         const formattedMessage = {
@@ -236,19 +261,19 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
     });
 
     // Typing indikátor figyelése
-    messagingService.subscribeToTyping(match.matchId, (typingUsers) => {
+    messagingService.subscribeToTyping(matchWithId.matchId, (typingUsers) => {
       setIsTyping(typingUsers.length > 0);
     });
 
     // Cleanup
     return () => {
-      messagingService.unsubscribeFromMessages(match.matchId);
-      messagingService.unsubscribeFromTyping(match.matchId);
+      messagingService.unsubscribeFromMessages(matchWithId.matchId);
+      messagingService.unsubscribeFromTyping(matchWithId.matchId);
       if (typingTimeout) {
         clearTimeout(typingTimeout);
       }
     };
-  }, [match?.matchId]);
+  }, [matchWithId?.matchId, matchWithId]);
 
   const sendMessage = async (text = null) => {
     const messageText = text || inputText.trim();
@@ -258,12 +283,12 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
 
       // Üzenet küldése az új MessagingService-szel
       try {
-        if (match?.matchId) {
+        if (matchWithId?.matchId) {
           const messagingService = new MessagingService();
           const result = await messagingService.sendMessage(
-            match.matchId,
+            matchWithId.matchId,
             currentUser.id,
-            match.id, // receiverId
+            matchWithId.id, // receiverId
             {
               content: messageText,
               type: 'text'
@@ -368,12 +393,12 @@ const ChatScreen = ({ match, onClose, onUpdateLastMessage }) => {
       }
 
       // Typing állapot beállítása
-      await messagingService.setTypingStatus(match.matchId, currentUser.id, text.length > 0);
+      await messagingService.setTypingStatus(matchWithId.matchId, currentUser.id, text.length > 0);
 
       // Új timeout beállítása - 3 másodperc után állítsa le a typing-et
       if (text.length > 0) {
         const timeout = setTimeout(async () => {
-          await messagingService.setTypingStatus(match.matchId, currentUser.id, false);
+          await messagingService.setTypingStatus(matchWithId.matchId, currentUser.id, false);
         }, 3000);
         setTypingTimeout(timeout);
       }

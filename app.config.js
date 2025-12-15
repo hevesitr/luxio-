@@ -78,6 +78,8 @@ module.exports = {
       SUPABASE_ANON_KEY: EXPO_PUBLIC_SUPABASE_ANON_KEY,
       SUPABASE_PROJECT_ID: EXPO_PUBLIC_SUPABASE_PROJECT_ID,
       SUPABASE_REDIRECT_URL,
+      // Rate limiting configuration
+      DISABLE_RATE_LIMITS: process.env.EXPO_PUBLIC_DISABLE_RATE_LIMITS || false,
       eas: {
         projectId: 'your-project-id' // Ezt később frissítheted
       }

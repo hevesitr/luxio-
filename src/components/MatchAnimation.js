@@ -367,7 +367,7 @@ const MatchAnimation = ({ visible, onClose, onSendMessage, profile, allMatches =
                 >
                   <View style={styles.profileImageWrapper}>
                     <Image
-                      source={{ uri: currentProfile.photo }}
+                      source={{ uri: currentProfile?.photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop' }}
                       style={styles.profileImage}
                     />
                     <View style={styles.imageBorder} />
